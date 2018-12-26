@@ -1,8 +1,8 @@
 """initial workspace model
 
-Revision ID: b3963f8d20ad
+Revision ID: aa1be7bf78d2
 Revises: 
-Create Date: 2018-12-26 16:56:28.181062
+Create Date: 2018-12-26 18:07:38.162282
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'b3963f8d20ad'
+revision = 'aa1be7bf78d2'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -25,7 +25,7 @@ def upgrade():
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('creation_date', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.Column('temporary', sa.Boolean(), nullable=False),
-    sa.Column('data_url', sa.String(length=2048), nullable=False),
+    sa.Column('data_url', sa.String(length=2048), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     # ### end Alembic commands ###

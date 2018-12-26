@@ -36,8 +36,55 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Workspace'
+    post:
+      operationId: app.api.data.workspace.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewWorkspace'
+        required: true
+      responses:
+        201:
+          description: Workspace created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
 components:
   schemas:
+    NewWorkspace:
+      title: Workspace creation input type
+      description: Input data type to create a workspace
+      required:
+      - families
+      - name
+      - description
+      type: object
+      properties:
+        name:
+          type: string
+        families:
+          description: "Metadata requested for this workspace. The metadata request\
+            \ is represented by\nan object (i.e. a dictionary). The object keys are\
+            \ metadata family names; their\nvalues are the version number of the family.\
+            \ When the version is null, it is \nequivalent to requesting the latest\
+            \ version available."
+          type: object
+        description:
+          description: Descriptive text of the purpose of this workspace
+          type: string
+        temporary:
+          type: boolean
+      example: |-
+        {
+            "name": "my_workspace",
+            "families": {
+                "base": null,
+                "application": 123
+            },
+            "temporary": false
+        }
     Workspace:
       title: Workspace details type
       description: Workspace details
@@ -77,6 +124,7 @@ components:
         data_url:
           description: URL of a remote storage location for files used in this workspace
           type: string
+          nullable: true
         name:
           description: Name of the workspace
           type: string

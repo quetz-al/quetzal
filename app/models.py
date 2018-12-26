@@ -23,7 +23,7 @@ class Workspace(db.Model):
     description = db.Column(db.Text, nullable=False)
     creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
     temporary = db.Column(db.Boolean, nullable=False, default=False)
-    data_url = db.Column(db.String(2048), nullable=False)
+    data_url = db.Column(db.String(2048), nullable=True)
 
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \

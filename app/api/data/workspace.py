@@ -1,5 +1,6 @@
 import connexion
 
+from app import db
 from app.models import Workspace
 
 
@@ -30,3 +31,19 @@ def fetch():
     return [workspace.to_dict() for workspace in query_set.all()]
 
 
+def create(*, body):
+    """ Create a new workspace
+
+    Returns
+    -------
+    dict
+        Workspace details
+    """
+    workspace = Workspace(
+        name=body['name'],
+        temporary=body.get('temporary', False),
+        description=body['description'],
+    )
+    db.session.add(workspace)
+    db.session.commit()
+    return workspace.to_dict()
