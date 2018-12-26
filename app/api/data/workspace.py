@@ -1,7 +1,7 @@
 from requests import codes
 
 import connexion
-from connexion import NoContent
+from connexion import NoContent, problem
 
 from app import db
 from app.models import Workspace
@@ -99,5 +99,54 @@ def delete(id):
     workspace = Workspace.query.get(id)
     if workspace is None:
         # TODO: raise exception, when errors are managed correctly
-        return NoContent, codes.not_found
+        return problem(codes.not_found, 'Not found',
+                       f'Workspace {id} does not exist')
+    return workspace.to_dict(), codes.accepted
+
+
+def commit(id):
+    """ Request commit of all metadata and files of a workspace
+
+    Parameters
+    ----------
+    id: int
+        Workspace identifier
+
+    Returns
+    -------
+    dict
+        Workspace details
+    int
+        HTTP response code
+
+    """
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return problem(codes.not_found, 'Not found',
+                       f'Workspace {id} does not exist')
+    return workspace.to_dict(), codes.accepted
+
+
+def scan(id):
+    """ Request an update of the views of a workspace
+
+    Parameters
+    ----------
+    id: int
+        Workspace identifier
+
+    Returns
+    -------
+    dict
+        Workspace details
+    int
+        HTTP response code
+
+    """
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return problem(codes.not_found, 'Not found',
+                       f'Workspace {id} does not exist')
     return workspace.to_dict(), codes.accepted

@@ -88,6 +88,49 @@ paths:
       responses:
         202:
           description: Workspace marked for deletion
+  /api/data/workspaces/{id}/commit:
+    put:
+      summary: Commit a workspace
+      description: "Requests a workspace commit. That is, all metadata added or modified\
+        \ in this \nworkspace will be committed to the global workspace, becoming\
+        \ available to\nall users. Metadata versions will be incremented."
+      operationId: app.api.data.workspace.commit
+      parameters:
+      - name: id
+        in: path
+        description: ID of the workspace to commit
+        required: true
+        schema:
+          type: integer
+      responses:
+        202:
+          description: Successfully requested a workspace commit operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+  /api/data/workspaces/{id}/scan:
+    put:
+      summary: Update workspace views
+      description: |-
+        Requests the update of the views of a workspace. All the internal databases
+        used for the query operation will be updated to contain the latest modifications
+        of the metadata.
+      operationId: app.api.data.workspace.scan
+      parameters:
+      - name: id
+        in: path
+        description: ID of the workspace to scan
+        required: true
+        schema:
+          type: integer
+      responses:
+        202:
+          description: Successfully requested a workspace scan operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
 components:
   schemas:
     NewWorkspace:
