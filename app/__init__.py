@@ -13,9 +13,7 @@ application = app.app
 application.config.from_object(config.get(application.env))
 
 # Database
-print('Creating db')
 db = SQLAlchemy(application)
-print(f'db created {db}')
 migrate = Migrate(application, db)
 
 # APIs

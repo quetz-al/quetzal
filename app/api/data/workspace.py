@@ -1,4 +1,7 @@
+from requests import codes
+
 import connexion
+from connexion import NoContent
 
 from app import db
 from app.models import Workspace
@@ -11,6 +14,8 @@ def fetch():
     -------
     list
         List of Workspace details as a dictionaries
+    int
+        HTTP response code
 
     """
 
@@ -28,7 +33,7 @@ def fetch():
     if 'deleted' in query_args:
         raise NotImplementedError
 
-    return [workspace.to_dict() for workspace in query_set.all()]
+    return [workspace.to_dict() for workspace in query_set.all()], codes.ok
 
 
 def create(*, body):
@@ -38,6 +43,9 @@ def create(*, body):
     -------
     dict
         Workspace details
+
+    int
+        HTTP response code
     """
     workspace = Workspace(
         name=body['name'],
@@ -46,4 +54,50 @@ def create(*, body):
     )
     db.session.add(workspace)
     db.session.commit()
-    return workspace.to_dict()
+    return workspace.to_dict(), codes.created
+
+
+def details(id):
+    """ Get workspace details by id
+
+    Parameters
+    ----------
+    id: int
+        Workspace identifier
+
+    Returns
+    -------
+    dict
+        Workspace details
+    int
+        HTTP response code
+
+    """
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return NoContent, codes.not_found
+    return workspace.to_dict(), codes.ok
+
+
+def delete(id):
+    """ Request deletion of a workspace by id
+
+    Parameters
+    ----------
+    id: int
+        Workspace identifier
+
+    Returns
+    -------
+    dict
+        Workspace details
+    int
+        HTTP response code
+
+    """
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return NoContent, codes.not_found
+    return workspace.to_dict(), codes.accepted

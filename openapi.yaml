@@ -51,6 +51,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+  /api/data/workspaces/{id}:
+    get:
+      summary: Workspace details
+      description: Fetchs all workspace details
+      operationId: app.api.data.workspace.details
+      parameters:
+      - name: id
+        in: path
+        description: ID of workspace to fetch
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+    delete:
+      summary: Request deletion of a workspace
+      description: |-
+        Marks a workspace for deletion.
+        Workspaces cannot be immediately deleted, due to complex resource management.
+        The status of the workspace can be requested on this same path, using a GET
+        instead of a DELETE.
+      operationId: app.api.data.workspace.delete
+      parameters:
+      - name: id
+        in: path
+        description: ID of workspace to delete
+        required: true
+        schema:
+          type: integer
+      responses:
+        202:
+          description: Workspace marked for deletion
 components:
   schemas:
     NewWorkspace:
