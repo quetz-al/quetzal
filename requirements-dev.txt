@@ -1,0 +1,4 @@
+ipython
+ipdb
+docker-compose
+flask-shell-ipython

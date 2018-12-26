@@ -1,0 +1,8 @@
+Flask
+connexion[swagger-ui]
+celery
+SQLAlchemy
+Flask-SQLAlchemy
+Flask-Migrate
+alembic
+psycopg2-binary
