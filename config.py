@@ -15,6 +15,10 @@ class Config:
         f'sqlite:///{os.path.join(basedir, "app.db")}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Celery configuration
+    CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq:5672//'
+    CELERY_RESULT_BACKEND = 'rpc://'
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

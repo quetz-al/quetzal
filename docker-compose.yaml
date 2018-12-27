@@ -1,0 +1,53 @@
+version: '3'
+services:
+  db:
+    build:
+      context: ./docker/db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: pg_password
+    volumes:
+      # A persistent volume so that the database can be restored after a
+      # docker-compose stop.
+      # Note that it will be lost after a docker-compose down.
+      - /var/lib/postgresql/data
+    ports:
+      # For debugging, sometimes it is useful to open the database port
+      - "5432:5432"
+
+  rabbitmq:
+    build:
+      context: ./docker/rabbitmq
+    ports:
+      # Optional: exposing the 15672; the rabbitmq web management interface
+      - "15672:15672"
+
+  web:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    entrypoint: /entrypoint-server.sh
+    environment:
+      DATABASE_URL: postgresql://postgres:pg_password@db:5432/quetzal
+    volumes:
+      # Setup a volume for development: it allows the web container to have the
+      # latest changes so one does not need to build everytime there is a
+      # modification.
+      - .:/code
+    depends_on:
+      - db
+      - rabbitmq
+    ports:
+      # TODO: remove when the nginx service is added
+      - "5000:5000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    entrypoint: /entrypoint-worker.sh
+    environment:
+      DATABASE_URL: postgresql://postgres:pg_password@db:5432/quetzal
+    depends_on:
+      - db
+      - rabbitmq
