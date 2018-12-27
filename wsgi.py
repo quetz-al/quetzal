@@ -1,5 +1,5 @@
 from app import application, db
-from app.models import Workspace
+from app.models import Workspace, WorkspaceState
 
 
 @application.shell_context_processor
@@ -9,6 +9,7 @@ def make_shell_context():
         'db': db,
         # Add models here
         'Workspace': Workspace,
+        'WorkspaceState': WorkspaceState,
     }
 
 

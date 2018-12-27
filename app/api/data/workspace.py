@@ -17,7 +17,7 @@ from app.api.data.tasks import init_workspace, delete_workspace, scan_workspace
 # However, this has not been released yet.
 
 
-def fetch():
+def fetch(*, user=None, token_info=None):  # TODO: this is how to get the user, but is this what we want?
     """ List workspaces
 
     Returns
@@ -28,7 +28,6 @@ def fetch():
         HTTP response code
 
     """
-
     # Filtering
     query_args = connexion.request.args
     query_set = Workspace.query
@@ -60,8 +59,8 @@ def create(*, body):
     # Create workspace on the database
     workspace = Workspace(
         name=body['name'],
-        temporary=body.get('temporary', False),
         description=body['description'],
+        temporary=body.get('temporary', False),
     )
     db.session.add(workspace)
     db.session.commit()

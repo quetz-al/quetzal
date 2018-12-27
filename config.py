@@ -19,6 +19,10 @@ class Config:
     CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq:5672//'
     CELERY_RESULT_BACKEND = 'rpc://'
 
+    # Quetzal-specific configuration
+    QUETZAL_GCP_CREDENTIALS = os.environ.get('QUETZAL_APP_CREDENTIALS') or \
+        os.path.join(basedir, 'conf', 'credentials.json')
+
 
 class DevelopmentConfig(Config):
     DEBUG = True

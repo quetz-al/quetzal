@@ -219,3 +219,18 @@ components:
             "owner": "username",
             "data_url": "gs://some_bucket_name"
         }
+  securitySchemes:
+    basic:
+      type: http
+      scheme: basic
+      x-basicInfoFunc: app.api.auth.basic_auth
+# TODO: add a good security definition later
+#    BearerAuth:
+#      type: http
+#      description: Security scheme by bearer token
+#      scheme: bearer
+#      bearerFormat: JWT
+#      x-bearerInfoFunc: app.api.func1
+#      x-tokenInfoFunc: app.api.func1
+security:
+  - basic: []

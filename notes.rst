@@ -21,3 +21,17 @@ name:
 Migrations on a running server need special considerations.
 
 .. note:: TODO: add migrations on running server considerations.
+
+
+Google
+------
+
+Remember that the Google Cloud Storage API must be enabled
+
+I am currently compiling a list of the exact, minimal roles needed
+for the service account on the GCP.
+
+- ``storage.buckets.create``: to create new buckets
+- ``storage.buckets.get``: to get information on existing buckets
+- ``storage.buckets.delete``: to delete existing buckets
+- ``storage.objects.list``: to list objects in buckets

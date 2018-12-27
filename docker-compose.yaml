@@ -34,6 +34,9 @@ services:
       # latest changes so one does not need to build everytime there is a
       # modification.
       - .:/code
+      # The secret files in the configuration are set as a volume, but don't use
+      # it like this on production, use a secret!
+      - ./conf:/code/conf:ro
     depends_on:
       - db
       - rabbitmq
@@ -48,6 +51,14 @@ services:
     entrypoint: /entrypoint-worker.sh
     environment:
       DATABASE_URL: postgresql://postgres:pg_password@db:5432/quetzal
+    volumes:
+      # Setup a volume for development: it allows the web container to have the
+      # latest changes so one does not need to build everytime there is a
+      # modification.
+      - .:/code
+      # The secret files in the configuration are set as a volume, but don't use
+      # it like this on production, use a secret!
+      - ./conf:/code/conf:ro
     depends_on:
       - db
       - rabbitmq

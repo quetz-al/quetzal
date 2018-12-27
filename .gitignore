@@ -1,5 +1,7 @@
 # app.db database for development
 app.db
+# ignore any sensitive configuration file
+conf/*
 
 #
 # Automatic gitignore config file:
