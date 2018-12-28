@@ -3,7 +3,7 @@ openapi: 3.0.2
 info:
   title: quetzal
   description: Quetzalcoatl API (formerly known as CloudTS)
-  version: 1.0.0
+  version: 0.3.0
 paths:
   /api/auth/token:
     post:
@@ -55,6 +55,9 @@ paths:
                 items:
                   $ref: '#/components/schemas/Workspace'
     post:
+      summary: Create a new workspace
+      tags:
+        - data
       operationId: app.api.data.workspace.create
       requestBody:
         content:
@@ -72,7 +75,9 @@ paths:
   /api/data/workspaces/{id}:
     get:
       summary: Workspace details
-      description: Fetchs all workspace details
+      description: Fetchs all details of a workspace
+      tags:
+        - data
       operationId: app.api.data.workspace.details
       parameters:
       - name: id
@@ -95,6 +100,8 @@ paths:
         Workspaces cannot be immediately deleted, due to complex resource management.
         The status of the workspace can be requested on this same path, using a GET
         instead of a DELETE.
+      tags:
+        - data
       operationId: app.api.data.workspace.delete
       parameters:
       - name: id
@@ -109,9 +116,12 @@ paths:
   /api/data/workspaces/{id}/commit:
     put:
       summary: Commit a workspace
-      description: "Requests a workspace commit. That is, all metadata added or modified\
-        \ in this \nworkspace will be committed to the global workspace, becoming\
-        \ available to\nall users. Metadata versions will be incremented."
+      description: |-
+        Requests a workspace commit. That is, all metadata added or modified
+        in this workspace will be committed to the global workspace, becoming
+        available to all users. Metadata versions will be incremented.
+      tags:
+        - data
       operationId: app.api.data.workspace.commit
       parameters:
       - name: id
@@ -134,6 +144,8 @@ paths:
         Requests the update of the views of a workspace. All the internal databases
         used for the query operation will be updated to contain the latest modifications
         of the metadata.
+      tags:
+        - data
       operationId: app.api.data.workspace.scan
       parameters:
       - name: id
@@ -163,11 +175,12 @@ components:
         name:
           type: string
         families:
-          description: "Metadata requested for this workspace. The metadata request\
-            \ is represented by\nan object (i.e. a dictionary). The object keys are\
-            \ metadata family names; their\nvalues are the version number of the family.\
-            \ When the version is null, it is \nequivalent to requesting the latest\
-            \ version available."
+          description: |-
+            Metadata requested for this workspace. The metadata request
+            is represented by an object (i.e. a dictionary). The object keys are
+            metadata family names; their values are the version number of the family.
+            When the version is null, it is equivalent to requesting the latest
+            version available.
           type: object
         description:
           description: Descriptive text of the purpose of this workspace
@@ -204,17 +217,19 @@ components:
           description: Descriptive text of the purpose of this workspace
           type: string
         families:
-          description: "Families and corresponding versions used in this workspace.\
-            \ \nThis property is a object whose keys are family names and values are\
-            \ integers."
+          description: |-
+            Families and corresponding versions used in this workspace.
+            This property is a object whose keys are family names and values are
+            integers.
           type: object
         creation_date:
           format: date-time
           description: Date when the workspace was created
           type: string
         temporary:
-          description: "Whether this workspace is temporary or not. Temporary workspaces\
-            \ are \nautomatically deleted after some time."
+          description: |-
+            Whether this workspace is temporary or not. Temporary workspaces
+            are automatically deleted after some time.
           type: boolean
         owner:
           description: User who owns this workpace

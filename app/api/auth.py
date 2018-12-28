@@ -1,6 +1,8 @@
 from app import db
 from app.models import User
 
+# TODO: scope management
+
 
 def check_basic(username, password, required_scopes=None):
     user = User.query.filter_by(username=username).first()
@@ -25,7 +27,7 @@ def check_bearer(token):
     }
 
 
-def get_token(*, user, **kwargs):
+def get_token(*, user):
     token = user.get_token()
     db.session.commit()
     return {'token': token}
