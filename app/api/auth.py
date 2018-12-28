@@ -18,8 +18,8 @@ def check_basic(username, password, required_scopes=None):
 
 
 def check_bearer(token):
-    user = User.query.filter_by(token=token).first()
-    if user is None or not user.check_token(token):
+    user = User.check_token(token)
+    if user is None:
         return None
     return {
         'sub': user,
