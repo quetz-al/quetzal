@@ -73,19 +73,19 @@ paths:
               schema:
                 $ref: '#/components/schemas/Workspace'
   /api/data/workspaces/{id}:
+    parameters:
+      - name: id
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
     get:
       summary: Workspace details
       description: Fetchs all details of a workspace
       tags:
         - data
       operationId: app.api.data.workspace.details
-      parameters:
-      - name: id
-        in: path
-        description: ID of workspace to fetch
-        required: true
-        schema:
-          type: integer
       responses:
         200:
           description: Workspace details
@@ -103,13 +103,6 @@ paths:
       tags:
         - data
       operationId: app.api.data.workspace.delete
-      parameters:
-      - name: id
-        in: path
-        description: ID of workspace to delete
-        required: true
-        schema:
-          type: integer
       responses:
         202:
           description: Workspace marked for deletion
@@ -124,12 +117,12 @@ paths:
         - data
       operationId: app.api.data.workspace.commit
       parameters:
-      - name: id
-        in: path
-        description: ID of the workspace to commit
-        required: true
-        schema:
-          type: integer
+        - name: id
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
       responses:
         202:
           description: Successfully requested a workspace commit operation
@@ -148,12 +141,12 @@ paths:
         - data
       operationId: app.api.data.workspace.scan
       parameters:
-      - name: id
-        in: path
-        description: ID of the workspace to scan
-        required: true
-        schema:
-          type: integer
+        - name: id
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
       responses:
         202:
           description: Successfully requested a workspace scan operation
@@ -162,6 +155,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/Workspace'
   /api/data/workspaces/{id}/files/:
+    parameters:
+      - name: id
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
     get:
       summary: List workspace files
       description: |-
@@ -171,13 +171,6 @@ paths:
       tags:
         - data
       operationId: app.api.data.workspace.files
-      parameters:
-      - name: id
-        in: path
-        description: ID of the workspace owning the files
-        required: true
-        schema:
-          type: integer
       responses:
         200:
           description: List of workspace files
@@ -195,13 +188,6 @@ paths:
       tags:
         - data
       operationId: app.api.data.workspace.add_file
-      parameters:
-        - name: id
-          in: path
-          description: ID of the workspace where the file is uploaded
-          required: true
-          schema:
-            type: integer
       requestBody:
         content:
           application/octet-stream:
@@ -216,6 +202,20 @@ paths:
               schema:
                 type: object
   /api/data/workspaces/{id}/files/{uuid}:
+    parameters:
+      - name: id
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+      - name: uuid
+        in: path
+        description: File identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
     get:
       summary: Fetch file metadata or contents
       description: |-
@@ -225,21 +225,7 @@ paths:
         introduced in this workspace.
       tags:
         - data
-      operationId: app.api.data.workspace.fetch_file
-      parameters:
-        - name: id
-          in: path
-          description: ID of the workspace
-          required: true
-          schema:
-            type: integer
-        - name: uuid
-          in: path
-          description: ID of the file (an UUID4)
-          required: true
-          schema:
-            type: string
-            format: uuid
+      operationId: app.api.data.workspace.fetch_workspace_file
       responses:
         200:
           description: File contents or metadata
@@ -258,20 +244,6 @@ paths:
       tags:
         - data
       operationId: app.api.data.workspace.update_metadata
-      parameters:
-        - name: id
-          in: path
-          description: ID of the workspace where the metadata changes will be recorded
-          required: true
-          schema:
-            type: integer
-        - name: uuid
-          in: path
-          description: ID of the file (an UUID4)
-          required: true
-          schema:
-            type: string
-            format: uuid
       requestBody:
         content:
           application/json:
