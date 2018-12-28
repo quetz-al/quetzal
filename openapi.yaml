@@ -161,6 +161,129 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+  /api/data/workspaces/{id}/files/:
+    get:
+      summary: List workspace files
+      description: |-
+        Fetchs all the files that have been added in this workspace. Files
+        whose metadata has been modified in this workspace will also be
+        included.
+      tags:
+        - data
+      operationId: app.api.data.workspace.files
+      parameters:
+      - name: id
+        in: path
+        description: ID of the workspace owning the files
+        required: true
+        schema:
+          type: integer
+      responses:
+        200:
+          description: List of workspace files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+    post:
+      summary: Add a new file
+      description: |-
+        Upload a new file by sending its contents. The file will not have any
+        additional metadata associated to it.
+      tags:
+        - data
+      operationId: app.api.data.workspace.add_file
+      parameters:
+        - name: id
+          in: path
+          description: ID of the workspace where the file is uploaded
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        201:
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+  /api/data/workspaces/{id}/files/{uuid}:
+    get:
+      summary: Fetch file metadata or contents
+      description: |-
+        Serves the file contents or its metadata, according to the accepted
+        content response header. When the metadata is requested, this returns
+        the updated version with the modifications that may have been
+        introduced in this workspace.
+      tags:
+        - data
+      operationId: app.api.data.workspace.fetch_file
+      parameters:
+        - name: id
+          in: path
+          description: ID of the workspace
+          required: true
+          schema:
+            type: integer
+        - name: uuid
+          in: path
+          description: ID of the file (an UUID4)
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        200:
+          description: File contents or metadata
+          content:
+            application/json:
+              schema:
+                type: object
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+    patch:
+      summary: Modify file metadata
+      description: |-
+        Change the file metadata ...
+      tags:
+        - data
+      operationId: app.api.data.workspace.update_metadata
+      parameters:
+        - name: id
+          in: path
+          description: ID of the workspace where the metadata changes will be recorded
+          required: true
+          schema:
+            type: integer
+        - name: uuid
+          in: path
+          description: ID of the file (an UUID4)
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        200:
+          description: Metadata successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
 components:
   schemas:
     NewWorkspace:
@@ -264,7 +387,7 @@ components:
 security:
   - bearer: []
 tags:
-  - name: data
-    description: Data operations
   - name: authentication
     description: Authentication operations
+  - name: data
+    description: Data operations

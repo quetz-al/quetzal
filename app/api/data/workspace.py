@@ -1,7 +1,7 @@
 from requests import codes
 
-import connexion
-from connexion import NoContent, problem
+from connexion import NoContent, problem, request
+from flask import send_file
 
 from app import db
 from app.models import User, Workspace, WorkspaceState
@@ -29,7 +29,7 @@ def fetch(*, user, token_info=None):  # TODO: this is how to get the user, but i
 
     """
     # Filtering
-    query_args = connexion.request.args
+    query_args = request.args
     query_set = Workspace.query
 
     if 'name' in query_args:
@@ -73,7 +73,7 @@ def create(*, body, user, token_info=None):
     return workspace.to_dict(), codes.created
 
 
-def details(id):
+def details(*, id):
     """ Get workspace details by id
 
     Parameters
@@ -96,7 +96,7 @@ def details(id):
     return workspace.to_dict(), codes.ok
 
 
-def delete(id):
+def delete(*, id):
     """ Request deletion of a workspace by id
 
     Parameters
@@ -137,7 +137,7 @@ def delete(id):
     return workspace.to_dict(), codes.accepted
 
 
-def commit(id):
+def commit(*, id):
     """ Request commit of all metadata and files of a workspace
 
     Parameters
@@ -161,7 +161,7 @@ def commit(id):
     return workspace.to_dict(), codes.accepted
 
 
-def scan(id):
+def scan(*, id):
     """ Request an update of the views of a workspace
 
     Parameters
@@ -187,3 +187,40 @@ def scan(id):
     scan_workspace.delay(workspace.id)
 
     return workspace.to_dict(), codes.accepted
+
+
+def files(*, id):
+    raise NotImplementedError
+
+
+def add_file(*, id, body):
+    print(id, type(body), len(body))
+    return {}, codes.created
+
+
+def update_metadata(*, id, uuid, body):
+    print(id, uuid, body)
+    return {}, codes.ok
+
+
+def fetch_file(*, id, uuid):
+
+    # Content negotiation
+    best = request.accept_mimetypes.best_match(['application/json',
+                                                'application/octet-stream'])
+    if best == 'application/json':
+        return {'fake': 'metadata'}, codes.ok
+
+    elif best == 'application/octet-stream':
+        from tempfile import NamedTemporaryFile
+        temp = NamedTemporaryFile('w')
+        temp.write('hello world\n')
+        temp.flush()
+        response = send_file(open(temp.name),
+                             mimetype='application/octet-stream')
+        response.direct_passthrough = False
+        return response, codes.ok
+
+    return problem(codes.bad_request,
+                   'Invalid accept header',
+                   f'Cannot serve content of type {request.accept_mimetypes}')
