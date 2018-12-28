@@ -1,4 +1,5 @@
 Flask
+Flask-Login
 connexion[swagger-ui]
 celery
 SQLAlchemy

@@ -1,3 +1,4 @@
+import logging
 import os
 
 # TODO: consider / add dot_env and load_dotenv
@@ -9,6 +10,10 @@ class Config:
     DEBUG = False
     TESTING = False
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'some-secret-key'
+
+    # Logging
+    LOGGING_LEVEL = logging.INFO
+    LOGGING_FORMAT = '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
 
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
@@ -26,6 +31,7 @@ class Config:
 
 class DevelopmentConfig(Config):
     DEBUG = True
+    LOGGING_LEVEL = logging.DEBUG
     JSON_SORT_KEYS = False
 
 

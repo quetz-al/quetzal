@@ -29,6 +29,7 @@ services:
     entrypoint: /entrypoint-server.sh
     environment:
       DATABASE_URL: postgresql://postgres:pg_password@db:5432/quetzal
+      FLASK_ENV: development
     volumes:
       # Setup a volume for development: it allows the web container to have the
       # latest changes so one does not need to build everytime there is a
@@ -51,6 +52,7 @@ services:
     entrypoint: /entrypoint-worker.sh
     environment:
       DATABASE_URL: postgresql://postgres:pg_password@db:5432/quetzal
+      FLASK_ENV: development
     volumes:
       # Setup a volume for development: it allows the web container to have the
       # latest changes so one does not need to build everytime there is a

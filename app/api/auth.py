@@ -1,7 +1,31 @@
-# TODO: this is just a minimal auth structure. Do the real thing!
+from app import db
+from app.models import User
 
 
-def basic_auth(username, password, required_scopes=None):
-    if username == 'admin' and password == 'secret':
-        return {'sub': 'admin', 'scope': ''}
-    return None
+def check_basic(username, password, required_scopes=None):
+    user = User.query.filter_by(username=username).first()
+    if user is None or not user.check_password(password):
+        return None
+    return {
+        # I don't know if this is a OAS3 specification or a zalando/connexion
+        # implementation-specific element, but the user must be saved under the
+        # 'sub' key in order to be propagated into the secured functions
+        'sub': user,
+        'scope': '',
+    }
+
+
+def check_bearer(token):
+    user = User.query.filter_by(token=token).first()
+    if user is None or not user.check_token(token):
+        return None
+    return {
+        'sub': user,
+        'scope': '',
+    }
+
+
+def get_token(*, user, **kwargs):
+    token = user.get_token()
+    db.session.commit()
+    return {'token': token}

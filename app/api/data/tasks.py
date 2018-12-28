@@ -33,7 +33,7 @@ def init_workspace(id):
 
     # Do the initialization task
     # TODO: manage exceptions/errors
-    bucket_name = f'quetzal-ws-username-{workspace.name}'
+    bucket_name = f'quetzal-ws-{workspace.owner.username}-{workspace.name}'
     client = get_client()
     bucket = client.bucket(bucket_name)
     bucket.storage_class = 'REGIONAL'

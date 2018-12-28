@@ -1,3 +1,5 @@
+import logging
+
 from celery import Celery
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -37,6 +39,14 @@ def make_celery(app):
 app = connexion.App(__name__)
 application = app.app
 application.config.from_object(config.get(application.env))
+
+# Logging
+handler = logging.StreamHandler()
+handler.setLevel(application.config['LOGGING_LEVEL'])
+handler.setFormatter(application.config['LOGGING_FORMAT'])
+application.logger.addHandler(handler)
+application.logger.setLevel(application.config['LOGGING_LEVEL'])
+
 
 # Database
 db = SQLAlchemy(application)

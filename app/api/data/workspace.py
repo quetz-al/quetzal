@@ -4,7 +4,7 @@ import connexion
 from connexion import NoContent, problem
 
 from app import db
-from app.models import Workspace, WorkspaceState
+from app.models import User, Workspace, WorkspaceState
 from app.api.data.tasks import init_workspace, delete_workspace, scan_workspace
 
 
@@ -17,7 +17,7 @@ from app.api.data.tasks import init_workspace, delete_workspace, scan_workspace
 # However, this has not been released yet.
 
 
-def fetch(*, user=None, token_info=None):  # TODO: this is how to get the user, but is this what we want?
+def fetch(*, user, token_info=None):  # TODO: this is how to get the user, but is this what we want?
     """ List workspaces
 
     Returns
@@ -45,7 +45,7 @@ def fetch(*, user=None, token_info=None):  # TODO: this is how to get the user, 
     return [workspace.to_dict() for workspace in query_set.all()], codes.ok
 
 
-def create(*, body):
+def create(*, body, user, token_info=None):
     """ Create a new workspace
 
     Returns
@@ -61,6 +61,7 @@ def create(*, body):
         name=body['name'],
         description=body['description'],
         temporary=body.get('temporary', False),
+        user_id=user.id,
     )
     db.session.add(workspace)
     db.session.commit()

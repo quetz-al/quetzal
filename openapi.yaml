@@ -5,9 +5,27 @@ info:
   description: Quetzalcoatl API (formerly known as CloudTS)
   version: 1.0.0
 paths:
+  /api/auth/token:
+    post:
+      summary: Authenticate and obtain a token
+      tags:
+        - authentication
+      operationId: app.api.auth.get_token
+      security:
+        - basic: []
+        - bearer: []
+      responses:
+        200:
+          description: Authentication token
+          content:
+            application/json:
+              schema:
+                type: object
   /api/data/workspaces/:
     get:
       summary: Get all workspaces
+      tags:
+        - data
       operationId: app.api.data.workspace.fetch
       parameters:
       - name: name
@@ -223,14 +241,15 @@ components:
     basic:
       type: http
       scheme: basic
-      x-basicInfoFunc: app.api.auth.basic_auth
-# TODO: add a good security definition later
-#    BearerAuth:
-#      type: http
-#      description: Security scheme by bearer token
-#      scheme: bearer
-#      bearerFormat: JWT
-#      x-bearerInfoFunc: app.api.func1
-#      x-tokenInfoFunc: app.api.func1
+      x-basicInfoFunc: app.api.auth.check_basic
+    bearer:
+      type: http
+      scheme: bearer
+      x-bearerInfoFunc: app.api.auth.check_bearer
 security:
-  - basic: []
+  - bearer: []
+tags:
+  - name: data
+    description: Data operations
+  - name: authentication
+    description: Authentication operations
