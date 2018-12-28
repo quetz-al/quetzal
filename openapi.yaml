@@ -256,6 +256,35 @@ paths:
             application/json:
               schema:
                 type: object
+  /api/data/files/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        description: File identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Fetch file metadata or contents
+      description: |-
+        Serves the file contents or its metadata, according to the accepted
+        content response header. In the case of metadata, this endpoint returns
+        the most recent metadata that has been committed.
+      tags:
+        - data
+      operationId: app.api.data.workspace.fetch_file
+      responses:
+        200:
+          description: File contents or metadata
+          content:
+            application/json:
+              schema:
+                type: object
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
 components:
   schemas:
     NewWorkspace:

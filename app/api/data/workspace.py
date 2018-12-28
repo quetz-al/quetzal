@@ -203,8 +203,11 @@ def update_metadata(*, id, uuid, body):
     return {}, codes.ok
 
 
-def fetch_file(*, id, uuid):
+def fetch_file(*, uuid):
+    return fetch_workspace_file(id=None, uuid=uuid)
 
+
+def fetch_workspace_file(*, id=None, uuid):
     # Content negotiation
     best = request.accept_mimetypes.best_match(['application/json',
                                                 'application/octet-stream'])
