@@ -12,8 +12,26 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'some-secret-key'
 
     # Logging
-    LOGGING_LEVEL = logging.INFO
-    LOGGING_FORMAT = '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    LOGGING = {
+        'version': 1,
+        'formatters': {
+            'default': {
+                'format': '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]',
+                'datefmt': '%Y-%m-%d %H:%M:%S',
+            }
+        },
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'default',
+                'level': 'INFO',
+            },
+        },
+        'root': {
+            'handlers': ['console'],
+            'level': 'INFO',
+        }
+    }
 
     # Database configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
@@ -27,11 +45,12 @@ class Config:
     # Quetzal-specific configuration
     QUETZAL_GCP_CREDENTIALS = os.environ.get('QUETZAL_APP_CREDENTIALS') or \
         os.path.join(basedir, 'conf', 'credentials.json')
+    QUETZAL_GCP_DATA_BUCKET = os.environ.get('QUETZAL_GCP_DATA_BUCKET') or \
+        'gs://quetzal-dev-data'
 
 
 class DevelopmentConfig(Config):
     DEBUG = True
-    LOGGING_LEVEL = logging.DEBUG
     JSON_SORT_KEYS = False
 
 

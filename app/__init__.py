@@ -1,6 +1,7 @@
-import logging
+from logging.config import dictConfig
 
 from celery import Celery
+from flask.cli import AppGroup
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 import connexion
@@ -41,12 +42,7 @@ application = app.app
 application.config.from_object(config.get(application.env))
 
 # Logging
-handler = logging.StreamHandler()
-handler.setLevel(application.config['LOGGING_LEVEL'])
-handler.setFormatter(application.config['LOGGING_FORMAT'])
-application.logger.addHandler(handler)
-application.logger.setLevel(application.config['LOGGING_LEVEL'])
-
+dictConfig(application.config['LOGGING'])
 
 # Database
 db = SQLAlchemy(application)
@@ -57,3 +53,17 @@ celery = make_celery(application)
 
 # APIs
 app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True)
+
+# Command line tools
+from app.api.data.commands import init_buckets  # nopep8
+
+data_cli = AppGroup('data')
+
+
+@data_cli.command('init')
+def data_init_command():
+    """ Initialize data buckets """
+    init_buckets()
+
+
+application.cli.add_command(data_cli)
