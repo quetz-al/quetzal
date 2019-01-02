@@ -6,47 +6,10 @@ import os
 from flask_login import UserMixin
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
+from sqlalchemy.schema import Index, UniqueConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-
-
-class WorkspaceState(enum.Enum):
-    INITIALIZING = 1
-    READY = 2
-    PROCESSING = 3
-    INVALID = 4
-    CONFLICT = 5
-    DELETED = 6
-
-
-class Workspace(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(64), nullable=False)
-    state = db.Column(db.Enum(WorkspaceState), nullable=False, default=WorkspaceState.INITIALIZING)
-    description = db.Column(db.Text, nullable=False)
-    creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
-    temporary = db.Column(db.Boolean, nullable=False, default=False)
-    data_url = db.Column(db.String(2048))
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-
-    families = db.relationship('Family', backref='workspace', lazy='dynamic')
-
-    def __repr__(self):
-        return f'<Workspace {self.id} [name="{self.name}" ' \
-               f'state={self.state.name if self.state else "unset"}]>'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'state': self.state.name,
-            'owner': self.owner.username,
-            'description': self.description,
-            'creation_date': self.creation_date,
-            'temporary': self.temporary,
-            'data_url': self.data_url,
-        }
 
 
 class User(UserMixin, db.Model):
@@ -57,7 +20,7 @@ class User(UserMixin, db.Model):
     token = db.Column(db.String(32), index=True, unique=True)
     token_expiration = db.Column(db.DateTime)
 
-    workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
+    #workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -65,7 +28,7 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
-    def get_token(self, expires_in=3600):
+    def get_token(self, expires_in=3600):  # TODO: setting for timeout
         now = datetime.utcnow()
         if self.token and self.token_expiration > now + timedelta(seconds=60):
             return self.token
@@ -88,13 +51,63 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 
+class WorkspaceState(enum.Enum):
+    INITIALIZING = 1
+    READY = 2
+    PROCESSING = 3
+    INVALID = 4
+    CONFLICT = 5
+    DELETED = 6
+
+
+class Workspace(db.Model):
+
+    __table_args__ = (
+        UniqueConstraint('name', 'fk_user_id'),                 # Name and user should be unique together
+        Index('ix_workspace_name_user', 'name', 'fk_user_id'),  # Index on user and name together
+    )
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(64), nullable=False)
+    state = db.Column(db.Enum(WorkspaceState), nullable=False, default=WorkspaceState.INITIALIZING)
+    description = db.Column(db.Text, nullable=False)
+    creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
+    temporary = db.Column(db.Boolean, nullable=False, default=False)
+    data_url = db.Column(db.String(2048))
+
+    fk_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    families = db.relationship('Family', backref='workspace', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Workspace {self.id} [name="{self.name}" ' \
+               f'state={self.state.name if self.state else "unset"}]>'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'state': self.state.name,
+            'owner': self.owner.username,
+            'description': self.description,
+            'creation_date': self.creation_date,
+            'temporary': self.temporary,
+            'data_url': self.data_url,
+        }
+
+
 class Family(db.Model):
+
+    __table_args__ = (
+        UniqueConstraint('name', 'version', 'fk_workspace_id'),
+    )
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(64), index=True, nullable=False)
     version = db.Column(db.Integer, nullable=False)
     description = db.Column(db.Text, nullable=False)
 
-    workspace_id = db.Column(db.Integer, db.ForeignKey('workspace.id'))
+    fk_workspace_id = db.Column(db.Integer, db.ForeignKey('workspace.id'))
     metadata_set = db.relationship('Metadata', backref='family', lazy='dynamic')
 
     def __repr__(self):
@@ -106,10 +119,7 @@ class Metadata(db.Model):
     id_file = db.Column(UUID(as_uuid=True), index=True, nullable=False)
     json = db.Column(JSONB, nullable=False)
 
-    family_id = db.Column(db.Integer, db.ForeignKey('family.id'), nullable=False)
+    fk_family_id = db.Column(db.Integer, db.ForeignKey('family.id'), nullable=False)
 
     def __repr__(self):
-        if self.family:
-            return f'<Metadata {self.id} ' \
-                   f'[{self.id_file} {self.family.name}:v{self.family.version}]>'
-        return f'<Metadata {self.id} [{self.id_file} ...]>'
+        return f'<Metadata {self.id} of {self.id_file}>'

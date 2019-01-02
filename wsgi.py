@@ -8,9 +8,9 @@ def make_shell_context():
         # Handy reference to the database
         'db': db,
         # Add models here
+        'User': User,
         'Metadata': Metadata,
         'Family': Family,
-        'User': User,
         'Workspace': Workspace,
         'WorkspaceState': WorkspaceState,
     }

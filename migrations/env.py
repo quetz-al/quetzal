@@ -27,6 +27,15 @@ target_metadata = current_app.extensions['migrate'].db.metadata
 # ... etc.
 
 
+def include_object(object, name, type_, reflected, compare_to):
+    return True
+    # Uncomment/modify for a particular migration:
+    # print(name)
+    # if 'metadata' in name:
+    #     return True
+    # return False
+
+
 def run_migrations_offline():
     """Run migrations in 'offline' mode.
 
@@ -72,6 +81,7 @@ def run_migrations_online():
     context.configure(connection=connection,
                       target_metadata=target_metadata,
                       process_revision_directives=process_revision_directives,
+                      include_object=include_object,
                       **current_app.extensions['migrate'].configure_args)
     
     try:

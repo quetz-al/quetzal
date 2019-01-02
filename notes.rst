@@ -14,7 +14,7 @@ name:
 
 .. code:: shell
 
-    flask db migrate -m "workspace and user models"
+    flask db migrate -m "workspace model"
     flask db upgrade
 
 
