@@ -1,22 +1,11 @@
 import logging
-import urllib.parse
-
-from google.cloud import storage
-from flask import current_app, g
 
 from app import celery, db
 from app.models import Workspace, WorkspaceState
+from app.api.data.helpers import get_client, get_bucket
 
 
 logger = logging.getLogger(__name__)
-
-
-def get_client():
-    # Get a client and save it in the context so it can be reused
-    if 'google_client' not in g:
-        filename = current_app.config['QUETZAL_GCP_CREDENTIALS']
-        g.google_client = storage.Client.from_service_account_json(filename)
-    return g.google_client
 
 
 @celery.task()
@@ -61,9 +50,8 @@ def delete_workspace(id):
 
     # Do the deletion task
     # TODO: manage exceptions/errors
-    bucket_name = urllib.parse.urlparse(workspace.data_url).netloc
     client = get_client()
-    bucket = client.get_bucket(bucket_name)
+    bucket = get_bucket(client, workspace.data_url)
 
     # Delete all blobs first
     blobs = list(bucket.list_blobs())

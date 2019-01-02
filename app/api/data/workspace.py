@@ -1,11 +1,19 @@
+import io
+import logging
 from requests import codes
+from uuid import uuid4
 
 from connexion import NoContent, problem, request
-from flask import send_file
+from flask import send_file, current_app
+from sqlalchemy import func
 
 from app import db
-from app.models import User, Workspace, WorkspaceState
+from app.models import Metadata, Family, Workspace, WorkspaceState
 from app.api.data.tasks import init_workspace, delete_workspace, scan_workspace
+from app.api.data.helpers import get_client, get_bucket, get_data_bucket
+
+
+logger = logging.getLogger(__name__)
 
 
 # TODO: remove this explanation when werkzeug >=0.15 is released
@@ -64,6 +72,39 @@ def create(*, body, user, token_info=None):
         user_id=user.id,
     )
     db.session.add(workspace)
+
+    # Create or retrieve families
+    queryset = (Family.query
+                .filter_by(workspace=None)
+                .distinct(Family.name, Family.version)
+                .order_by(Family.name, Family.version.desc())
+    )
+    # By default, the base family must be present
+    families = body['families']
+    if 'base' not in families:
+        families['base'] = None
+
+    for name, version in families.items():
+        logger.info('Adding family %s at version %s', name, version)
+        family = Family(name=name, description='No description')
+        family.workspace_id = workspace.id
+
+        if version is None:
+            # Determine the latest family
+            latest = queryset.filter_by(name=name).first()
+            if latest is None:
+                family.version = 0
+            else:
+                family.version = latest.version
+        else:
+            # Use an existing family
+            existing = queryset.filter_by(name=name, version=version).first()
+            if existing is None:
+                raise Exception(f'Family {name} does not have version {version}')
+            family.description = existing.description
+
+        db.session.add(family)
+
     db.session.commit()
 
     # Schedule the initialization task
@@ -194,7 +235,41 @@ def files(*, id):
 
 
 def add_file(*, id, body):
-    print(id, type(body), len(body))
+
+    logger.info('add_file %s %s %d', id, type(body), len(body), exc_info=True)
+
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return problem(codes.not_found, 'Not found',
+                       f'Workspace {id} does not exist')
+
+    # Get the base metadata family or create it if not present
+    # ... aha this seems not trivial ...
+    # base_family = Metadata.get_instance_by_workspace(...) # for a lack of a better name
+
+
+    # Add basic metadata
+    file_id = uuid4()
+    base_metadata = {
+        'id': str(file_id),
+        'filename': str(file_id),
+        'path': '',
+        'size': len(body),
+        'checksum': '',
+        'url': '',
+    }
+
+    # Send file to bucket
+    client = get_client()
+    data_bucket = get_data_bucket(client)
+    blob = data_bucket.blob(str(file_id))
+    file_io = io.BytesIO(body)
+    blob.upload_from_file(file_io, rewind=True)
+    base_metadata['url'] = f'gs://{data_bucket.name}/{file_id}'
+
+    # Save model
+
     return {}, codes.created
 
 

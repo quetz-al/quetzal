@@ -4,6 +4,7 @@ import enum
 import os
 
 from flask_login import UserMixin
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -29,6 +30,8 @@ class Workspace(db.Model):
     data_url = db.Column(db.String(2048))
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
+    families = db.relationship('Family', backref='workspace', lazy='dynamic')
+
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \
                f'state={self.state.name if self.state else "unset"}]>'
@@ -53,6 +56,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     token = db.Column(db.String(32), index=True, unique=True)
     token_expiration = db.Column(db.DateTime)
+
     workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
 
     def set_password(self, password):
@@ -82,3 +86,30 @@ class User(UserMixin, db.Model):
 
     def __repr__(self):
         return f'<User {self.username}>'
+
+
+class Family(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(64), index=True, nullable=False)
+    version = db.Column(db.Integer, nullable=False)
+    description = db.Column(db.Text, nullable=False)
+
+    workspace_id = db.Column(db.Integer, db.ForeignKey('workspace.id'))
+    metadata_set = db.relationship('Metadata', backref='family', lazy='dynamic')
+
+    def __repr__(self):
+        return f'<Family {self.id} [{self.name}, version {self.version}]>'
+
+
+class Metadata(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id_file = db.Column(UUID(as_uuid=True), index=True, nullable=False)
+    json = db.Column(JSONB, nullable=False)
+
+    family_id = db.Column(db.Integer, db.ForeignKey('family.id'), nullable=False)
+
+    def __repr__(self):
+        if self.family:
+            return f'<Metadata {self.id} ' \
+                   f'[{self.id_file} {self.family.name}:v{self.family.version}]>'
+        return f'<Metadata {self.id} [{self.id_file} ...]>'
