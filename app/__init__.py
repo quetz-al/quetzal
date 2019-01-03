@@ -15,11 +15,11 @@ from config import config
 def make_celery(app):
     celery_obj = Celery(
         app.import_name,
-        broker=app.config['CELERY_BROKER_URL'],
-        backend=app.config['CELERY_RESULT_BACKEND'],
+        broker=app.config['CELERY']['broker_url'],
+        backend=app.config['CELERY']['result_backend'],
         include=['app.api.data.tasks'],
     )
-    celery_obj.conf.update(app.config)
+    celery_obj.conf.update(app.config['CELERY'])
 
     # Replace the base parent task with a task that has the application context
     BaseTask = celery_obj.Task

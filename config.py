@@ -1,4 +1,3 @@
-import logging
 import os
 
 # TODO: consider / add dot_env and load_dotenv
@@ -16,21 +15,59 @@ class Config:
         'version': 1,
         'formatters': {
             'default': {
-                'format': '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]',
+                'format': '%(levelname)s %(asctime)s %(message)s',
                 'datefmt': '%Y-%m-%d %H:%M:%S',
+            },
+            'detailed': {
+                'format': '%(asctime)s %(levelname)s %(name)s.%(funcName)s:- %(message)s '
+                          '[in %(pathname)s:%(lineno)d]',
+                'datefmt': '%Y-%m-%d %H:%M:%S',
+            },
+            # A formatter for celery tasks that includes task_name and task_id
+            'celery_formatter': {
+                '()': 'celery.app.log.TaskFormatter',
+                'format': '%(levelname)s %(asctime)s [%(task_name)s(%(task_id)s)] '
+                          '%(name)s.%(funcName)s:%(lineno)s- %(message)s',
             }
         },
         'handlers': {
+            # The default logging on console
             'console': {
+                'level': 'INFO',  # on info so that the console is rather brief
                 'class': 'logging.StreamHandler',
                 'formatter': 'default',
-                'level': 'INFO',
             },
+            # A more detailed logging file for debugging
+            'file': {
+                'level': 'DEBUG',  # on debug so that the file has much more details
+                'class': 'logging.handlers.RotatingFileHandler',
+                'formatter': 'detailed',
+                'filename': '/var/log/quetzal.log',
+                'maxBytes': 10 * (1 << 20),  # 10 Mb
+                'backupCount': 100,
+            },
+            # A separate logging file for the celery tasks
+            'file_worker': {
+                'level': 'DEBUG',  # like the file handler but on another file
+                'class': 'logging.handlers.RotatingFileHandler',
+                'formatter': 'celery_formatter',
+                'filename': '/var/log/worker.log',
+                'maxBytes': 10 * (1 << 20),  # 10 Mb
+                'backupCount': 100,
+            },
+            # TODO: add email handler for errors
+        },
+        'loggers': {
+            'app.api.data.tasks': {
+                'level': 'DEBUG',
+                'handlers': ['file_worker']
+            }
         },
         'root': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        }
+            'level': 'DEBUG',  # on debug so that the file has all details
+            'handlers': ['console', 'file'],
+        },
+        'disable_existing_loggers': True,
     }
 
     # Database configuration
@@ -39,8 +76,15 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Celery configuration
-    CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq:5672//'
-    CELERY_RESULT_BACKEND = 'rpc://'
+    # Note that from Celery 4.0, configuration keys are in lowercase. This is
+    # why the Celery configuration is set in this inner dictionary
+    CELERY = {
+        'broker_url': 'amqp://guest:guest@rabbitmq:5672//',
+        'result_backend': 'rpc://',
+        # 'worker_log_format': LOGGING['formatters']['default']['format'],
+        # 'worker_task_log_format': LOGGING['formatters']['celery_tasks']['format'],
+        'worker_hijack_root_logger': False,
+    }
 
     # Quetzal-specific configuration
     QUETZAL_GCP_CREDENTIALS = os.environ.get('QUETZAL_APP_CREDENTIALS') or \

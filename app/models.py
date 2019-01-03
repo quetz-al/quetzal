@@ -106,8 +106,8 @@ class Family(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(64), index=True, nullable=False)
-    version = db.Column(db.Integer, nullable=False)
-    description = db.Column(db.Text, nullable=False)
+    version = db.Column(db.Integer)
+    description = db.Column(db.Text)
 
     fk_workspace_id = db.Column(db.Integer, db.ForeignKey('workspace.id'))
     metadata_set = db.relationship('Metadata', backref='family', lazy='dynamic')
