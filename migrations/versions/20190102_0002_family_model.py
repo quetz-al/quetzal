@@ -26,7 +26,7 @@ def upgrade():
     sa.Column('fk_workspace_id', sa.Integer(), nullable=True),
     sa.ForeignKeyConstraint(['fk_workspace_id'], ['workspace.id'], ),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('name', 'version', 'fk_workspace_id')
+    sa.UniqueConstraint('name', 'fk_workspace_id')
     )
     op.create_index(op.f('ix_family_name'), 'family', ['name'], unique=False)
     # ### end Alembic commands ###
