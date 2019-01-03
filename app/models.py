@@ -76,6 +76,7 @@ class Workspace(db.Model):
     data_url = db.Column(db.String(2048))
 
     fk_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    fk_last_metadata_id = db.Column(db.Integer, db.ForeignKey('metadata.id'), nullable=True)
 
     families = db.relationship('Family', backref='workspace', lazy='dynamic')
 

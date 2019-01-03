@@ -2,7 +2,7 @@
 
 Revision ID: 0001
 Revises: 0000
-Create Date: 2019-01-02 18:32:02.249000
+Create Date: 2019-01-03 14:23:25.603660
 
 """
 from alembic import op
@@ -21,14 +21,16 @@ def upgrade():
     op.create_table('workspace',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=64), nullable=False),
-    sa.Column('state', sa.Enum('INITIALIZING', 'READY', 'PROCESSING', 'INVALID', 'CONFLICT', 'DELETED',
-                               name='workspacestate'),
+    sa.Column('state',
+              sa.Enum('INITIALIZING', 'READY', 'PROCESSING', 'INVALID', 'CONFLICT', 'DELETED', name='workspacestate'),
               nullable=False),
     sa.Column('description', sa.Text(), nullable=False),
     sa.Column('creation_date', sa.DateTime(timezone=True), server_default=sa.text('CURRENT_TIMESTAMP'), nullable=True),
     sa.Column('temporary', sa.Boolean(), nullable=False),
     sa.Column('data_url', sa.String(length=2048), nullable=True),
     sa.Column('fk_user_id', sa.Integer(), nullable=True),
+    sa.Column('fk_last_metadata_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['fk_last_metadata_id'], ['metadata.id'], ),
     sa.ForeignKeyConstraint(['fk_user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', 'fk_user_id')

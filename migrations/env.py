@@ -31,7 +31,7 @@ def include_object(object, name, type_, reflected, compare_to):
     return True
     # Uncomment/modify for a particular migration:
     # print(name)
-    # if 'metadata' in name:
+    # if 'some_model_name' in name:
     #     return True
     # return False
 
