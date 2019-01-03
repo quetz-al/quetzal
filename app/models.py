@@ -20,7 +20,7 @@ class User(UserMixin, db.Model):
     token = db.Column(db.String(32), index=True, unique=True)
     token_expiration = db.Column(db.DateTime)
 
-    #workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
+    workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -93,13 +93,14 @@ class Workspace(db.Model):
             'creation_date': self.creation_date,
             'temporary': self.temporary,
             'data_url': self.data_url,
+            'families': {f.name: f.version for f in self.families},
         }
 
 
 class Family(db.Model):
 
     __table_args__ = (
-        UniqueConstraint('name', 'version', 'fk_workspace_id'),
+        UniqueConstraint('name', 'fk_workspace_id'),
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -122,4 +123,12 @@ class Metadata(db.Model):
     fk_family_id = db.Column(db.Integer, db.ForeignKey('family.id'), nullable=False)
 
     def __repr__(self):
-        return f'<Metadata {self.id} of {self.id_file}>'
+        return f'<Metadata {self.id} [{self.family.name}/{self.family.version}] {self.id_file}>'
+
+    def to_dict(self):
+        return {
+            'id': str(self.id_file),
+            'metadata': {
+                self.family.name: self.json,
+            }
+        }

@@ -1,3 +1,4 @@
+import hashlib
 from urllib.parse import urlparse
 
 from google.cloud import storage
@@ -12,11 +13,20 @@ def get_client():
     return g.google_client
 
 
-def get_bucket(client, url):
+def get_bucket(url, *, client=None):
+    if client is None:
+        client = get_client()
     bucket_name = urlparse(url).netloc
     return client.get_bucket(bucket_name)
 
 
-def get_data_bucket(client):
-    data_bucket = current_app.config['QUETZAL_GCP_DATA_BUCKET']
-    return get_bucket(client, data_bucket)
+def get_data_bucket(*, client=None):
+    data_bucket_url = current_app.config['QUETZAL_GCP_DATA_BUCKET']
+    return get_bucket(data_bucket_url, client=client)
+
+
+def md5(bs):
+    assert type(bs) == bytes, 'Unexpected type for helper md5 function'
+    hashobj = hashlib.new('md5')
+    hashobj.update(bs)
+    return hashobj.hexdigest()

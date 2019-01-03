@@ -1,17 +1,12 @@
-import io
 import logging
 from requests import codes
-from uuid import uuid4
 
 from connexion import NoContent, problem, request
-from flask import send_file, current_app
-from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models import Metadata, Family, Workspace, WorkspaceState
+from app.models import Family, Workspace, WorkspaceState
 from app.api.data.tasks import init_workspace, delete_workspace, scan_workspace
-from app.api.data.helpers import get_client, get_bucket, get_data_bucket
-
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +64,19 @@ def create(*, body, user, token_info=None):
         name=body['name'],
         description=body['description'],
         temporary=body.get('temporary', False),
-        user_id=user.id,
+        owner=user,
     )
     db.session.add(workspace)
+
+    # Verify contraints and generate the workspace id that will be needed for
+    # the next part of the family initialization
+    try:
+        db.session.flush()
+    except IntegrityError as exc:
+        logger.info('Workspace creation failed due to exception', exc_info=exc)
+        return problem(codes.bad_request,
+                       'Invalid workspace name',
+                       'Workspace name already exists for user')
 
     # Create or retrieve families
     queryset = (Family.query
@@ -79,15 +84,15 @@ def create(*, body, user, token_info=None):
                 .distinct(Family.name, Family.version)
                 .order_by(Family.name, Family.version.desc())
     )
-    # By default, the base family must be present
+    # By default, the base family must be present. If not present, set it to
+    # the latest version
     families = body['families']
     if 'base' not in families:
         families['base'] = None
 
     for name, version in families.items():
         logger.info('Adding family %s at version %s', name, version)
-        family = Family(name=name, description='No description')
-        family.workspace_id = workspace.id
+        family = Family(name=name, description='No description', workspace=workspace)
 
         if version is None:
             # Determine the latest family
@@ -105,6 +110,7 @@ def create(*, body, user, token_info=None):
 
         db.session.add(family)
 
+    # Updata database with families and workspace modifications
     db.session.commit()
 
     # Schedule the initialization task
@@ -230,75 +236,3 @@ def scan(*, id):
     return workspace.to_dict(), codes.accepted
 
 
-def files(*, id):
-    raise NotImplementedError
-
-
-def add_file(*, id, body):
-
-    logger.info('add_file %s %s %d', id, type(body), len(body), exc_info=True)
-
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
-
-    # Get the base metadata family or create it if not present
-    # ... aha this seems not trivial ...
-    # base_family = Metadata.get_instance_by_workspace(...) # for a lack of a better name
-
-
-    # Add basic metadata
-    file_id = uuid4()
-    base_metadata = {
-        'id': str(file_id),
-        'filename': str(file_id),
-        'path': '',
-        'size': len(body),
-        'checksum': '',
-        'url': '',
-    }
-
-    # Send file to bucket
-    client = get_client()
-    data_bucket = get_data_bucket(client)
-    blob = data_bucket.blob(str(file_id))
-    file_io = io.BytesIO(body)
-    blob.upload_from_file(file_io, rewind=True)
-    base_metadata['url'] = f'gs://{data_bucket.name}/{file_id}'
-
-    # Save model
-
-    return {}, codes.created
-
-
-def update_metadata(*, id, uuid, body):
-    print(id, uuid, body)
-    return {}, codes.ok
-
-
-def fetch_file(*, uuid):
-    return fetch_workspace_file(id=None, uuid=uuid)
-
-
-def fetch_workspace_file(*, id=None, uuid):
-    # Content negotiation
-    best = request.accept_mimetypes.best_match(['application/json',
-                                                'application/octet-stream'])
-    if best == 'application/json':
-        return {'fake': 'metadata'}, codes.ok
-
-    elif best == 'application/octet-stream':
-        from tempfile import NamedTemporaryFile
-        temp = NamedTemporaryFile('w')
-        temp.write('hello world\n')
-        temp.flush()
-        response = send_file(open(temp.name),
-                             mimetype='application/octet-stream')
-        response.direct_passthrough = False
-        return response, codes.ok
-
-    return problem(codes.bad_request,
-                   'Invalid accept header',
-                   f'Cannot serve content of type {request.accept_mimetypes}')

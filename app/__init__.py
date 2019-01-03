@@ -4,6 +4,7 @@ from celery import Celery
 from flask.cli import AppGroup
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
+import click
 import connexion
 
 from config import config
@@ -56,8 +57,19 @@ app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True)
 
 # Command line tools
 from app.api.data.commands import init_buckets  # nopep8
+from app.commands import new_user  # nopep8
 
-data_cli = AppGroup('data')
+data_cli = AppGroup('data', help='Quetzal data API operations')
+user_cli = AppGroup('users', help='Quetzal user operations')
+
+
+@user_cli.command('create')
+@click.argument('username')
+@click.argument('email')
+@click.password_option()
+def create_user_command(username, email, password):
+    """ Create a new user """
+    new_user(username, email, password)
 
 
 @data_cli.command('init')
@@ -67,3 +79,4 @@ def data_init_command():
 
 
 application.cli.add_command(data_cli)
+application.cli.add_command(user_cli)

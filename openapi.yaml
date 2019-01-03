@@ -170,7 +170,7 @@ paths:
         included.
       tags:
         - data
-      operationId: app.api.data.workspace.files
+      operationId: app.api.data.file.fetch
       responses:
         200:
           description: List of workspace files
@@ -187,7 +187,7 @@ paths:
         additional metadata associated to it.
       tags:
         - data
-      operationId: app.api.data.workspace.add_file
+      operationId: app.api.data.file.create
       requestBody:
         content:
           application/octet-stream:
@@ -225,7 +225,7 @@ paths:
         introduced in this workspace.
       tags:
         - data
-      operationId: app.api.data.workspace.fetch_workspace_file
+      operationId: app.api.data.file.details_w
       responses:
         200:
           description: File contents or metadata
@@ -243,7 +243,7 @@ paths:
         Change the file metadata ...
       tags:
         - data
-      operationId: app.api.data.workspace.update_metadata
+      operationId: app.api.data.file.update_metadata
       requestBody:
         content:
           application/json:
@@ -273,7 +273,7 @@ paths:
         the most recent metadata that has been committed.
       tags:
         - data
-      operationId: app.api.data.workspace.fetch_file
+      operationId: app.api.data.file.details
       responses:
         200:
           description: File contents or metadata
@@ -331,12 +331,12 @@ components:
         status:
           description: Workspace status
           enum:
-          - initializing
-          - ready
-          - processing
-          - invalid
-          - conflict
-          - deleted
+          - INITIALIZING
+          - READY
+          - PROCESSING
+          - INVALID
+          - CONFLICT
+          - DELETED
         description:
           description: Descriptive text of the purpose of this workspace
           type: string
@@ -376,6 +376,18 @@ components:
             "owner": "username",
             "data_url": "gs://some_bucket_name"
         }
+    File:
+      title: File details type
+      description: File details
+      type: object
+      properties:
+        id:
+          description: File ID
+          type: string
+          format: uuid
+        metadata:
+          description: File metadata
+          type: object
   securitySchemes:
     basic:
       type: http
