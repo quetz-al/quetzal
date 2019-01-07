@@ -1,0 +1,7 @@
+# Line endings:
+# Set the default behavior, in case people don't have core.autocrlf set.
+# The default behavior is to let git decide
+* text=auto
+
+# Files that will be converted to native line endings (depends on OS)
+*.py text
