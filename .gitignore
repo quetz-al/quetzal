@@ -2,6 +2,8 @@
 app.db
 # ignore any sensitive configuration file
 conf/*
+# OSX stuff
+**/.DS_Store
 
 #
 # Automatic gitignore config file:
