@@ -102,6 +102,9 @@ class Family(db.Model):
 
     __table_args__ = (
         UniqueConstraint('name', 'fk_workspace_id'),
+        # Do not allow the version and workspace to be simultaneously null
+        CheckConstraint('version IS NOT NULL OR fk_workspace_id IS NOT NULL',
+                        name='simul_null_check')
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -117,6 +120,12 @@ class Family(db.Model):
 
 
 class Metadata(db.Model):
+
+    __table_args__ = (
+        # Do not allow metadata without an "id" entry
+        CheckConstraint("json ? 'id'", name='check_id'),
+    )
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     id_file = db.Column(UUID(as_uuid=True), index=True, nullable=False)
     json = db.Column(JSONB, nullable=False)

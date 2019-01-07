@@ -1,7 +1,7 @@
 """workspace model
 
-Revision ID: 0001
-Revises: 0000
+Revision ID: 0002
+Revises: 0001
 Create Date: 2019-01-03 15:46:20.390897
 
 """

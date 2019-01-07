@@ -1,7 +1,7 @@
 """family metadata models
 
-Revision ID: 0002
-Revises: 0001
+Revision ID: 0003
+Revises: 0002
 Create Date: 2019-01-03 15:48:20.455473
 
 """
@@ -21,9 +21,10 @@ def upgrade():
     op.create_table('family',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('name', sa.String(length=64), nullable=False),
-    sa.Column('version', sa.Integer(), nullable=False),
-    sa.Column('description', sa.Text(), nullable=False),
+    sa.Column('version', sa.Integer(), nullable=True),
+    sa.Column('description', sa.Text(), nullable=True),
     sa.Column('fk_workspace_id', sa.Integer(), nullable=True),
+    sa.CheckConstraint('version IS NOT NULL OR fk_workspace_id IS NOT NULL', name='simul_null_check'),
     sa.ForeignKeyConstraint(['fk_workspace_id'], ['workspace.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', 'fk_workspace_id')
@@ -34,6 +35,7 @@ def upgrade():
     sa.Column('id_file', postgresql.UUID(as_uuid=True), nullable=False),
     sa.Column('json', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
     sa.Column('fk_family_id', sa.Integer(), nullable=False),
+    sa.CheckConstraint("json ? 'id'", name='check_id'),
     sa.ForeignKeyConstraint(['fk_family_id'], ['family.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
