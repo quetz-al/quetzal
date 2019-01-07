@@ -1,8 +1,12 @@
 import hashlib
+import logging
 from urllib.parse import urlparse
 
 from google.cloud import storage
 from flask import current_app, g
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_client():
@@ -30,3 +34,22 @@ def md5(bs):
     hashobj = hashlib.new('md5')
     hashobj.update(bs)
     return hashobj.hexdigest()
+
+
+def log_chain(task, level=logging.INFO, limit=10):
+    ids = []
+    while task is not None and len(ids) < limit:
+        ids.append(str(task.id))
+        task = task.parent
+    # Reverse the order because celery orders it backwards (to my understanding)
+    ids = ids[::-1]
+    if len(ids) == limit and task is not None:
+        ids.append('...')
+    logger.log(level, 'Task chain: %s', ' -> '.join(ids))
+
+
+def print_query(qs):
+    # Only for debugging purposes!
+    from sqlalchemy.dialects import postgresql
+    print(qs.statement.compile(dialect=postgresql.dialect()))
+    return qs

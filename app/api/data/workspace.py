@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import Family, Workspace, WorkspaceState
-from app.api.data.tasks import init_workspace, delete_workspace, scan_workspace
+from app.api.data.helpers import log_chain
+from app.api.data.tasks import init_workspace, init_data_bucket, delete_workspace, scan_workspace
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ def create(*, body, user, token_info=None):
     int
         HTTP response code
     """
+
     # Create workspace on the database
     workspace = Workspace(
         name=body['name'],
@@ -73,48 +75,37 @@ def create(*, body, user, token_info=None):
     try:
         db.session.flush()
     except IntegrityError as exc:
-        logger.info('Workspace creation failed due to exception', exc_info=exc)
+        logger.info('Workspace creation denied due to repeated user and name')
+        logger.debug('Workspace creation error details:', exc_info=exc)
         return problem(codes.bad_request,
                        'Invalid workspace name',
                        'Workspace name already exists for user')
 
-    # Create or retrieve families
-    queryset = (Family.query
-                .filter_by(workspace=None)
-                .distinct(Family.name, Family.version)
-                .order_by(Family.name, Family.version.desc())
-    )
+    # Create temporary families that will be correctly initialized later.
     # By default, the base family must be present. If not present, set it to
     # the latest version
     families = body['families']
     if 'base' not in families:
         families['base'] = None
-
     for name, version in families.items():
-        logger.info('Adding family %s at version %s', name, version)
-        family = Family(name=name, description='No description', workspace=workspace)
-
-        if version is None:
-            # Determine the latest family
-            latest = queryset.filter_by(name=name).first()
-            if latest is None:
-                family.version = 0
-            else:
-                family.version = latest.version
-        else:
-            # Use an existing family
-            existing = queryset.filter_by(name=name, version=version).first()
-            if existing is None:
-                raise Exception(f'Family {name} does not have version {version}')
-            family.description = existing.description
-
+        family = Family(name=name,
+                        version=version,
+                        description='No description provided',
+                        fk_workspace_id=workspace.id)
+        logger.info('Adding family %s version %s workspace %s', family, family.version, family.fk_workspace_id)
         db.session.add(family)
 
     # Updata database with families and workspace modifications
     db.session.commit()
 
-    # Schedule the initialization task
-    init_workspace.delay(workspace.id)
+    # Schedule the initialization tasks
+    background_task = (
+            init_workspace.si(workspace.id) |
+            init_data_bucket.si(workspace.id)
+    ).apply_async()
+
+    # Log the celery chain in order
+    log_chain(background_task)
 
     # Respond with the workspace details
     return workspace.to_dict(), codes.created

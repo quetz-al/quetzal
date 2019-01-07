@@ -1,16 +1,128 @@
 import logging
 
 from app import celery, db
-from app.models import Workspace, WorkspaceState
+from app.models import Workspace, WorkspaceState, Metadata, Family
 from app.api.data.helpers import get_client, get_bucket
 
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: create exception for tasks
+
+
 @celery.task()
 def init_workspace(id):
+    """ Initialize the internal representation of a workspace
+
+    Once a request to create a workspace has been accepted, there are some
+    operations that may take some time because they are not trivial to
+    obtain from the database. This includes:
+
+    1. The reference to the latest the latest *global* metadata entry used
+       to determine the default metadata values.
+    2. The exact version of the metadata families when they are set to
+       ``None``, which means the latest available.
+
+    Parameters
+    ----------
+    id: int
+        Workspace identifier
+
+    Returns
+    -------
+    None
+
+    """
     logger.info('Initializing workspace %s...', id)
+
+    # Get the workspace object and verify preconditions
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        raise Exception('Workspace was not found')
+
+    if workspace.state != WorkspaceState.INITIALIZING:
+        raise Exception('Workspace was not on the expected state')
+
+    # Determine the most recent "global" metadata entry so that the workspace
+    # has a reference number from which any new metadata will be ignored
+    latest_metadata = (
+        db.session.query(Metadata)
+        .join(Family)
+        .filter_by(workspace=None)
+        .order_by(Metadata.id.desc())
+        .first()
+    )
+    logger.info('The latest global metadata is %s', latest_metadata)
+    if latest_metadata is None:
+        workspace.fk_last_metadata_id = None
+    else:
+        workspace.fk_last_metadata_id = latest_metadata.id
+
+    # Verify and update family versions so that :
+    # - non null version values are verified to exist
+    # - null version values are set to the latest available version
+
+    # query that obtains the latest global family (i.e. with null workspace)
+    qs_global_families = (
+        Family.query
+        .filter_by(workspace=None)
+    )
+    # this is grouped by family name in order to get the latest per family name
+    qs_latest_families = (
+        qs_global_families
+        .distinct(Family.name, Family.version)
+        .order_by(Family.name, Family.version.desc())
+    )
+
+    for family in workspace.families:
+        if family.version == 0:
+            # Setting the family version to zero is permitted and does not need
+            # any verification; it means that the workspace will not use any
+            # preexisting metadata for that family
+            logger.info('Family %s left at version 0', family.name)
+
+        elif family.version is not None:
+            # Request for a specific version (that is not zero).
+            # First, we need to verify that the name and version combination
+            # does exist as a global family (i.e. a family that has been
+            # commited and therefore has workspace == null)
+            exact_family = qs_global_families.filter_by(version=family.version)
+            if exact_family is None:
+                # The specified version does not exist. Abort and set the
+                # workspace in an error state
+                logger.info('Family %s at version %s does not exist', family.name, family.version)
+                db.session.rollback()
+                workspace.state = WorkspaceState.INVALID
+                db.session.add(workspace)
+                db.session.commit()
+                raise Exception('Invalid family specification')
+
+            # if family.version was not none, then everything is correct
+            logger.info('Adding family %s at version %s', family.name, family.version)
+
+        else:
+            latest_family = qs_latest_families.filter_by(name=family.name).first()
+            if latest_family is None:
+                # Family does not exist
+                family.version = 0
+            else:
+                # Family does exist, use the latest version
+                family.version = latest_family.version
+
+            logger.info('Family %s at latest version set to version=%d',
+                        family.name, family.version)
+
+            # save the family with the updated version number
+            db.session.add(family)
+
+    # Commit changes to database
+    db.session.commit()
+
+
+@celery.task()
+def init_data_bucket(id):
+    logger.info('Initializing bucket of workspace %s...', id)
 
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(id)
@@ -22,7 +134,7 @@ def init_workspace(id):
 
     # Do the initialization task
     # TODO: manage exceptions/errors
-    bucket_name = f'quetzal-ws-{workspace.owner.username}-{workspace.name}'
+    bucket_name = f'quetzal-ws-{workspace.id}-{workspace.owner.username}-{workspace.name}'
     client = get_client()
     bucket = client.bucket(bucket_name)
     bucket.storage_class = 'REGIONAL'
@@ -60,7 +172,8 @@ def delete_workspace(id):
     bucket.delete()
 
     # Update the database model
-    db.session.delete(workspace)
+    workspace.state = WorkspaceState.DELETED
+    db.session.add(workspace)
     db.session.commit()
 
 

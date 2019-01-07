@@ -9,6 +9,7 @@ Flask-Migrate
 alembic
 psycopg2-binary
 requests
+Click
 
 # Requirements needed for saving data on GCP
 google-cloud-storage
