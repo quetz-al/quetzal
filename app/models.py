@@ -1,15 +1,19 @@
 from datetime import datetime, timedelta
 import base64
 import enum
+import logging
 import os
 
 from flask_login import UserMixin
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
-from sqlalchemy.schema import Index, UniqueConstraint
+from sqlalchemy.schema import Index, UniqueConstraint, CheckConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
+
+
+logger = logging.getLogger(__name__)
 
 
 class User(UserMixin, db.Model):
@@ -118,12 +122,19 @@ class Family(db.Model):
     def __repr__(self):
         return f'<Family {self.id} [{self.name}, version {self.version}]>'
 
+    def increment(self):
+        return Family(name=self.name,
+                      version=self.version + 1,
+                      description=self.description,
+                      fk_workspace_id=self.fk_workspace_id)
+
 
 class Metadata(db.Model):
 
     __table_args__ = (
         # Do not allow metadata without an "id" entry
         CheckConstraint("json ? 'id'", name='check_id'),
+        # TODO: add constraint check file_id == json->'id' ?
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -142,3 +153,67 @@ class Metadata(db.Model):
                 self.family.name: self.json,
             }
         }
+
+    def copy(self):
+        return Metadata(
+            id_file=self.id_file,
+            json=self.json,
+            fk_family_id=self.fk_family_id,
+        )
+
+    def update(self, json):
+        """ Update the underlying json metadata with the values of a new one
+
+        This function takes the current json saved in this metadata object and
+        updates it (like ``dict.update``) with the new values found in the
+        `json` input parameter. This does not remove any key; it adds new keys
+        or changes any existing one.
+
+        Since SQLAlchemy does not detect changes on a JSONB column unless a
+        new object is assigned to it, this function creates a new dictionary
+        and replaces the previous one.
+
+        Changes still need to be committed through a DB session object.
+
+        Parameters
+        ----------
+        json: dict
+            A new metadata object that will update over the existing one
+
+        Returns
+        -------
+        self
+        """
+        tmp = self.json.copy()
+        tmp.update(json)
+        self.json = tmp
+        return self
+
+    @staticmethod
+    def get_latest(file_id, family):
+        latest = Metadata.query.filter_by(id_file=file_id, family=family).first()
+        # TODO: add unit test so that adding two modifications to a family does not entail two records
+        # ie: the first here is the only possible result
+        if latest is not None:
+            logger.info('Latest is from this workspace: %s', latest)
+            return latest
+
+        # Nothing in the workspace was found, try the previous global metadata
+        workspace = family.workspace
+        reference = 0
+        if workspace.fk_last_metadata_id is not None:
+            reference = workspace.fk_last_metadata_id
+        latest_global = (
+            Metadata
+            .query
+            .filter(Metadata.id_file == file_id, Metadata.id <= reference)
+            .join(Family)
+            .filter(Family.name == family.name)
+            .order_by(Metadata.id.desc())
+            .first()
+        )
+        if latest_global is not None:
+            logger.info('Latest is from previous workspace: %s', latest_global)
+            return latest_global
+
+        return None

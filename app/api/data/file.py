@@ -51,31 +51,62 @@ def create(*, id, body):
 
 def update_metadata(*, id, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
+
     workspace = Workspace.query.get(id)
-    file_metas = (
-        db.session.query(Metadata)
-        .join(Family)
-        .filter_by(workspace=workspace)
-        .filter(Metadata.id_file == uuid)
-    )
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return problem(codes.not_found, 'Not found',
+                       f'Workspace {id} does not exist')
+
+    # Before changing/updating the matadata, we must ensure that the changes
+    # are valid. That is:
+    # * Metadata of the "base" family cannot be modified, with the exception of
+    #   the "path" entry
+    # * The "id" entry cannot be changed for any family
+    # * The family must have been declared on the creation of the workspace
     for name, content in body.items():
+        # Verification: base metadata
         if name == 'base' and content.keys() != {'path'}:
             return problem(codes.bad_request,  # see RFC 7231 or https://stackoverflow.com/a/3290198/227103
                            'Invalid metadata modification',
                            'Cannot change metadata family "base" for the exception of its path')
+
+        # Verification: id cannot be changed
         if 'id' in content.keys():
             return problem(codes.bad_request,
                            'Invalid metadata modification',
                            'Cannot change metadata "id" entry')
-        # TODO: verify no changes on id
-        # TODO: verify no changes on base
-        previous = file_metas.filter_by(name=name).first()
-        if previous is not None:
-            previous.json.update(content)
 
-        # TODO: continue here, db.session.add, commit etc
+        # Family exists on this workspace?
+        family = workspace.families.filter_by(name=name).first()
+        if family is None:
+            return problem(codes.bad_request,
+                           'Invalid family',
+                           f'Workspace does not have family {name}')
 
-    return {}, codes.ok
+        latest = Metadata.get_latest(uuid, family)
+        if latest is None:
+            logger.info('Creating new metadata entry')
+            latest = Metadata(id_file=uuid, family=family, json={'id': uuid})
+        elif latest.family.workspace is None:
+            logger.info('Copying metadata %s', latest)
+            latest = latest.copy()
+            latest.family = family
+        else:
+            logger.info('Got latest %s', latest)
+
+        logger.info('previous json %s content %s', latest.json, content)
+        latest.update(content)
+        logger.info('new json %s', latest.json)
+        db.session.add(latest)
+
+    # Query again the latest metadata
+    meta = _all_metadata(uuid, workspace)
+
+    # Save changes
+    db.session.commit()
+
+    return meta, codes.ok
 
 
 def details(*, uuid):
@@ -85,26 +116,22 @@ def details(*, uuid):
 def details_w(*, id=None, uuid):
     # Content negotiation
     best = request.accept_mimetypes.best_match(['application/json',
-                                                'application/octet-stream'])
+                                                'application/octet-stream'],
+                                               default=None)
     if best == 'application/json':
         # When there is a workspace, give its workspace
         # Otherwise, give the latest metadata
         if id is not None:
             workspace = Workspace.query.get(id)
-            file_metas = (
-                db.session.query(Metadata)
-                .join(Family)
-                .filter_by(workspace=workspace)
-                .filter(Metadata.id_file == uuid)
-            )
-            # TODO: add request of metadata that has not been modified yet
-            meta = {
-                'id': uuid,
-                'metadata': {m.family.name: m.json for m in file_metas},
-            }
-            return meta, codes.ok
+            if workspace is None:
+                # TODO: raise exception, when errors are managed correctly
+                return problem(codes.not_found, 'Not found',
+                               f'Workspace {id} does not exist')
 
-        return {'fake': 'metadata'}, codes.ok
+            meta = _all_metadata(uuid, workspace)
+            return {'id': uuid, 'metadata': meta}, codes.ok
+
+        raise NotImplementedError('metadata without workspace not implemented yet')
 
     elif best == 'application/octet-stream':
         from tempfile import NamedTemporaryFile
@@ -123,3 +150,12 @@ def details_w(*, id=None, uuid):
 
 def fetch(*, id):
     raise NotImplementedError
+
+
+def _all_metadata(file_id, workspace):
+    meta = {}
+    for family in workspace.families.all():
+        latest = Metadata.get_latest(file_id, family)
+        if latest is not None:
+            meta[family.name] = latest.json
+    return meta
