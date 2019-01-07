@@ -11,6 +11,7 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'some-secret-key'
 
     # Logging
+    LOG_DIR = os.environ.get('LOG_DIR') or os.path.join(basedir, 'logs')
     LOGGING = {
         'version': 1,
         'formatters': {
@@ -42,7 +43,7 @@ class Config:
                 'level': 'DEBUG',  # on debug so that the file has much more details
                 'class': 'logging.handlers.RotatingFileHandler',
                 'formatter': 'detailed',
-                'filename': '/var/log/quetzal.log',
+                'filename': os.path.join(LOG_DIR, 'quetzal.log'),
                 'maxBytes': 10 * (1 << 20),  # 10 Mb
                 'backupCount': 100,
             },
@@ -51,7 +52,7 @@ class Config:
                 'level': 'DEBUG',  # like the file handler but on another file
                 'class': 'logging.handlers.RotatingFileHandler',
                 'formatter': 'celery_formatter',
-                'filename': '/var/log/worker.log',
+                'filename': os.path.join(LOG_DIR, 'worker.log'),
                 'maxBytes': 10 * (1 << 20),  # 10 Mb
                 'backupCount': 100,
             },

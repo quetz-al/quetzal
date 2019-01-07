@@ -47,5 +47,6 @@ Convention: version 0 is the beginning for any family and there is nothing in it
 Logging
 -------
 
-Application has detailed logs on ``/var/log/quetzal.log``.
-The worker has a detailed logs on ``/var/log/worker.log``.
+Application has detailed logs on ``./logs/quetzal.log``.
+The worker has a detailed logs on ``./logs/worker.log``.
+Database has detailed logs on ``./logs/postgres-...``
