@@ -86,18 +86,20 @@ def update_metadata(*, id, uuid, body):
 
         latest = Metadata.get_latest(uuid, family)
         if latest is None:
-            logger.info('Creating new metadata entry')
+            # This file has no metadata (local or global) under this particular family
+            logger.debug('There is no previous metadata, creating a new metadata entry')
             latest = Metadata(id_file=uuid, family=family, json={'id': uuid})
+
         elif latest.family.workspace is None:
-            logger.info('Copying metadata %s', latest)
+            # This file has some global (ie committed) metadata
+            logger.info('A previous metadata entry exists, copying metadata %s', latest)
             latest = latest.copy()
             latest.family = family
         else:
+            # This file has some local (ie not committed) metadata
             logger.info('Got latest %s', latest)
 
-        logger.info('previous json %s content %s', latest.json, content)
         latest.update(content)
-        logger.info('new json %s', latest.json)
         db.session.add(latest)
 
     # Query again the latest metadata
@@ -107,6 +109,11 @@ def update_metadata(*, id, uuid, body):
     db.session.commit()
 
     return meta, codes.ok
+
+
+def set_metadata(*, id, uuid, body):
+    # TODO: maybe change spec to {"metadata": object}
+    raise NotImplementedError
 
 
 def details(*, uuid):

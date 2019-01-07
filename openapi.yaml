@@ -240,7 +240,11 @@ paths:
     patch:
       summary: Modify file metadata
       description: |-
-        Change the file metadata ...
+        Change the file metadata by updating it. Updating metadata changes
+        key/value pairs, adding a new key/value pair if does not exist and
+        changing the value if the key already exists. However, it cannot delete
+        a key/value that already exists. To delete metadata, refer to the
+        PUT method on this endpoint.
       tags:
         - data
       operationId: app.api.data.file.update_metadata
@@ -252,6 +256,27 @@ paths:
       responses:
         200:
           description: Metadata successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+    put:
+      summary: Rewrite file metadata
+      description: |-
+        Change the file metadata entirely. In contrast to the PATCH method to
+        on this endpoint, this method sets the new metadata and discards any
+        previous metadata that was defined before.
+      tags:
+        - data
+      operationId: : app.api.data.file.set_metadata
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        200:
+          description: Metadata successfully saved
           content:
             application/json:
               schema:
