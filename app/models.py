@@ -11,6 +11,7 @@ from sqlalchemy.schema import Index, UniqueConstraint, CheckConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
+from app.api.data.exceptions import InvalidTransitionException
 
 
 logger = logging.getLogger(__name__)
@@ -76,7 +77,7 @@ class WorkspaceState(enum.Enum):
             ws.READY: {ws.SCANNING, ws.UPDATING, ws.COMMITTING, ws.DELETING},
             ws.SCANNING: {ws.READY},
             ws.UPDATING: {ws.READY, ws.INVALID},
-            ws.COMMITTING: {ws.CONFLICT},
+            ws.COMMITTING: {ws.READY, ws.CONFLICT},
             ws.DELETING: {ws.DELETED},
             ws.INVALID: {ws.UPDATING, ws.DELETING},
             ws.CONFLICT: {ws.UPDATING, ws.DELETING},
@@ -117,7 +118,12 @@ class Workspace(db.Model):
         if WorkspaceState.valid_transition(self._state, new_state):
             self._state = new_state
         else:
-            raise ValueError(f'Invalid state transition {self._state} -> {new_state}')
+            raise InvalidTransitionException(f'Invalid state transition '
+                                             f'{self._state} -> {new_state}')
+
+    @property
+    def can_change_metadata(self):
+        return self.state in {WorkspaceState.READY, WorkspaceState.CONFLICT}
 
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \

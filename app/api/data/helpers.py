@@ -40,7 +40,10 @@ def log_chain(task, level=logging.INFO, limit=10):
     ids = []
     while task is not None and len(ids) < limit:
         ids.append(str(task.id))
-        task = task.parent
+        if hasattr(task, 'parent'):
+            task = task.parent
+        else:
+            task = None
     # Reverse the order because celery orders it backwards (to my understanding)
     ids = ids[::-1]
     if len(ids) == limit and task is not None:

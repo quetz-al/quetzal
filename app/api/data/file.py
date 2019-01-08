@@ -17,9 +17,16 @@ def create(*, id, body):
 
     workspace = Workspace.query.get(id)
     if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
         return problem(codes.not_found, 'Not found',
                        f'Workspace {id} does not exist')
+
+    # Creating a file requires new metadata, so the check here is to verify
+    # that the workspace status permits changes on metadata
+    if not workspace.can_change_metadata:
+        # See note on 412 code and werkzeug on top of workspace.py file
+        return problem(codes.precondition_failed,
+                       f'Cannot add file to workspace',
+                       f'Cannot add files to a workspace on {workspace.state.name} state')
 
     # Get the base metadata family in order to put the basic metadata info
     base_family = workspace.families.filter_by(name='base').first()
@@ -57,6 +64,13 @@ def update_metadata(*, id, uuid, body):
         # TODO: raise exception, when errors are managed correctly
         return problem(codes.not_found, 'Not found',
                        f'Workspace {id} does not exist')
+
+    if not workspace.can_change_metadata:
+        # See note on 412 code and werkzeug on top of workspace.py file
+        return problem(codes.precondition_failed,
+                       f'Cannot update metadata of file',
+                       f'Cannot update metadata of files to a workspace on '
+                       f'{workspace.state.name} state')
 
     # Before changing/updating the matadata, we must ensure that the changes
     # are valid. That is:
@@ -113,6 +127,19 @@ def update_metadata(*, id, uuid, body):
 
 def set_metadata(*, id, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        # TODO: raise exception, when errors are managed correctly
+        return problem(codes.not_found, 'Not found',
+                       f'Workspace {id} does not exist')
+
+    if not workspace.can_change_metadata:
+        # See note on 412 code and werkzeug on top of workspace.py file
+        return problem(codes.precondition_failed,
+                       f'Cannot change metadata of file',
+                       f'Cannot change metadata of files to a workspace on '
+                       f'{workspace.state.name} state')
+
     raise NotImplementedError
 
 

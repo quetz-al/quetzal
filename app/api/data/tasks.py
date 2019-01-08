@@ -2,13 +2,11 @@ import logging
 
 from app import celery, db
 from app.models import Workspace, WorkspaceState, Metadata, Family
+from app.api.data.exceptions import WorkerException
 from app.api.data.helpers import get_client, get_bucket
 
 
 logger = logging.getLogger(__name__)
-
-
-# TODO: create exception for tasks
 
 
 @celery.task()
@@ -39,10 +37,10 @@ def init_workspace(id):
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(id)
     if workspace is None:
-        raise Exception('Workspace was not found')
+        raise WorkerException('Workspace was not found')
 
     if workspace.state != WorkspaceState.INITIALIZING:
-        raise Exception('Workspace was not on the expected state')
+        raise WorkerException('Workspace was not on the expected state')
 
     # Determine the most recent "global" metadata entry so that the workspace
     # has a reference number from which any new metadata will be ignored
@@ -96,7 +94,7 @@ def init_workspace(id):
                 workspace.state = WorkspaceState.INVALID
                 db.session.add(workspace)
                 db.session.commit()
-                raise Exception('Invalid family specification')
+                raise WorkerException('Invalid family specification')
 
             # if family.version was not none, then everything is correct
             logger.info('Adding family %s at version %s', family.name, family.version)
@@ -127,10 +125,10 @@ def init_data_bucket(id):
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(id)
     if workspace is None:
-        raise Exception('Workspace was not found')
+        raise WorkerException('Workspace was not found')
 
     if workspace.state != WorkspaceState.INITIALIZING:
-        raise Exception('Workspace was not on the expected state')
+        raise WorkerException('Workspace was not on the expected state')
 
     # Do the initialization task
     # TODO: manage exceptions/errors
@@ -155,10 +153,10 @@ def delete_workspace(id):
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(id)
     if workspace is None:
-        raise Exception('Workspace was not found')
+        raise WorkerException('Workspace was not found')
 
-    if workspace.state != WorkspaceState.PROCESSING:  # TODO: maybe more states are possible here
-        raise Exception('Workspace was not on the expected state')
+    if workspace.state != WorkspaceState.DELETING:
+        raise WorkerException('Workspace was not on the expected state')
 
     # Do the deletion task
     # TODO: manage exceptions/errors
@@ -184,12 +182,32 @@ def scan_workspace(id):
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(id)
     if workspace is None:
-        raise Exception('Workspace was not found')
+        raise WorkerException('Workspace was not found')
 
-    if workspace.state != WorkspaceState.PROCESSING:
-        raise Exception('Workspace was not on the expected state')
+    if workspace.state != WorkspaceState.SCANNING:
+        raise WorkerException('Workspace was not on the expected state')
 
     # Do the scanning task
     import time; time.sleep(5)
     workspace.state = WorkspaceState.READY
+    db.session.add(workspace)
+    db.session.commit()
+
+
+@celery.task()
+def commit_workspace(id):
+    logger.info('Committing workspace %s...', id)
+
+    # Get the workspace object and verify preconditions
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        raise WorkerException('Workspace was not found')
+
+    if workspace.state != WorkspaceState.COMMITTING:
+        raise WorkerException('Workspace was not on the expected state')
+
+    # Do the committing task
+    import time; time.sleep(5)
+    workspace.state = WorkspaceState.READY
+    db.session.add(workspace)
     db.session.commit()

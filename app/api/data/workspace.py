@@ -7,7 +7,9 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import Family, Workspace, WorkspaceState
 from app.api.data.helpers import log_chain
-from app.api.data.tasks import init_workspace, init_data_bucket, delete_workspace, scan_workspace
+from app.api.data.tasks import init_workspace, init_data_bucket, \
+    commit_workspace, delete_workspace, scan_workspace
+from app.api.data.exceptions import InvalidTransitionException
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,9 @@ def fetch(*, user, token_info=None):  # TODO: this is how to get the user, but i
     if 'deleted' in query_args:
         raise NotImplementedError
 
+    # TODO: provide an order_by on the query parameters
+    query_set = query_set.order_by(Workspace.id.desc())
+
     return [workspace.to_dict() for workspace in query_set.all()], codes.ok
 
 
@@ -68,6 +73,7 @@ def create(*, body, user, token_info=None):
         temporary=body.get('temporary', False),
         owner=user,
     )
+    workspace.state = WorkspaceState.INITIALIZING
     db.session.add(workspace)
 
     # Verify contraints and generate the workspace id that will be needed for
@@ -92,7 +98,8 @@ def create(*, body, user, token_info=None):
                         version=version,
                         description='No description provided',
                         fk_workspace_id=workspace.id)
-        logger.info('Adding family %s version %s workspace %s', family, family.version, family.fk_workspace_id)
+        logger.info('Adding family %s version %s to workspace %s',
+                    family, family.version, family.fk_workspace_id)
         db.session.add(family)
 
     # Updata database with families and workspace modifications
@@ -152,25 +159,30 @@ def delete(*, id):
     """
     workspace = Workspace.query.get(id)
     if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
         return problem(codes.not_found, 'Not found',
                        f'Workspace {id} does not exist')
 
-    # check preconditions
-    if workspace.state != WorkspaceState.READY:
+    # update workspace state, which will fail if it is not a valid transition
+    try:
+        workspace.state = WorkspaceState.DELETING
+        db.session.add(workspace)
+    except InvalidTransitionException as ex:
         # See note on 412 code and werkzeug on top of this file
+        logger.info(ex, exc_info=ex)
         return problem(codes.precondition_failed,
-                       'Workspace cannot be deleted',
-                       f'Cannot delete a workspace on {workspace.state.name} state, '
-                       f'it must be on the {WorkspaceState.READY.name} state')
+                       f'Workspace cannot be deleted',
+                       f'Cannot delete a workspace on {workspace.state.name} state')
 
-    # Mark workspace as processing and save to database
-    workspace.state = WorkspaceState.PROCESSING
-    db.session.add(workspace)
+    # Update database before sending the async task
     db.session.commit()
 
     # Schedule the deletion task
-    delete_workspace.delay(workspace.id)
+    background_task = (
+        delete_workspace.si(workspace.id)
+    ).apply_async()
+
+    # Log the celery chain in order
+    log_chain(background_task)
 
     return workspace.to_dict(), codes.accepted
 
@@ -193,9 +205,31 @@ def commit(*, id):
     """
     workspace = Workspace.query.get(id)
     if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
         return problem(codes.not_found, 'Not found',
                        f'Workspace {id} does not exist')
+
+    # update workspace state, which will fail if it is not a valid transition
+    try:
+        workspace.state = WorkspaceState.COMMITTING
+        db.session.add(workspace)
+    except InvalidTransitionException as ex:
+        # See note on 412 code and werkzeug on top of this file
+        logger.info(ex, exc_info=ex)
+        return problem(codes.precondition_failed,
+                       f'Workspace cannot be committed',
+                       f'Cannot commit a workspace on {workspace.state.name} state')
+
+    # Update database before sending the async task
+    db.session.commit()
+
+    # Schedule the scanning task
+    background_task = (
+        commit_workspace.si(workspace.id)
+    ).apply_async()
+
+    # Log the celery chain in order
+    log_chain(background_task)
+
     return workspace.to_dict(), codes.accepted
 
 
@@ -221,8 +255,23 @@ def scan(*, id):
         return problem(codes.not_found, 'Not found',
                        f'Workspace {id} does not exist')
 
+    # update workspace state, which will fail if it is not a valid transition
+    try:
+        workspace.state = WorkspaceState.SCANNING
+    except InvalidTransitionException as ex:
+        # See note on 412 code and werkzeug on top of this file
+        logger.info(ex, exc_info=ex)
+        return problem(codes.precondition_failed,
+                       f'Workspace cannot be scanned',
+                       f'Cannot scan a workspace on {workspace.state.name} state')
+
     # Schedule the scanning task
-    scan_workspace.delay(workspace.id)
+    background_task = (
+        scan_workspace.si(workspace.id)
+    ).apply_async()
+
+    # Log the celery chain in order
+    log_chain(background_task)
 
     return workspace.to_dict(), codes.accepted
 
