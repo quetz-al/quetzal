@@ -268,7 +268,7 @@ paths:
         previous metadata that was defined before.
       tags:
         - data
-      operationId: : app.api.data.file.set_metadata
+      operationId: app.api.data.file.set_metadata
       requestBody:
         content:
           application/json:
