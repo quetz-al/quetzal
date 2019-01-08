@@ -356,12 +356,15 @@ components:
         status:
           description: Workspace status
           enum:
-          - INITIALIZING
-          - READY
-          - PROCESSING
-          - INVALID
-          - CONFLICT
-          - DELETED
+            - INITIALIZING
+            - READY
+            - SCANNING
+            - UPDATING
+            - COMMITTING
+            - DELETING
+            - INVALID
+            - CONFLICT
+            - DELETED
         description:
           description: Descriptive text of the purpose of this workspace
           type: string

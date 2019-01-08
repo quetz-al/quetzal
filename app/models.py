@@ -56,12 +56,36 @@ class User(UserMixin, db.Model):
 
 
 class WorkspaceState(enum.Enum):
-    INITIALIZING = 1
-    READY = 2
-    PROCESSING = 3
-    INVALID = 4
-    CONFLICT = 5
-    DELETED = 6
+    INITIALIZING = 'initializing'
+    READY = 'ready'
+    SCANNING = 'scanning'
+    UPDATING = 'updating'
+    COMMITTING = 'committing'
+    DELETING = 'deleting'
+    INVALID = 'invalid'
+    CONFLICT = 'conflict'
+    DELETED = 'deleted'
+
+    @staticmethod
+    def transitions():
+        """Get the valid transition table for workspace states"""
+        ws = WorkspaceState  # synonym for shorter code
+        return {
+            None: {ws.INITIALIZING},
+            ws.INITIALIZING: {ws.READY, ws.INVALID},
+            ws.READY: {ws.SCANNING, ws.UPDATING, ws.COMMITTING, ws.DELETING},
+            ws.SCANNING: {ws.READY},
+            ws.UPDATING: {ws.READY, ws.INVALID},
+            ws.COMMITTING: {ws.CONFLICT},
+            ws.DELETING: {ws.DELETED},
+            ws.INVALID: {ws.UPDATING, ws.DELETING},
+            ws.CONFLICT: {ws.UPDATING, ws.DELETING},
+            ws.DELETED: {},
+        }
+
+    @staticmethod
+    def valid_transition(from_value, to_value):
+        return to_value in WorkspaceState.transitions().get(from_value, {})
 
 
 class Workspace(db.Model):
@@ -73,7 +97,7 @@ class Workspace(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(64), nullable=False)
-    state = db.Column(db.Enum(WorkspaceState), nullable=False, default=WorkspaceState.INITIALIZING)
+    _state = db.Column(db.Enum(WorkspaceState), nullable=True)
     description = db.Column(db.Text, nullable=False)
     creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
     temporary = db.Column(db.Boolean, nullable=False, default=False)
@@ -83,6 +107,17 @@ class Workspace(db.Model):
     fk_last_metadata_id = db.Column(db.Integer, db.ForeignKey('metadata.id'), nullable=True)
 
     families = db.relationship('Family', backref='workspace', lazy='dynamic')
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, new_state):
+        if WorkspaceState.valid_transition(self._state, new_state):
+            self._state = new_state
+        else:
+            raise ValueError(f'Invalid state transition {self._state} -> {new_state}')
 
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \
@@ -105,6 +140,7 @@ class Workspace(db.Model):
 class Family(db.Model):
 
     __table_args__ = (
+        # There can only one combination of name and workspace id
         UniqueConstraint('name', 'fk_workspace_id'),
         # Do not allow the version and workspace to be simultaneously null
         CheckConstraint('version IS NOT NULL OR fk_workspace_id IS NOT NULL',
