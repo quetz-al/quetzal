@@ -31,8 +31,6 @@ def upgrade():
     sa.Column('temporary', sa.Boolean(), nullable=False),
     sa.Column('data_url', sa.String(length=2048), nullable=True),
     sa.Column('fk_user_id', sa.Integer(), nullable=True),
-    sa.Column('fk_last_metadata_id', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['fk_last_metadata_id'], ['metadata.id'], ),
     sa.ForeignKeyConstraint(['fk_user_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('name', 'fk_user_id')
