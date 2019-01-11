@@ -9,9 +9,11 @@ RUN mkdir /code
 WORKDIR /code
 
 # Copy and install requirements
-COPY requirements.txt requirements-dev.txt ./
+COPY requirements.txt requirements-dev.txt requirements-test.txt ./
 RUN pip install -r requirements.txt && \
-    pip install -r requirements-dev.txt
+    pip install -r requirements-dev.txt && \
+    pip install -r requirements-test.txt
+
 
 # Add application source code
 COPY config.py wsgi.py openapi.yaml ./
