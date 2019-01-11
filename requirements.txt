@@ -3,6 +3,7 @@ werkzeug
 Flask-Login
 connexion[swagger-ui]
 celery
+Flask-Celery-Helper
 SQLAlchemy
 Flask-SQLAlchemy
 Flask-Migrate

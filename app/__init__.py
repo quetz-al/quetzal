@@ -1,6 +1,6 @@
 from logging.config import dictConfig
 
-from celery import Celery
+from flask_celery import Celery
 from flask.cli import AppGroup
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -10,73 +10,78 @@ import connexion
 from config import config
 
 
-# Celery helper for configuration,
-# taken from http://flask.pocoo.org/docs/1.0/patterns/celery/
-def make_celery(app):
-    celery_obj = Celery(
-        app.import_name,
-        broker=app.config['CELERY']['broker_url'],
-        backend=app.config['CELERY']['result_backend'],
-        include=['app.api.data.tasks'],
-    )
-    celery_obj.conf.update(app.config['CELERY'])
-
-    # Replace the base parent task with a task that has the application context
-    BaseTask = celery_obj.Task
-
-    class ContextBaseTask(BaseTask):
-        abstract = True
-
-        def __call__(self, *args, **kwargs):
-            with app.app_context():
-                return self.run(*args, **kwargs)
-
-    celery_obj.Task = ContextBaseTask
-    return celery_obj
+# Common objects usable accross the application
+db = SQLAlchemy()
+migrate = Migrate()
+celery = Celery()
 
 
-# Application is initialized by connexion. Note that connexion is not a Flask
-# extension; it wraps the Flask application entirely. The Flask application is
-# accesible through app.app
-app = connexion.App(__name__)
-application = app.app
-application.config.from_object(config.get(application.env))
+def create_app(config_name=None):
+    # Use connexion to create and configure the initial application, but
+    # we will use the Flask application to configure the rest
+    connexion_app = connexion.App(__name__)
+    flask_app = connexion_app.app
+    # Update configuration according to the factory parameter or the FLASK_ENV
+    # variable
+    config_obj = config.get(config_name or flask_app.env)
+    if config_obj is None:
+        raise ValueError(f'Unknown configuration "{config_name}"')
+    flask_app.config.from_object(config_obj)
 
-# Logging
-dictConfig(application.config['LOGGING'])
+    # Configure logging from the configuration object: I refuse to have the
+    # logging configuration in another file (it's easier to manage)
+    dictConfig(flask_app.config['LOGGING'])
 
-# Database
-db = SQLAlchemy(application)
-migrate = Migrate(application, db)
+    # Database
+    db.init_app(flask_app)
+    migrate.init_app(flask_app, db)
 
-# Background tasks
-celery = make_celery(application)
+    # Celery (background tasks)
+    flask_app.config['CELERY_BROKER_URL'] = flask_app.config['CELERY']['broker_url']
+    celery.init_app(flask_app)
+    # Make configured Celery instance attach to Flask
+    flask_app.celery = celery
 
-# APIs
-app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True)
+    # APIs
+    connexion_app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True)
 
-# Command line tools
-from app.api.data.commands import init_buckets  # nopep8
-from app.commands import new_user  # nopep8
+    # Command-line interface tools
+    from app.api.data.commands import init_buckets  # nopep8
+    from app.commands import new_user  # nopep8
 
-data_cli = AppGroup('data', help='Quetzal data API operations')
-user_cli = AppGroup('users', help='Quetzal user operations')
+    data_cli = AppGroup('data', help='Quetzal data API operations')
+    user_cli = AppGroup('users', help='Quetzal user operations')
 
+    @user_cli.command('create')
+    @click.argument('username')
+    @click.argument('email')
+    @click.password_option()
+    def create_user_command(username, email, password):
+        """ Create a new user """
+        new_user(username, email, password)
 
-@user_cli.command('create')
-@click.argument('username')
-@click.argument('email')
-@click.password_option()
-def create_user_command(username, email, password):
-    """ Create a new user """
-    new_user(username, email, password)
+    @data_cli.command('init')
+    def data_init_command():
+        """ Initialize data buckets """
+        init_buckets()
 
+    flask_app.cli.add_command(data_cli)
+    flask_app.cli.add_command(user_cli)
 
-@data_cli.command('init')
-def data_init_command():
-    """ Initialize data buckets """
-    init_buckets()
+    # Flask shell configuration
+    from app.models import Metadata, Family, User, Workspace, WorkspaceState
 
+    @flask_app.shell_context_processor
+    def make_shell_context():
+        return {
+            # Handy reference to the database
+            'db': db,
+            # Add models here
+            'User': User,
+            'Metadata': Metadata,
+            'Family': Family,
+            'Workspace': Workspace,
+            'WorkspaceState': WorkspaceState,
+        }
 
-application.cli.add_command(data_cli)
-application.cli.add_command(user_cli)
+    return flask_app

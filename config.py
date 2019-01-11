@@ -82,6 +82,7 @@ class Config:
     CELERY = {
         'broker_url': 'amqp://guest:guest@rabbitmq:5672//',
         'result_backend': 'rpc://',
+        'include': ['app.api.data.tasks'],
         # 'worker_log_format': LOGGING['formatters']['default']['format'],
         # 'worker_task_log_format': LOGGING['formatters']['celery_tasks']['format'],
         'worker_hijack_root_logger': False,
