@@ -2,13 +2,14 @@ import logging
 from requests import codes
 
 from connexion import NoContent, problem, request
+from kombu.exceptions import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import Family, Workspace, WorkspaceState
 from app.api.data.helpers import log_chain
 from app.api.data.tasks import init_workspace, init_data_bucket, \
-    commit_workspace, delete_workspace, scan_workspace
+    wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
 from app.api.data.exceptions import InvalidTransitionException
 
 logger = logging.getLogger(__name__)
@@ -102,17 +103,38 @@ def create(*, body, user, token_info=None):
                     family, family.version, family.fk_workspace_id)
         db.session.add(family)
 
-    # Updata database with families and workspace modifications
-    db.session.commit()
+    # Flush the database to obtain a workspace id
+    db.session.flush()
 
-    # Schedule the initialization tasks
-    background_task = (
+    # Schedule the initialization tasks.
+    # Note that there is an egg and chicken problem here: we need to initialize
+    # the workspace in the database but also schedule a task. Both of these
+    # operations can fail or take time. Here, we arbitrarily decided to schedule
+    # the task with some delay (countdown=1 sec) then commit the database.
+    # For this reason, the first part of the chain of task is to wait for the
+    # workspace to be exist in the database (after db.session.commit()).
+    try:
+        background_task = (
+            # Wait for the workspace to be added to the database
+            wait_for_workspace.si(workspace.id) |
+            # Initialize its families
             init_workspace.si(workspace.id) |
+            # Initialize its resources
             init_data_bucket.si(workspace.id)
-    ).apply_async()
+        ).apply_async(countdown=1)
+    except OperationalError as exc:
+        logger.error('Failed to schedule workspace creation task', exc_info=exc)
+        db.session.rollback()
+        return problem(codes.service_unavailable,
+                       'Service unavailable',
+                       'Could not initialize workspace due to a temporary backend error. '
+                       'The administrator has been notified.')
 
     # Log the celery chain in order
     log_chain(background_task)
+
+    # Save database with families and workspace modifications
+    db.session.commit()
 
     # Respond with the workspace details
     return workspace.to_dict(), codes.created

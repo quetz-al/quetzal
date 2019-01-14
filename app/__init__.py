@@ -39,6 +39,15 @@ def create_app(config_name=None):
     # Celery (background tasks)
     flask_app.config['CELERY_BROKER_URL'] = flask_app.config['CELERY']['broker_url']
     celery.init_app(flask_app)
+    # There is a weird bug in Celery where broker_transport_options is ignored
+    celery.conf.broker_transport_options = {
+        'max_retries': 3,
+        'interval_start': 0,
+        'interval_step': 0.2,
+        'interval_max': 0.2,
+    }
+
+
     # Make configured Celery instance attach to Flask
     flask_app.celery = celery
 

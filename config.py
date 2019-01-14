@@ -91,6 +91,18 @@ class Config:
         'broker_url': 'amqp://guest:guest@rabbitmq:5672//',
         'result_backend': 'rpc://',
         'include': ['app.api.data.tasks'],
+
+        # This does not work for some strange reason, but we need it so that
+        # sending tasks does not hang when the broker is down. This is
+        # currently set on the application factory method
+        # 'broker_transport_options': {
+        #     'max_retries': 3,
+        #     'interval_start': 0,
+        #     'interval_step': 0.2,
+        #     'interval_max': 0.2,
+        #
+        # },
+
         # 'worker_log_format': LOGGING['formatters']['default']['format'],
         # 'worker_task_log_format': LOGGING['formatters']['celery_tasks']['format'],
         'worker_hijack_root_logger': False,

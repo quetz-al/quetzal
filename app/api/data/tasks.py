@@ -9,6 +9,27 @@ from app.api.data.helpers import get_client, get_bucket
 logger = logging.getLogger(__name__)
 
 
+@celery.task(bind=True, max_retries=10)
+def wait_for_workspace(self, id):
+    """ Wait until a workspace is created on the database
+
+    Parameters
+    ----------
+    id: int
+        Workspace identifier
+
+    Returns
+    -------
+
+    """
+    logger.info('Waiting for creation of workspace %s ...', id)
+
+    workspace = Workspace.query.get(id)
+    if workspace is None:
+        logger.info('Workspace is not available yet')
+        raise self.retry(countdown=1)
+
+
 @celery.task()
 def init_workspace(id):
     """ Initialize the internal representation of a workspace
