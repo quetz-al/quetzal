@@ -72,8 +72,16 @@ class Config:
     }
 
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'sqlite:///{os.path.join(basedir, "app.db")}'
+    SQLALCHEMY_DATABASE_URI = (
+            'postgresql://' +
+            # Sole difference with the production config: there is a default
+            # value for the user and password (it does not fail if not set)
+            os.environ.get('DB_USERNAME', 'postgres') + ':' +
+            os.environ.get('DB_PASSWORD', 'pg_password') + '@' +
+            os.environ.get('DB_HOST', 'db') + ':' +
+            os.environ.get('DB_PORT', '5432') + '/' +
+            os.environ.get('DB_DATABASE', 'quetzal')
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Celery configuration
@@ -103,12 +111,62 @@ class DevelopmentConfig(Config):
 class TestConfig(Config):
     TESTING = True
 
-    # Database configuration (in-memory database)
-    SQLALCHEMY_DATABASE_URI = 'sqlite://'
+    # Logging
+    LOG_DIR = os.environ.get('LOG_DIR') or os.path.join(basedir, 'logs')
+    LOGGING = {
+        'version': 1,
+        'formatters': {
+            'detailed': {
+                'format': '%(asctime)s %(levelname)s %(name)s.%(funcName)s:- %(message)s '
+                          '[in %(pathname)s:%(lineno)d]',
+                'datefmt': '%Y-%m-%d %H:%M:%S',
+            }
+        },
+        'handlers': {
+            # Detailed logging logging on console
+            'console': {
+                'level': 'INFO',  # on info so that the console is rather brief
+                'class': 'logging.StreamHandler',
+                'formatter': 'detailed',
+            },
+            # Detailed logging on file
+            'file': {
+                'level': 'DEBUG',  # on debug so that the file has much more details
+                'class': 'logging.FileHandler',
+                'formatter': 'detailed',
+                'filename': os.path.join(LOG_DIR, 'quetzal-unittests.log'),
+            }
+        },
+        'root': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+        },
+        'disable_existing_loggers': True,
+    }
+
+    # Database configuration
+    SQLALCHEMY_DATABASE_URI = (
+            'postgresql://' +
+            os.environ.get('DB_USERNAME', 'postgres') + ':' +
+            os.environ.get('DB_PASSWORD', 'pg_password') + '@' +
+            os.environ.get('DB_HOST', 'db') + ':' +
+            os.environ.get('DB_PORT', '5432') + '/' +
+            os.environ.get('DB_DATABASE', 'unittests')
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    def __init__(self):
+        super().__init__()
+        self.LOGGING['handlers']['file']['filename'] = os.path.join(self.LOG_DIR, 'unittests.log')
 
 
 class ProductionConfig(Config):
     pass
+
+
+class MigrationsConfig(Config):
+    SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(basedir, "app.db")}'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 # Map of environment name -> configuration object

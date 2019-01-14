@@ -8,7 +8,7 @@ from requests import codes
 from app import db
 from app.api.data.helpers import get_data_bucket, md5
 from app.api.data.workspace import logger
-from app.models import Workspace, Metadata, Family
+from app.models import Workspace, Metadata
 
 
 def create(*, id, body):

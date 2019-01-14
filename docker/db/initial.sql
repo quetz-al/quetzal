@@ -4,6 +4,9 @@ SET TIME ZONE 'UTC';
 -- Create initial database
 CREATE DATABASE quetzal;
 
+-- Create unit testing database
+CREATE DATABASE unittests;
+
 -- TODO: manage permissions
 
 -- Creation of readonly user

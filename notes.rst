@@ -23,6 +23,11 @@ Migrations on a running server need special considerations.
 .. note:: TODO: add migrations on running server considerations.
 
 
+It seems that one can apply the migrations to _HEAD_ as follows::
+
+   flask db upgrade head
+
+
 Google
 ------
 
@@ -47,6 +52,16 @@ Convention: version 0 is the beginning for any family and there is nothing in it
 Logging
 -------
 
-Application has detailed logs on ``./logs/quetzal.log``.
-The worker has a detailed logs on ``./logs/worker.log``.
-Database has detailed logs on ``./logs/postgres-...``
+* Application has detailed logs on ``./logs/quetzal.log``.
+* The worker has a detailed logs on ``./logs/worker.log``.
+* Database has detailed logs on ``./logs/postgres-...``
+* The unit test logs are in ``./logs/quetzal-unittests.log``
+
+
+Unit tests
+----------
+
+Unit tests can be run from docker-compose as follows::
+
+  docker-compose run unittests
+
