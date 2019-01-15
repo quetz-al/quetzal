@@ -1,62 +1,78 @@
-# Flask app and db fixtures based on:
-# https://github.com/pytest-dev/pytest-flask/issues/70#issuecomment-361005780
+# pytest fixtures for flask, sqlalchemy and celery, based on
+# https://github.com/sunscrapers/flask-boilerplate/blob/master/tests/conftest.py
 
+import logging
+import os
 import pytest
+
 
 from app import create_app
 from app import db as _db
-from sqlalchemy import event
+from app.commands import new_user
+
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture(scope='session')
-def app(request):
+def app():
+    """ Returns session-wide, configured application
+
+    The configuration of the application will depend on the FLASK_ENV
+    environment variable. If this variable is not set, the "tests"
+    configuration will be used.
     """
-    Returns session-wide application.
-    """
-    return create_app('testing')
+    config_name = os.environ.get('FLASK_ENV', 'tests')
+    logger.info('Creating app from env=%s', config_name)
+    _app = create_app(config_name)
+    with _app.app_context():
+        yield _app
 
 
 @pytest.fixture(scope='session')
-def db(app, request):
+def db(app):
+    """ Returns a session-wide initialized db
+
+    Note that any function that needs to add or manipulate database
+    objects (directly or indirectly) *must* use the `session` fixture.
+    If you use the `db` fixture, the unit test will hang when destroying
+    the `db` fixture because there will be a dangling database session.
     """
-    Returns session-wide initialised database.
+    # Drop anything that may have been added before and was not
+    # deleted for some reason
+    _db.drop_all()
+    # Create all tables
+    _db.create_all()
+    yield _db
+    # Drop any changes on the database
+    _db.drop_all()
+
+
+@pytest.fixture(scope='function')
+def session(db):
+    """ Returns a function-wide database session
+
+    Note that any function that needs to add or manipulate database
+    objects (directly or indirectly) *must* use this fixture. If you
+    use the `db` fixture, the unit test will hang when destroying the
+    `db` fixture because there will be a dangling database session.
     """
-    with app.app_context():
-        _db.drop_all()
-        _db.create_all()
-        yield _db
+    connection = db.engine.connect()
+    transaction = connection.begin()
+
+    options = dict(bind=connection)
+    session = db.create_scoped_session(options=options)
+
+    db.session = session
+    yield session
+
+    transaction.rollback()
+    connection.close()
+    session.remove()
 
 
-@pytest.fixture(scope='function', autouse=True)
-def session(app, db, request):
-    """
-    Returns function-scoped session.
-    """
-    with app.app_context():
-        conn = _db.engine.connect()
-        txn = conn.begin()
-
-        options = dict(bind=conn, binds={})
-        sess = _db.create_scoped_session(options=options)
-
-        # establish  a SAVEPOINT just before beginning the test
-        # (http://docs.sqlalchemy.org/en/latest/orm/session_transaction.html#using-savepoint)
-        sess.begin_nested()
-
-        @event.listens_for(sess(), 'after_transaction_end')
-        def restart_savepoint(sess2, trans):
-            # Detecting whether this is indeed the nested transaction of the test
-            if trans.nested and not trans._parent.nested:
-                # The test should have normally called session.commit(),
-                # but to be safe we explicitly expire the session
-                sess2.expire_all()
-                sess.begin_nested()
-
-        _db.session = sess
-        yield sess
-
-        # Cleanup
-        sess.remove()
-        # This instruction rollsback any commit that were executed in the tests.
-        txn.rollback()
-        conn.close()
+@pytest.fixture(scope='function')
+def user(app, db, session):
+    """ Returns a function-wide user """
+    _user = new_user('user1', 'test@example.com', 'secret_password')
+    return _user

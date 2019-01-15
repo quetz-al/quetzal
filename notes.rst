@@ -65,3 +65,7 @@ Unit tests can be run from docker-compose as follows::
 
   docker-compose run unittests
 
+Run coverage with::
+
+  pytest --cov=. .
+
