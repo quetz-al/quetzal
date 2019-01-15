@@ -1,6 +1,5 @@
 from logging.config import dictConfig
 
-from flask_celery import Celery
 from flask.cli import AppGroup
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
@@ -8,6 +7,7 @@ import click
 import connexion
 
 from config import config
+from .celery import Celery  # Note this is the local celery.py helper script
 
 
 # Common objects usable accross the application
@@ -39,14 +39,9 @@ def create_app(config_name=None):
     # Celery (background tasks)
     flask_app.config['CELERY_BROKER_URL'] = flask_app.config['CELERY']['broker_url']
     celery.init_app(flask_app)
-    # There is a weird bug in Celery where broker_transport_options is ignored
-    celery.conf.broker_transport_options = {
-        'max_retries': 3,
-        'interval_start': 0,
-        'interval_step': 0.2,
-        'interval_max': 0.2,
-    }
-
+    # This is needed if flask-celery-helper is used instead of the
+    # custom made Celery object in the celery.py helper script
+    # celery.conf.update(flask_app.config['CELERY'])
 
     # Make configured Celery instance attach to Flask
     flask_app.celery = celery

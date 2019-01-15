@@ -36,7 +36,8 @@ def md5(bs):
     return hashobj.hexdigest()
 
 
-def log_chain(task, level=logging.INFO, limit=10):
+def log_task(task, level=logging.INFO, limit=10):
+    """Log the ids of a task or chain of tasks in celery"""
     ids = []
     while task is not None and len(ids) < limit:
         ids.append(str(task.id))

@@ -75,4 +75,6 @@ def session(db):
 def user(app, db, session):
     """ Returns a function-wide user """
     _user = new_user('user1', 'test@example.com', 'secret_password')
-    return _user
+    yield _user
+    session.delete(_user)
+    session.commit()

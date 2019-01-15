@@ -29,6 +29,8 @@ def wait_for_workspace(self, id):
         logger.info('Workspace is not available yet')
         raise self.retry(countdown=1)
 
+    logger.info('Workspace %s is now available', id)
+
 
 @celery.task()
 def init_workspace(id):

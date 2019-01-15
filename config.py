@@ -91,18 +91,13 @@ class Config:
         'broker_url': 'amqp://guest:guest@rabbitmq:5672//',
         'result_backend': 'rpc://',
         'include': ['app.api.data.tasks'],
+        'broker_transport_options': {
+            'max_retries': 3,
+            'interval_start': 0,
+            'interval_step': 0.2,
+            'interval_max': 0.2,
 
-        # This does not work for some strange reason, but we need it so that
-        # sending tasks does not hang when the broker is down. This is
-        # currently set on the application factory method
-        # 'broker_transport_options': {
-        #     'max_retries': 3,
-        #     'interval_start': 0,
-        #     'interval_step': 0.2,
-        #     'interval_max': 0.2,
-        #
-        # },
-
+        },
         # 'worker_log_format': LOGGING['formatters']['default']['format'],
         # 'worker_task_log_format': LOGGING['formatters']['celery_tasks']['format'],
         'worker_hijack_root_logger': False,
@@ -137,7 +132,7 @@ class TestConfig(Config):
         'handlers': {
             # Detailed logging logging on console
             'console': {
-                'level': 'INFO',  # on info so that the console is rather brief
+                'level': 'DEBUG',  # on info so that the console is rather brief
                 'class': 'logging.StreamHandler',
                 'formatter': 'detailed',
             },
@@ -167,9 +162,29 @@ class TestConfig(Config):
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    def __init__(self):
-        super().__init__()
-        self.LOGGING['handlers']['file']['filename'] = os.path.join(self.LOG_DIR, 'unittests.log')
+
+class LocalTestConfig(TestConfig):
+    # Database configuration
+    SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:pg_password@localhost:5432/unittests'
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    # Celery configuration on eager mode
+    CELERY = {
+        'broker_url': 'memory',
+        'include': ['app.api.data.tasks'],
+        'task_always_eager': True,
+        'task_eager_propagates': True,
+        # 'broker_transport_options': {
+        #     'max_retries': 3,
+        #     'interval_start': 0,
+        #     'interval_step': 0.2,
+        #     'interval_max': 0.2,
+        #
+        # },
+        # 'worker_log_format': LOGGING['formatters']['default']['format'],
+        # 'worker_task_log_format': LOGGING['formatters']['celery_tasks']['format'],
+        'worker_hijack_root_logger': False,
+    }
 
 
 class ProductionConfig(Config):
@@ -184,7 +199,8 @@ class MigrationsConfig(Config):
 # Map of environment name -> configuration object
 config = {
     'development': DevelopmentConfig,
-    'testing': TestConfig,
+    'tests': TestConfig,
+    'local-tests': LocalTestConfig,
     'production': ProductionConfig,
     'default': Config,
 }
