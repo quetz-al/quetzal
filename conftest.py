@@ -76,9 +76,20 @@ def db_session(db):
 
 
 @pytest.fixture(scope='function')
-def user(app, db, session):
+def user(app, db, db_session, request):
     """ Returns a *function*-wide user """
-    _user = User(username='user', email='user@example.com')
-    session.add(_user)
-    session.commit()
-    yield _user
+    counter = 0
+    username = f'u-{request.function.__name__}_{counter:03}'
+    email = f'{username}@example.com'
+    # Try a new user until there is a new one
+    while User.query.filter_by(email=email).first() is not None:
+        counter += 1
+        username = f'{username[:-4]}_{counter:03}'
+        email = f'{username}@example.com'
+        if counter >= 1000:
+            raise RuntimeError('Too many users')
+
+    _user = User(username=username, email=email)
+    db_session.add(_user)
+    db_session.commit()
+    return _user

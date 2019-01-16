@@ -183,8 +183,9 @@ def delete(*, id):
     """
     workspace = Workspace.query.get(id)
     if workspace is None:
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
+        raise APIException(status=codes.not_found,
+                           title='Not found',
+                           detail=f'Workspace {id} does not exist')
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -193,9 +194,9 @@ def delete(*, id):
     except InvalidTransitionException as ex:
         # See note on 412 code and werkzeug on top of this file
         logger.info(ex, exc_info=ex)
-        return problem(codes.precondition_failed,
-                       f'Workspace cannot be deleted',
-                       f'Cannot delete a workspace on {workspace.state.name} state')
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Workspace cannot be deleted',
+                           detail=f'Cannot delete a workspace on {workspace.state.name} state')
 
     # Update database before sending the async task
     db.session.commit()
