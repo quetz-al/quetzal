@@ -1,18 +1,36 @@
 """Common fixtures for workspace tests"""
+import unittest.mock
 
 import pytest
 
-from app.models import Workspace, WorkspaceState
+from app.models import User, Workspace, WorkspaceState
+
+
+@pytest.fixture(scope='session')
+def tester_user(app, db):
+    u = User(username='workspace-tester', email='workspace-tester@example.com')
+    db.session.add(u)
+    db.session.commit()
+    return u
+
+
+@pytest.fixture(scope='session')
+def workspace(app, db, tester_user):
+    ws = Workspace(name='workspace-tests',
+                   description='Fixture workspace for unit tests',
+                   owner=tester_user)
+    db.session.add(ws)
+    db.session.commit()
+    return ws
 
 
 @pytest.fixture(scope='function')
-def make_workspace(db, session, user):
+def make_workspace(db, db_session, tester_user):
 
     counter = 1
-    workspaces = []
 
-    def _make_workspace(name=None, state=None):
-        nonlocal counter, workspaces
+    def _make_workspace(name=None, state=None, owner=None):
+        nonlocal counter
         # Create workspace on the database
         if name is None:
             name = f'fixture-workspace-{counter}'
@@ -21,24 +39,13 @@ def make_workspace(db, session, user):
         else:
             description = 'Fixture workspace created by factory'
 
-        workspace = Workspace(name=name, description=description, owner=user)
+        workspace = Workspace(name=name, description=description, owner=owner or tester_user)
         # Change the underlying state without respecting the transitions
         workspace._state = state or WorkspaceState.READY
 
-        try:
-            db.session.add(workspace)
-            db.session.commit()
-            w = Workspace.query.get(workspace.id)
-            workspaces.append(w)
-            return w
+        db.session.add(workspace)
+        db.session.commit()
 
-        except:
-            db.session.rollback()
-            raise
+        return workspace
 
     yield _make_workspace
-
-    db.session.rollback()  # In case there was an error that messed the db session
-    for w in workspaces:
-        db.session.delete(w)
-    db.session.commit()

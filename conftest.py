@@ -3,20 +3,25 @@
 
 import logging
 import os
-import pytest
+import unittest.mock
 
+import pytest
 
 from app import create_app
 from app import db as _db
-from app.commands import new_user
+from app.models import User
 
 
 logger = logging.getLogger(__name__)
 
 
-@pytest.fixture(scope='session')
+# =============================================================================
+# Global fixtures, aka 'session-wide' fixtures
+# =============================================================================
+
+@pytest.fixture(scope='session', autouse=True)
 def app():
-    """ Returns session-wide, configured application
+    """ A session-wide, configured application
 
     The configuration of the application will depend on the FLASK_ENV
     environment variable. If this variable is not set, the "tests"
@@ -29,52 +34,51 @@ def app():
         yield _app
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='session', autouse=True)
 def db(app):
-    """ Returns a session-wide initialized db
-
-    Note that any function that needs to add or manipulate database
-    objects (directly or indirectly) *must* use the `session` fixture.
-    If you use the `db` fixture, the unit test will hang when destroying
-    the `db` fixture because there will be a dangling database session.
-    """
+    """ Returns a session-wide initialized db """
     # Drop anything that may have been added before and was not
     # deleted for some reason
     _db.drop_all()
     # Create all tables
     _db.create_all()
-    yield _db
-    # Drop any changes on the database
+
+    connection = _db.engine.connect()
+    transaction = connection.begin()
+    with unittest.mock.patch('app.db.get_engine') as get_engine_mock:
+        get_engine_mock.return_value = connection
+        try:
+            yield _db
+        finally:
+            _db.session.remove()
+            transaction.rollback()
+            connection.close()
+
+    # Drop all tables
     _db.drop_all()
 
 
+# =============================================================================
+# Global fixtures, aka 'function-specific' fixtures
+# =============================================================================
+
 @pytest.fixture(scope='function')
-def session(db):
-    """ Returns a function-wide database session
+def db_session(db):
+    """ Returns a *function*-wide database session
 
-    Note that any function that needs to add or manipulate database
-    objects (directly or indirectly) *must* use this fixture. If you
-    use the `db` fixture, the unit test will hang when destroying the
-    `db` fixture because there will be a dangling database session.
+    Use this fixture for any test that should clean any objects created in it.
+    In particular, if a test leaves the session in an unusable state, such as
+    when a session.commit fails.
     """
-    connection = db.engine.connect()
-    transaction = connection.begin()
-
-    options = dict(bind=connection)
-    session = db.create_scoped_session(options=options)
-
-    db.session = session
-    yield session
-
-    transaction.rollback()
-    connection.close()
-    session.remove()
+    db.session.begin_nested()
+    yield db.session
+    db.session.rollback()
 
 
 @pytest.fixture(scope='function')
 def user(app, db, session):
-    """ Returns a function-wide user """
-    _user = new_user('user1', 'test@example.com', 'secret_password')
-    yield _user
-    session.delete(_user)
+    """ Returns a *function*-wide user """
+    _user = User(username='user', email='user@example.com')
+    session.add(_user)
     session.commit()
+    yield _user

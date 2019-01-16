@@ -135,8 +135,8 @@ class Workspace(db.Model):
         return {
             'id': self.id,
             'name': self.name,
-            'state': self.state.name,
-            'owner': self.owner.username,
+            'state': self.state.name if self.state else None,
+            'owner': self.owner.username if self.owner else None,
             'description': self.description,
             'creation_date': self.creation_date,
             'temporary': self.temporary,

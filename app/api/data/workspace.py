@@ -128,7 +128,6 @@ def create(*, body, user, token_info=None):
 
     except OperationalError as exc:
         logger.error('Failed to schedule workspace creation task', exc_info=exc)
-        db.session.rollback()
         raise APIException(status=codes.service_unavailable,
                            title='Service unavailable',
                            detail='Could not initialize workspace due to a '
@@ -160,8 +159,9 @@ def details(*, id):
     """
     workspace = Workspace.query.get(id)
     if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
-        return NoContent, codes.not_found
+        raise APIException(status=codes.not_found,
+                           title='Workspace not found',
+                           detail=f'Workspace {id} not found')
     return workspace.to_dict(), codes.ok
 
 
