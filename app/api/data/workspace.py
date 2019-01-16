@@ -1,12 +1,14 @@
 import logging
 from requests import codes
 
+from celery.exceptions import OperationalError
 from connexion import NoContent, problem, request
-from kombu.exceptions import OperationalError
+#from kombu.exceptions import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models import Family, Workspace, WorkspaceState
+from app.api.exceptions import APIException
 from app.api.data.helpers import log_task
 from app.api.data.tasks import init_workspace, init_data_bucket, \
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
@@ -85,9 +87,9 @@ def create(*, body, user, token_info=None):
     except IntegrityError as exc:
         logger.info('Workspace creation denied due to repeated user and name')
         logger.debug('Workspace creation error details:', exc_info=exc)
-        return problem(codes.bad_request,
-                       'Invalid workspace name',
-                       'Workspace name already exists for user')
+        raise APIException(status=codes.bad_request,
+                           title='Invalid workspace name',
+                           detail='Workspace name already exists for user')
 
     # Create temporary families that will be correctly initialized later.
     # By default, the base family must be present. If not present, set it to
@@ -127,10 +129,11 @@ def create(*, body, user, token_info=None):
     except OperationalError as exc:
         logger.error('Failed to schedule workspace creation task', exc_info=exc)
         db.session.rollback()
-        return problem(codes.service_unavailable,
-                       'Service unavailable',
-                       'Could not initialize workspace due to a temporary backend error. '
-                       'The administrator has been notified.')
+        raise APIException(status=codes.service_unavailable,
+                           title='Service unavailable',
+                           detail='Could not initialize workspace due to a '
+                                  'temporary backend error. '
+                                  'The administrator has been notified.')
 
     # Save database with families and workspace modifications
     db.session.commit()

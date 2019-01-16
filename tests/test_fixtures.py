@@ -1,4 +1,3 @@
-# from app.models import User
 
 
 def test_app_fixture(app):
@@ -6,19 +5,6 @@ def test_app_fixture(app):
     print(app)
     assert app is not None
     assert app.config['TESTING']
-
-#
-# # def test_mocking(app, mocker):
-# #     """Minimal """
-# #     mp = mocker.patch('os.listdir')
-# #     print(mp)
-# #     import os
-# #     res = os.listdir('.')
-# #     print(res)
-# #
-# #
-# # def test_db(app, db):
-# #     pass
 
 
 def test_db_fixture(db):
