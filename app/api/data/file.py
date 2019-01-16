@@ -1,32 +1,28 @@
 import io
 from uuid import uuid4
 
-from connexion import problem
 from flask import request, send_file
 from requests import codes
 
 from app import db
 from app.api.data.helpers import get_data_bucket, md5
 from app.api.data.workspace import logger
+from app.api.exceptions import APIException
 from app.models import Workspace, Metadata
 
 
 def create(*, id, body):
 
     logger.info('create %s %s %d', id, type(body), len(body), exc_info=True)
-
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
+    workspace = Workspace.get_or_404(id)
 
     # Creating a file requires new metadata, so the check here is to verify
     # that the workspace status permits changes on metadata
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
-        return problem(codes.precondition_failed,
-                       f'Cannot add file to workspace',
-                       f'Cannot add files to a workspace on {workspace.state.name} state')
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Cannot add file to workspace',
+                           detail=f'Cannot add files to a workspace on {workspace.state.name} state')
 
     # Get the base metadata family in order to put the basic metadata info
     base_family = workspace.families.filter_by(name='base').first()
@@ -59,18 +55,14 @@ def create(*, id, body):
 def update_metadata(*, id, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
 
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
+    workspace = Workspace.get_or_404(id)
 
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
-        return problem(codes.precondition_failed,
-                       f'Cannot update metadata of file',
-                       f'Cannot update metadata of files to a workspace on '
-                       f'{workspace.state.name} state')
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Cannot update metadata of file',
+                           detail=f'Cannot update metadata of files to a '
+                                  f'workspace on {workspace.state.name} state')
 
     # Before changing/updating the matadata, we must ensure that the changes
     # are valid. That is:
@@ -81,22 +73,22 @@ def update_metadata(*, id, uuid, body):
     for name, content in body.items():
         # Verification: base metadata
         if name == 'base' and content.keys() != {'path'}:
-            return problem(codes.bad_request,  # see RFC 7231 or https://stackoverflow.com/a/3290198/227103
-                           'Invalid metadata modification',
-                           'Cannot change metadata family "base" for the exception of its path')
+            raise APIException(status=codes.bad_request,  # see RFC 7231 or https://stackoverflow.com/a/3290198/227103
+                               title='Invalid metadata modification',
+                               detail='Cannot change metadata family "base" for the exception of its path')
 
         # Verification: id cannot be changed
         if 'id' in content.keys():
-            return problem(codes.bad_request,
-                           'Invalid metadata modification',
-                           'Cannot change metadata "id" entry')
+            raise APIException(status=codes.bad_request,
+                               title='Invalid metadata modification',
+                               detail='Cannot change metadata "id" entry')
 
         # Family exists on this workspace?
         family = workspace.families.filter_by(name=name).first()
         if family is None:
-            return problem(codes.bad_request,
-                           'Invalid family',
-                           f'Workspace does not have family {name}')
+            raise APIException(status=codes.bad_request,
+                               title='Invalid family',
+                               detail=f'Workspace does not have family {name}')
 
         latest = Metadata.get_latest(uuid, family)
         if latest is None:
@@ -127,18 +119,14 @@ def update_metadata(*, id, uuid, body):
 
 def set_metadata(*, id, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
+    workspace = Workspace.get_or_404(id)
 
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
-        return problem(codes.precondition_failed,
-                       f'Cannot change metadata of file',
-                       f'Cannot change metadata of files to a workspace on '
-                       f'{workspace.state.name} state')
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Cannot change metadata of file',
+                           detail=f'Cannot change metadata of files to a '
+                                  f'workspace on {workspace.state.name} state')
 
     raise NotImplementedError
 
@@ -156,11 +144,7 @@ def details_w(*, id=None, uuid):
         # When there is a workspace, give its workspace
         # Otherwise, give the latest metadata
         if id is not None:
-            workspace = Workspace.query.get(id)
-            if workspace is None:
-                # TODO: raise exception, when errors are managed correctly
-                return problem(codes.not_found, 'Not found',
-                               f'Workspace {id} does not exist')
+            workspace = Workspace.get_or_404(id)
 
             meta = _all_metadata(uuid, workspace)
             return {'id': uuid, 'metadata': meta}, codes.ok
@@ -177,9 +161,9 @@ def details_w(*, id=None, uuid):
         response.direct_passthrough = False
         return response, codes.ok
 
-    return problem(codes.bad_request,
-                   'Invalid accept header',
-                   f'Cannot serve content of type {request.accept_mimetypes}')
+    raise APIException(status=codes.bad_request,
+                       title='Invalid accept header',
+                       detail=f'Cannot serve content of type {request.accept_mimetypes}')
 
 
 def fetch(*, id):

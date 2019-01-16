@@ -5,13 +5,14 @@ import logging
 import os
 
 from flask_login import UserMixin
+from requests import codes
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 from sqlalchemy.schema import Index, UniqueConstraint, CheckConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-from app.api.data.exceptions import InvalidTransitionException
+from app.api.exceptions import InvalidTransitionException, APIException
 
 
 logger = logging.getLogger(__name__)
@@ -122,6 +123,16 @@ class Workspace(db.Model):
         else:
             raise InvalidTransitionException(f'Invalid state transition '
                                              f'{self._state} -> {new_state}')
+
+    @staticmethod
+    def get_or_404(id):
+        """Get a workspace by id or raise an APIException"""
+        w = Workspace.query.get(id)
+        if w is None:
+            raise APIException(status=codes.not_found,
+                               title='Not found',
+                               detail=f'Workspace {id} does not exist')
+        return w
 
     @property
     def can_change_metadata(self):

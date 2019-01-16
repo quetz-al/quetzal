@@ -8,3 +8,20 @@ class APIException(ProblemException):
     with an appropriate error response
     """
     pass
+
+
+class APIBackendException(Exception):
+    """Represents an internal error in the data API
+
+    Use for exceptions that don't need to be transmitted back as a response
+    """
+    pass
+
+
+class InvalidTransitionException(APIBackendException):
+    pass
+
+
+class WorkerException(APIBackendException):
+    pass
+

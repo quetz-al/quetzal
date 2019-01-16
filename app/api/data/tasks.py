@@ -2,7 +2,7 @@ import logging
 
 from app import celery, db
 from app.models import Workspace, WorkspaceState, Metadata, Family
-from app.api.data.exceptions import WorkerException
+from app.api.exceptions import WorkerException
 from app.api.data.helpers import get_client, get_bucket
 
 

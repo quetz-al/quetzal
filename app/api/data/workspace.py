@@ -2,8 +2,7 @@ import logging
 from requests import codes
 
 from celery.exceptions import OperationalError
-from connexion import NoContent, problem, request
-#from kombu.exceptions import OperationalError
+from connexion import request
 from sqlalchemy.exc import IntegrityError
 
 from app import db
@@ -12,7 +11,7 @@ from app.api.exceptions import APIException
 from app.api.data.helpers import log_task
 from app.api.data.tasks import init_workspace, init_data_bucket, \
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
-from app.api.data.exceptions import InvalidTransitionException
+from app.api.exceptions import InvalidTransitionException
 
 logger = logging.getLogger(__name__)
 
@@ -157,11 +156,7 @@ def details(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        raise APIException(status=codes.not_found,
-                           title='Workspace not found',
-                           detail=f'Workspace {id} not found')
+    workspace = Workspace.get_or_404(id)
     return workspace.to_dict(), codes.ok
 
 
@@ -181,11 +176,7 @@ def delete(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        raise APIException(status=codes.not_found,
-                           title='Not found',
-                           detail=f'Workspace {id} does not exist')
+    workspace = Workspace.get_or_404(id)
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -228,10 +219,7 @@ def commit(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
+    workspace = Workspace.get_or_404(id)
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -240,9 +228,9 @@ def commit(*, id):
     except InvalidTransitionException as ex:
         # See note on 412 code and werkzeug on top of this file
         logger.info(ex, exc_info=ex)
-        return problem(codes.precondition_failed,
-                       f'Workspace cannot be committed',
-                       f'Cannot commit a workspace on {workspace.state.name} state')
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Workspace cannot be committed',
+                           detail=f'Cannot commit a workspace on {workspace.state.name} state')
 
     # Update database before sending the async task
     db.session.commit()
@@ -274,11 +262,7 @@ def scan(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.query.get(id)
-    if workspace is None:
-        # TODO: raise exception, when errors are managed correctly
-        return problem(codes.not_found, 'Not found',
-                       f'Workspace {id} does not exist')
+    workspace = Workspace.get_or_404(id)
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -286,9 +270,9 @@ def scan(*, id):
     except InvalidTransitionException as ex:
         # See note on 412 code and werkzeug on top of this file
         logger.info(ex, exc_info=ex)
-        return problem(codes.precondition_failed,
-                       f'Workspace cannot be scanned',
-                       f'Cannot scan a workspace on {workspace.state.name} state')
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Workspace cannot be scanned',
+                           detail=f'Cannot scan a workspace on {workspace.state.name} state')
 
     # Schedule the scanning task
     background_task = (
