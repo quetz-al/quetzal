@@ -46,8 +46,21 @@ class Celery(CeleryParentClass):
             def __call__(self, *_args, **_kwargs):
                 if app.config['TESTING']:
                     with app.test_request_context():
-                        return task_base.__call__(self, *_args, **_kwargs)
+                        return mockable_call(task_base, self, *_args, **_kwargs)
                 with app.app_context():
                     return task_base.__call__(self, *_args, **_kwargs)
         setattr(ContextTask, 'abstract', True)
         setattr(self, 'Task', ContextTask)
+
+        # Note: During unit tests, I realized that I could sometimes get a
+        # celery application whose tasks had not been initialized. I found that
+        # when calling celery.tasks, it would work and it seems that this is
+        # because the finalize method was called in the property getter.
+        # It seems that we need to add this finalize here in order to get a
+        # complete celery application
+        self.finalize()
+
+
+def mockable_call(base, obj, *args, **kwargs):
+    print('mockable call!')
+    return base.__call__(obj, *args, **kwargs)

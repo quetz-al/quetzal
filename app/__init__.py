@@ -7,7 +7,7 @@ import click
 import connexion
 
 from config import config
-from .celery import Celery  # Note this is the local celery.py helper script
+from .celery_helper import Celery
 
 
 # Common objects usable accross the application
@@ -41,7 +41,7 @@ def create_app(config_name=None):
     flask_app.config['CELERY_BROKER_URL'] = flask_app.config['CELERY']['broker_url']
     celery.init_app(flask_app)
     # This is needed if flask-celery-helper is used instead of the
-    # custom made Celery object in the celery.py helper script
+    # custom made Celery object in the celery_helper.py helper script
     # celery.conf.update(flask_app.config['CELERY'])
 
     # Make configured Celery instance attach to Flask
