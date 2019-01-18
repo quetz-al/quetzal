@@ -28,21 +28,25 @@ def app():
     configuration will be used.
     """
     config_name = os.environ.get('FLASK_ENV', 'tests')
-    logger.info('Creating app from env=%s', config_name)
+    logger.debug('Creating app from env=%s', config_name)
     _app = create_app(config_name)
     with _app.app_context():
+        logger.debug('Application ready and within context')
         yield _app
+        logger.debug('Tearing down application')
 
 
 @pytest.fixture(scope='session', autouse=True)
 def db(app):
     """ Returns a session-wide initialized db """
+    logger.debug('Creating database structure')
     # Drop anything that may have been added before and was not
     # deleted for some reason
     _db.drop_all()
     # Create all tables
     _db.create_all()
 
+    logger.debug('Creating database connection')
     connection = _db.engine.connect()
     transaction = connection.begin()
     with unittest.mock.patch('app.db.get_engine') as get_engine_mock:
@@ -50,10 +54,12 @@ def db(app):
         try:
             yield _db
         finally:
+            logger.info('Tearing down database connection')
             _db.session.remove()
             transaction.rollback()
             connection.close()
 
+    logger.debug('Dropping all tables')
     # Drop all tables
     _db.drop_all()
 
@@ -70,8 +76,11 @@ def db_session(db):
     In particular, if a test leaves the session in an unusable state, such as
     when a session.commit fails.
     """
+    logger.debug('Creating database session')
     db.session.begin_nested()
     yield db.session
+
+    logger.debug('Tearing down database session')
     db.session.rollback()
 
 

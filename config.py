@@ -116,39 +116,30 @@ class DevelopmentConfig(Config):
 
 
 class TestConfig(Config):
+    """Configuration for unit tests
+
+    This particular class conecenrs an environment that has access to all other
+    services (rabbitmq, db, ...). Normally, this should run as a docker-compose
+    service.
+    """
     TESTING = True
 
     # Logging
-    LOG_DIR = os.environ.get('LOG_DIR') or os.path.join(basedir, 'logs')
+    # For unit tests, let pytest handle the logging. For better readability, we
+    # are minimizing the connexion and openapi logs because they are very
+    # verbose
     LOGGING = {
         'version': 1,
-        'formatters': {
-            'detailed': {
-                'format': '%(asctime)s %(levelname)s %(name)s.%(funcName)s:- %(message)s '
-                          '[in %(pathname)s:%(lineno)d]',
-                'datefmt': '%Y-%m-%d %H:%M:%S',
-            }
-        },
-        'handlers': {
-            # Detailed logging logging on console
-            'console': {
-                'level': 'DEBUG',  # on info so that the console is rather brief
-                'class': 'logging.StreamHandler',
-                'formatter': 'detailed',
+        'loggers': {
+            'connexion': {
+                'level': 'INFO',
             },
-            # Detailed logging on file
-            'file': {
-                'level': 'DEBUG',  # on debug so that the file has much more details
-                'class': 'logging.FileHandler',
-                'formatter': 'detailed',
-                'filename': os.path.join(LOG_DIR, 'quetzal-unittests.log'),
+            'openapi_spec_validator': {
+                'level': 'INFO',
             }
         },
-        'root': {
-            'level': 'DEBUG',
-            'handlers': ['console', 'file'],
-        },
-        'disable_existing_loggers': True,
+        # Important: leave the root logger alone, since pytest configures it
+        'incremental': True,
     }
 
     # Database configuration
@@ -164,6 +155,12 @@ class TestConfig(Config):
 
 
 class LocalTestConfig(TestConfig):
+    """Configuration for local unit tests
+
+    Local unit tests are run outside the docker-compose structure, useful for
+    tests that need debugging.
+    """
+
     # Database configuration
     SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:pg_password@localhost:5432/unittests'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
@@ -174,15 +171,6 @@ class LocalTestConfig(TestConfig):
         'include': ['app.api.data.tasks'],
         'task_always_eager': True,
         'task_eager_propagates': True,
-        # 'broker_transport_options': {
-        #     'max_retries': 3,
-        #     'interval_start': 0,
-        #     'interval_step': 0.2,
-        #     'interval_max': 0.2,
-        #
-        # },
-        # 'worker_log_format': LOGGING['formatters']['default']['format'],
-        # 'worker_task_log_format': LOGGING['formatters']['celery_tasks']['format'],
         'worker_hijack_root_logger': False,
     }
 

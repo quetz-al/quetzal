@@ -69,3 +69,20 @@ Run coverage with::
 
   pytest --cov=. .
 
+Logging under unit tests is controlled on three places:
+
+1. Through the configuration object ``TestConfig`` and ``LocalTestConfig``.
+   This actually reduces some logging of other libraries but does not configure
+   anything because this is delegated to pytest. Remember to set one or the
+   other with the ``FLASK_ENV`` environment variable.
+
+   Use this for fine-tuning which logger should be enabled/disabled.
+
+2. Through pytest configuration in ``pytest.ini``. This is where the format
+   and level is set.
+
+3. Using the command line arguments, which is recommended to change the
+   logging level as needed without changing the ini file::
+
+      FLASK_ENV=local-tests pytest --log-level DEBUG pytest
+

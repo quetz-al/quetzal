@@ -30,7 +30,8 @@ def create_app(config_name=None):
 
     # Configure logging from the configuration object: I refuse to have the
     # logging configuration in another file (it's easier to manage)
-    dictConfig(flask_app.config['LOGGING'])
+    if 'LOGGING' in flask_app.config and flask_app.config['LOGGING']:
+        dictConfig(flask_app.config['LOGGING'])
 
     # Database
     db.init_app(flask_app)

@@ -81,7 +81,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
-    entrypoint: py.test -v
+    entrypoint: py.test -o --log_cli=0
     environment:
       FLASK_ENV: tests
       DB_USERNAME: postgres
