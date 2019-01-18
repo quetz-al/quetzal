@@ -1,8 +1,8 @@
 import logging
 from requests import codes
 
-from celery.exceptions import OperationalError
 from connexion import request
+from kombu.exceptions import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from app import db

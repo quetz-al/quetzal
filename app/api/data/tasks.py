@@ -108,7 +108,11 @@ def init_workspace(id):
             # First, we need to verify that the name and version combination
             # does exist as a global family (i.e. a family that has been
             # commited and therefore has workspace == null)
-            exact_family = qs_global_families.filter_by(version=family.version)
+            exact_family = (
+                qs_global_families
+                .filter_by(name=family.name, version=family.version)
+                .one_or_none()
+            )
             if exact_family is None:
                 # The specified version does not exist. Abort and set the
                 # workspace in an error state
@@ -155,12 +159,12 @@ def init_data_bucket(id):
 
     # Do the initialization task
     # TODO: manage exceptions/errors
+    # TODO: manage location and storage class through configuration or workspace options
     bucket_name = f'quetzal-ws-{workspace.id}-{workspace.owner.username}-{workspace.name}'
     client = get_client()
     bucket = client.bucket(bucket_name)
     bucket.storage_class = 'REGIONAL'
-    bucket.location = 'europe-west1'
-    bucket.create()
+    bucket.create(client=client, location='europe-west1')
 
     # Update the database model
     workspace.state = WorkspaceState.READY

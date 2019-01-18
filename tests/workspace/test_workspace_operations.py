@@ -3,12 +3,15 @@ import itertools
 
 import pytest
 
-from celery.exceptions import OperationalError
+from kombu.exceptions import OperationalError
 from sqlalchemy import func
 
 from app.api.exceptions import APIException
 from app.api.data.workspace import create, fetch, details, delete
 from app.models import Workspace, WorkspaceState
+
+
+# TODO: add a test that verifies that in workspace.create *three* tasks are scheduled
 
 
 def test_create_workspace_success(user, db_session, mocker):
