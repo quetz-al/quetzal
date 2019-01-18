@@ -31,7 +31,6 @@ def app():
     logger.debug('Creating app from env=%s', config_name)
     _app = create_app(config_name)
     with _app.app_context():
-        logger.debug('Application ready and within context')
         yield _app
         logger.debug('Tearing down application')
 

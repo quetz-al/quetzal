@@ -169,9 +169,15 @@ class LocalTestConfig(TestConfig):
     CELERY = {
         'broker_url': 'memory',
         'include': ['app.api.data.tasks'],
+        'broker_transport_options': {
+            'max_retries': 3,
+            'interval_start': 0,
+            'interval_step': 0.2,
+            'interval_max': 0.2,
+
+        },
         'task_always_eager': True,
         'task_eager_propagates': True,
-        'worker_hijack_root_logger': False,
     }
 
 

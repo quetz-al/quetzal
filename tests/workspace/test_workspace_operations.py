@@ -1,5 +1,6 @@
 """Unit tests for creating a workspace through the route method"""
 import itertools
+import logging
 
 import pytest
 
@@ -9,9 +10,6 @@ from sqlalchemy import func
 from app.api.exceptions import APIException
 from app.api.data.workspace import create, fetch, details, delete
 from app.models import Workspace, WorkspaceState
-
-
-# TODO: add a test that verifies that in workspace.create *three* tasks are scheduled
 
 
 def test_create_workspace_success(user, db_session, mocker):
@@ -57,7 +55,8 @@ def test_create_workspace_calls_backend_task(user, db_session, mocker):
     async_mock.assert_called_once()
 
 
-def test_create_workspace_handles_queue_fail(user, db_session, mocker):
+def test_create_workspace_handles_queue_fail(user, db_session, mocker, caplog):
+    """When the queue is unavailable, workspace creation fails graciously"""
     request = {
         'name': 'unit-test-failed-queue',
         'description': 'Unit test workspace description',
@@ -71,8 +70,11 @@ def test_create_workspace_handles_queue_fail(user, db_session, mocker):
     async_mock.side_effect = OperationalError('Mocked operational error')
     commit_mock = mocker.patch('app.db.session.commit')
 
-    with pytest.raises(APIException) as exc_info:
-        create(body=request, user=user)
+    # caplog.at_level:
+    # capture the logger.error log message emitted when the queue fails
+    with caplog.at_level(logging.CRITICAL, logger='app.api.data.workspace'):
+        with pytest.raises(APIException) as exc_info:
+            create(body=request, user=user)
 
     assert exc_info.value.status == 503
 
@@ -136,7 +138,7 @@ def test_details_workspace_success(app, db_session, workspace):
 
 
 def test_details_workspace_missing(app, db_session):
-    """Retriving details fails for workspaces that do not exist"""
+    """Retrieving details fails for workspaces that do not exist"""
 
     # Get the latest workspace id in order to request one that does not exist
     max_id = db_session.query(func.max(Workspace.id)).scalar() or 0
@@ -153,6 +155,7 @@ def test_details_workspace_missing(app, db_session):
     WorkspaceState.READY, WorkspaceState.INVALID, WorkspaceState.CONFLICT,
 ])
 def test_delete_workspace_success(db_session, make_workspace, state, mocker):
+    """Delete workspace success conditions"""
     w = make_workspace(state=state)
 
     mocker.patch('celery.canvas.Signature.apply_async')
@@ -166,6 +169,7 @@ def test_delete_workspace_success(db_session, make_workspace, state, mocker):
 
 
 def test_delete_workspace_calls_backend_task(db_session, make_workspace, mocker):
+    """Delete workspace schedules a celery task"""
     w = make_workspace()
 
     async_mock = mocker.patch('celery.canvas.Signature.apply_async')
@@ -175,7 +179,7 @@ def test_delete_workspace_calls_backend_task(db_session, make_workspace, mocker)
 
 
 def test_delete_workspace_missing(app, db_session):
-
+    """Delete workspace fails when the workspace is missing"""
     # Get the latest workspace id in order to request one that does not exist
     max_id = db_session.query(func.max(Workspace.id)).scalar() or 0
 
@@ -191,6 +195,7 @@ def test_delete_workspace_missing(app, db_session):
     WorkspaceState.COMMITTING, WorkspaceState.DELETING, WorkspaceState.DELETED,
 ])
 def test_delete_invalid_state(app, db_session, state, make_workspace, mocker):
+    """Cannot delete workspace that is not on the correct state"""
     w = make_workspace(state=state)
     mocker.patch('celery.canvas.Signature.apply_async')
 
