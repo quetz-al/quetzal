@@ -5,8 +5,48 @@ from celery.exceptions import Retry
 from sqlalchemy import func
 
 from app.models import Family, Workspace, WorkspaceState
+from app.api.data.workspace import create
 from app.api.data.tasks import wait_for_workspace, init_workspace, init_data_bucket
 from app.api.exceptions import WorkerException
+
+
+def test_create_workspace_backend_tasks(app, user, db_session, mocker):
+    """Workspace create triggers three tasks in the correct order and args"""
+    request = {
+        'name': 'unit-test-failed-queue',
+        'description': 'Unit test workspace description',
+        'families': {
+            'base': None,
+        }
+    }
+
+    run_mock = mocker.patch('app.celery_helper.mockable_call')
+    result, code = create(body=request, user=user)
+
+    # There should have been three calls to a celery task:
+    # wait_for_workspace, init_workspace and init_data_bucket
+    assert run_mock.call_count == 3
+
+    # Each call should have the same id as argument
+    # Moreover, call_args_list is a list of unittest.mock.Call objects, which
+    # can be either 2- or 3-tuple. We want the 2-tuple case
+    # See docs on: https://docs.python.org/3/library/unittest.mock.html#unittest.mock.call
+    args1, kwargs1 = run_mock.call_args_list[0]
+    args2, kwargs2 = run_mock.call_args_list[1]
+    args3, kwargs3 = run_mock.call_args_list[2]
+
+    # The signature to verify here comes from the celery_helper.mockable_call
+    # function. Let's verify it was called in the correct order and with the
+    # same workspace id
+    #
+    # kwargs should be empty
+    assert {} == kwargs1 == kwargs2 == kwargs3
+    # correct order
+    assert args1[1].name == wait_for_workspace.name
+    assert args2[1].name == init_workspace.name
+    assert args3[1].name == init_data_bucket.name
+    # same workspace id
+    assert args1[2] == args2[2] == args3[2] == result['id']
 
 
 def test_wait_for_workspace_success(workspace, db_session):
@@ -112,20 +152,61 @@ def test_init_workspace_latest_version_missing(db, db_session, make_workspace, m
 
 
 def test_init_data_bucket_success(db, db_session, make_workspace, mocker):
+    """Init bucket send success condition"""
+    # See test_init_data_bucket_correct_api for comments on these mocks
+    mocker.patch('google.auth.default',
+                 return_value=(None, 'mock-project'))
     from google.cloud.storage import Client
+    mocker.patch('app.api.data.tasks.get_client',
+                 return_value=Client(project='mock-project'))
+    mocker.patch('google.cloud._http.JSONConnection.api_request')
+
     w = make_workspace(state=WorkspaceState.INITIALIZING)
-    get_client_mock = mocker.patch('app.api.data.helpers.get_client')
-    google_auth_mock = mocker.patch('google.auth.default')
-    bucket_create_mock = mocker.patch('google.cloud.storage.bucket.Bucket.create')
-
-    google_auth_mock.return_value = None, 'mock-project'
-    get_client_mock.return_value = Client()
-
     init_data_bucket(w.id)
 
-    bucket_create_mock.assert_called_once()
+    # Verify the workspace state and data_url have been updated
     assert w.state == WorkspaceState.READY
     assert w.data_url is not None
+
+
+def test_init_data_bucket_correct_api(db, db_session, make_workspace, mocker):
+    """Init data bucket sends a correct API request"""
+    # We need several mocks to verify that the bucket is created without
+    # actually calling the API.
+    # - the google authentication function that is called by any new client
+    #   object, even if it is a fake one (this needs to be patched first
+    #   because it is used on the second mock)
+    # - the get_client function that produces a google client
+    # - the api_request call that will do the final http request
+    google_auth_mock = mocker.patch('google.auth.default',
+                                    return_value=(None, 'mock-project'))
+    # Note that here, mocking 'app.api.data.helpers.get_client' will not work
+    # because it is imported in 'app.api.data.tasks'.
+    # See https://docs.python.org/3/library/unittest.mock.html#where-to-patch
+    from google.cloud.storage import Client
+    get_client_mock = mocker.patch('app.api.data.tasks.get_client',
+                                   return_value=Client(project='mock-project'))
+    request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
+
+    w = make_workspace(state=WorkspaceState.INITIALIZING)
+    init_data_bucket(w.id)
+
+    # Verify mocks were called
+    get_client_mock.assert_called()
+    google_auth_mock.assert_called()
+    request_mock.assert_called_once()
+
+    # Verify that the request complies to the storage json API
+    # https://cloud.google.com/storage/docs/json_api/v1/buckets/insert
+    request_kwargs = request_mock.call_args[1]
+    assert request_kwargs['method'] == 'POST'
+    assert request_kwargs['path'] == '/b'
+    assert request_kwargs['query_params'] == {'project': 'mock-project'}
+    assert request_kwargs['data'] == {
+        'name': urllib.parse.urlparse(w.data_url).netloc,
+        'storageClass': 'REGIONAL',
+        'location': 'europe-west1',
+    }
 
 
 def test_init_data_bucket_missing(db_session):
