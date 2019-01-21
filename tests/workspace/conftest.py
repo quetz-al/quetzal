@@ -1,6 +1,4 @@
 """Common fixtures for workspace tests"""
-import unittest.mock
-
 import pytest
 
 from app.models import Family, Workspace, WorkspaceState
@@ -12,7 +10,7 @@ def make_workspace(db, db_session, user, request):
 
     counter = 1
 
-    def _make_workspace(name=None, state=None, owner=None, families=None):
+    def _make_workspace(name=None, state=None, owner=None, families=None, data_url=None):
         nonlocal counter
         # Create workspace on the database
         if name is None:
@@ -22,7 +20,7 @@ def make_workspace(db, db_session, user, request):
         else:
             description = 'Fixture workspace created by factory'
 
-        workspace = Workspace(name=name, description=description, owner=owner or user)
+        workspace = Workspace(name=name, description=description, owner=owner or user, data_url=data_url)
         # Change the underlying state without respecting the transitions
         workspace._state = state or WorkspaceState.READY
         db.session.add(workspace)

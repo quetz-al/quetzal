@@ -187,11 +187,12 @@ def delete_workspace(id):
 
     # Do the deletion task
     # TODO: manage exceptions/errors
-    bucket = get_bucket(workspace.data_url)
+    client = get_client()
+    bucket = get_bucket(workspace.data_url, client=client)
 
     # Delete all blobs first
     blobs = list(bucket.list_blobs())
-    bucket.delete_blobs(blobs)
+    bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
 
     # Delete the bucket
     bucket.delete()

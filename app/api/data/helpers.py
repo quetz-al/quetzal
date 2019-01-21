@@ -10,6 +10,11 @@ logger = logging.getLogger(__name__)
 
 
 def get_client():
+    """Create a GCP client built from the app configuration
+
+    The client is saved in the currrent application context and will be reused
+    in any future call on this context.
+    """
     # Get a client and save it in the context so it can be reused
     if 'google_client' not in g:
         filename = current_app.config['QUETZAL_GCP_CREDENTIALS']
@@ -18,6 +23,22 @@ def get_client():
 
 
 def get_bucket(url, *, client=None):
+    """ Get a GCP bucket object from an URL
+
+    Parameters
+    ----------
+    url: str
+        URL of the bucket
+
+    client: google.storage.client.Client, optional
+        GCP client instance to use. If not set it uses :py:func:`get_client`.
+
+    Returns
+    -------
+    bucket: google.storage.bucket.Bucket
+        A bucket instance
+
+    """
     if client is None:
         client = get_client()
     bucket_name = urlparse(url).netloc
@@ -25,6 +46,19 @@ def get_bucket(url, *, client=None):
 
 
 def get_data_bucket(*, client=None):
+    """ Get Quetzal's data bucket
+
+    Parameters
+    ----------
+    client: google.storage.client.Client, optional
+        GCP client instance to use. If not set it uses :py:func:`get_client`.
+
+    Returns
+    -------
+    bucket: google.storage.bucket.Bucket
+        A bucket instance
+
+    """
     data_bucket_url = current_app.config['QUETZAL_GCP_DATA_BUCKET']
     return get_bucket(data_bucket_url, client=client)
 

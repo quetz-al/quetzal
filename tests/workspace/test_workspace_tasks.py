@@ -2,11 +2,14 @@ import urllib.parse
 
 import pytest
 from celery.exceptions import Retry
+from google.cloud.storage import Client
 from sqlalchemy import func
 
 from app.models import Family, Workspace, WorkspaceState
 from app.api.data.workspace import create
-from app.api.data.tasks import wait_for_workspace, init_workspace, init_data_bucket
+from app.api.data.tasks import (
+    wait_for_workspace, init_workspace, init_data_bucket, delete_workspace
+)
 from app.api.exceptions import WorkerException
 
 
@@ -156,7 +159,6 @@ def test_init_data_bucket_success(db, db_session, make_workspace, mocker):
     # See test_init_data_bucket_correct_api for comments on these mocks
     mocker.patch('google.auth.default',
                  return_value=(None, 'mock-project'))
-    from google.cloud.storage import Client
     mocker.patch('app.api.data.tasks.get_client',
                  return_value=Client(project='mock-project'))
     mocker.patch('google.cloud._http.JSONConnection.api_request')
@@ -183,7 +185,6 @@ def test_init_data_bucket_correct_api(db, db_session, make_workspace, mocker):
     # Note that here, mocking 'app.api.data.helpers.get_client' will not work
     # because it is imported in 'app.api.data.tasks'.
     # See https://docs.python.org/3/library/unittest.mock.html#where-to-patch
-    from google.cloud.storage import Client
     get_client_mock = mocker.patch('app.api.data.tasks.get_client',
                                    return_value=Client(project='mock-project'))
     request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
@@ -224,3 +225,62 @@ def test_init_data_bucket_invalid_state(db_session, make_workspace, state):
     w = make_workspace(state=state)
     with pytest.raises(WorkerException):
         init_data_bucket(w.id)
+
+
+def test_delete_workspace_task_success(db_session, make_workspace, mocker):
+    # See test_init_data_bucket_correct_api for comments on these mocks
+    mocker.patch('google.auth.default',
+                 return_value=(None, 'mock-project'))
+    mocker.patch('app.api.data.tasks.get_client',
+                 return_value=Client(project='mock-project'))
+    request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
+    request_mock.return_value = {}
+
+    w = make_workspace(state=WorkspaceState.DELETING, data_url='gs://bucket-name')
+    delete_workspace(w.id)
+
+    # Verify the workspace state has been updated
+    assert w.state == WorkspaceState.DELETED
+
+
+def test_delete_workspace_task_correct_api(db_session, make_workspace, mocker):
+    """Delete workspace sends a correct API request to delete its bucket"""
+    # See test_init_data_bucket_correct_api for comments on these mocks
+    mocker.patch('google.auth.default',
+                 return_value=(None, 'mock-project'))
+    mocker.patch('app.api.data.tasks.get_client',
+                 return_value=Client(project='mock-project'))
+    request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
+    request_mock.side_effect = [
+        {},  # First call is when the Bucket information is retrieved
+        {},  # Second call is to list all bucket objects
+        {},  # Third call is to delete the bucket
+    ]
+
+    w = make_workspace(state=WorkspaceState.DELETING, data_url='gs://bucket-name')
+    delete_workspace(w.id)
+
+    # Verify that the request complies to the storage json API
+    # https://cloud.google.com/storage/docs/json_api/v1/buckets/delete
+    request_kwargs = request_mock.call_args[-1]
+    assert request_kwargs['method'] == 'DELETE'
+    assert request_kwargs['path'] == '/b/bucket-name'
+    assert request_kwargs['query_params'] == {}
+    assert 'data' not in request_kwargs
+
+
+def test_delete_workspace_task_missing(db_session):
+    """Delete workspace fails when the workspace does not exist"""
+    # Get the latest workspace id in order to request one that does not exist
+    max_id = db_session.query(func.max(Workspace.id)).scalar() or 0
+
+    with pytest.raises(WorkerException):
+        delete_workspace(max_id + 1)
+
+
+@pytest.mark.parametrize('state', [ws for ws in WorkspaceState if ws != WorkspaceState.DELETING])
+def test_delete_workspace_task_invalid_state(db_session, make_workspace, state):
+    """Init data bucket fails when the workspace is not on the correct state"""
+    w = make_workspace(state=state)
+    with pytest.raises(WorkerException):
+        delete_workspace(w.id)
