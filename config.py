@@ -153,6 +153,10 @@ class TestConfig(Config):
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
+    # Quetzal-specific configuration
+    QUETZAL_GCP_CREDENTIALS = None
+    QUETZAL_GCP_DATA_BUCKET = 'gs://quetzal-unit-tests'
+
 
 class LocalTestConfig(TestConfig):
     """Configuration for local unit tests

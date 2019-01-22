@@ -21,11 +21,25 @@ def create(*, id, body):
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
         raise APIException(status=codes.precondition_failed,
-                           title=f'Cannot add file to workspace',
+                           title='Cannot add file to workspace',
                            detail=f'Cannot add files to a workspace on {workspace.state.name} state')
 
-    # Get the base metadata family in order to put the basic metadata info
+    # Get the base metadata family in order to put the basic metadata info.
     base_family = workspace.families.filter_by(name='base').first()
+
+    # This query should not be None because all workspaces have a 'base' family,
+    # but in case this happens, it would be a problem of the current
+    # implementation (possibly by manually doing things like in unit tests).
+    # Just in case, we will raise an exception
+    if base_family is None:
+        logger.error('Workspace %d does not have base family metadata!',
+                     workspace.id)
+        raise APIException(status=codes.server_error,
+                           title='Incorrect workspace configuration',
+                           detail='Cannot add files to workspace because it does '
+                                  'not have the "base" family. This situation '
+                                  'should not happen and will be reported to '
+                                  'the administrator')
 
     # Add basic metadata
     meta = Metadata(id_file=uuid4(), family=base_family)
