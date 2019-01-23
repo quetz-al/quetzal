@@ -1,9 +1,6 @@
-import io
 import json
 import logging
-import os
 import urllib.parse
-import uuid
 from collections import namedtuple
 
 import pytest
@@ -13,29 +10,6 @@ from google.cloud.storage import Client
 from app.api.data.file import create
 from app.api.exceptions import APIException
 from app.models import Metadata, WorkspaceState
-
-
-@pytest.fixture(scope='function')
-def file_id():
-    return uuid.uuid4()
-
-
-@pytest.fixture(scope='function')
-def make_file(request):
-
-    class _NamedBytesIO(io.BytesIO):
-        filename = 'some_name'
-
-    def file_factory(name='', path='', content=b''):
-        if not content:
-            content = os.urandom(64)
-        if not name and not path:
-            name = request.function.__name__
-        instance = _NamedBytesIO(content)
-        instance.filename = os.path.join(path, name)
-        return instance
-
-    return file_factory
 
 
 def test_create_file_success(db, db_session, user, make_workspace, file_id, make_file, mocker):
@@ -195,9 +169,10 @@ def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, m
     assert kwargs2['headers']['content-type'] == 'application/octet-stream'
 
 
-def test_create_file_missing_workspace():
+def test_create_file_missing_workspace(missing_workspace_id, make_file, user):
     """Create a file on a missing workspace fails"""
-    pass
+    with pytest.raises(APIException):
+        create(id=missing_workspace_id, file_content=make_file(), user=user)
 
 
 @pytest.mark.parametrize('state',
@@ -212,3 +187,19 @@ def test_create_file_invalid_state(db, db_session, make_workspace, state, make_f
     # Create a file with some dummy contents
     with pytest.raises(APIException):
         create(id=workspace.id, file_content=make_file(), user=user)
+
+
+def test_download_file_content_in_workspace():
+    pass
+
+
+def test_download_file_metadata_in_workspace():
+    pass
+
+
+def test_download_file_content_in_global():
+    pass
+
+
+def test_download_file_metadata_in_global():
+    pass
