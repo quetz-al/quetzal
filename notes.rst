@@ -5,6 +5,19 @@ Documentation notes
 Things that need documentation
 ==============================
 
+Quickstart
+----------
+
+To get the code running (needs some conf files though):
+
+.. code:: shell
+
+    docker-compose up
+    # in another console:
+    docker-compose exec web flask db upgrade head
+    docker-compose exec web flask users create admin youremail@example.com --password secret
+
+
 Database
 --------
 

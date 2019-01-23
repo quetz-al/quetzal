@@ -16,7 +16,7 @@ class Config:
         'version': 1,
         'formatters': {
             'default': {
-                'format': '%(levelname)s %(asctime)s %(message)s',
+                'format': '%(levelname)s %(name)s %(asctime)s %(message)s',
                 'datefmt': '%Y-%m-%d %H:%M:%S',
             },
             'detailed': {
@@ -34,7 +34,7 @@ class Config:
         'handlers': {
             # The default logging on console
             'console': {
-                'level': 'INFO',  # on info so that the console is rather brief
+                'level': 'DEBUG',  # on info so that the console is rather brief
                 'class': 'logging.StreamHandler',
                 'formatter': 'default',
             },
@@ -62,13 +62,17 @@ class Config:
             'app.api.data.tasks': {
                 'level': 'DEBUG',
                 'handlers': ['file_worker']
+            },
+            # Some Python internal loggers that are too verbose
+            'parso': {
+                'level': 'WARNING',
             }
         },
         'root': {
             'level': 'DEBUG',  # on debug so that the file has all details
             'handlers': ['console', 'file'],
         },
-        'disable_existing_loggers': True,
+        'disable_existing_loggers': False,
     }
 
     # Database configuration

@@ -1,19 +1,17 @@
-import io
+import os
 from uuid import uuid4
 
 from flask import request, send_file
 from requests import codes
 
 from app import db
-from app.api.data.helpers import get_data_bucket, md5
+from app.api.data.helpers import get_data_bucket, get_readable_info, split_check_path
 from app.api.data.workspace import logger
 from app.api.exceptions import APIException
 from app.models import Workspace, Metadata
 
 
-def create(*, id, body):
-
-    logger.info('create %s %s %d', id, type(body), len(body), exc_info=True)
+def create(*, id, file_content, user, token_info=None):
     workspace = Workspace.get_or_404(id)
 
     # Creating a file requires new metadata, so the check here is to verify
@@ -41,26 +39,31 @@ def create(*, id, body):
                                   'should not happen and will be reported to '
                                   'the administrator')
 
-    # Add basic metadata
+    #  Create metadata object
     meta = Metadata(id_file=uuid4(), family=base_family)
+    md5, size = get_readable_info(file_content)
+    path, filename = split_check_path(file_content.filename)
     meta.json = {
         'id': str(meta.id_file),
-        'filename': str(meta.id_file),
-        'path': '',
-        'size': len(body),
-        'checksum': md5(body),
+        'filename': filename,
+        'path': path,
+        'size': size,
+        'checksum': md5,
         'url': '',
     }
     db.session.add(meta)
 
+    # TODO: write a wrapper to the file object in order to send the file and get the md5 and size
+    # (everything at the same time instead of doing a two-pass read)
+
     # Send file to bucket
     data_bucket = get_data_bucket()
     blob = data_bucket.blob(str(meta.id_file))
-    file_io = io.BytesIO(body)
-    blob.upload_from_file(file_io, rewind=True)
+    blob.upload_from_file(file_content, rewind=True)
     meta.json['url'] = f'gs://{data_bucket.name}/{meta.id_file}'
 
     # Save model
+    db.session.add(meta)
     db.session.commit()
 
     return meta.to_dict(), codes.created
