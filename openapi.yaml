@@ -190,10 +190,15 @@ paths:
       operationId: app.api.data.file.create
       requestBody:
         content:
-          application/octet-stream:
+          # There are some limitations of the wsgi server and connexion that
+          # do not let us have a correct complex multipart
+          multipart/form-data:
             schema:
-              type: string
-              format: binary
+              type: object
+              properties:
+                file_content:
+                  type: string
+                  format: binary
       responses:
         201:
           description: File uploaded successfully

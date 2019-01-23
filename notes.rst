@@ -86,3 +86,70 @@ Logging under unit tests is controlled on three places:
 
       FLASK_ENV=local-tests pytest --log-level DEBUG pytest
 
+
+Others
+------
+
+* Currently, the upload file endpoint that accepts the file contents and
+  metadata cannot be implemented without fixing some major problems. For example,
+  a request like::
+
+    curl -X POST \
+      http://localhost:5000/api/data/workspaces/2/files/ \
+      -H 'Content-Type: multipart/form-data' \
+      -H 'content-type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YWxkTrZu0gW' \
+      -F profileImage=@/Users/david/devel/quetzal/random-small.bin \
+      -F 'id=123e4567-e89b-12d3-a456-426655440000;type=text/plain' \
+      -F 'address={"street":"red","city":"nyc"};type=application/json'
+
+  with a correponding API specification as::
+
+    post:
+      summary: Add a new file
+      description: |-
+        Upload a new file by sending its contents. The file will not have any
+        additional metadata associated to it.
+      tags:
+        - data
+      operationId: app.api.data.file.create
+      requestBody:
+        content:
+          multipart/form-data: # Media type
+            schema:            # Request payload
+              type: object
+              properties:      # Request parts
+                id:            # Part 1 (string value)
+                  type: string
+                  format: uuid
+                address:       # Part 2 (object)
+                  type: object
+                  properties:
+                    street:
+                      type: string
+                    city:
+                      type: string
+                profileImage:  # Part 3 (an image)
+                  type: string
+                  format: binary
+
+  will **not** work, complaining that the address is not an object (because it
+  is parsed as a string).
+
+  Moreover, if we removed the object in that example, connexion does not work
+  well with formData on OAS 3.
+
+  Fixing this requires a tremendous amount of work:
+
+  * I don't think any WSGI implements the correct parsing for multipart/form-data
+    requests. We cannot send a application/json inside the form data because the
+    request parser (on the WSGI code) parses it as string and does not convert it
+    to a dictionary.
+
+  * The problem above could be solved if connexion handled the str to dict
+    conversion but it would need more research on how to obtain the part header,
+    where the content-type for the specific part is set.
+
+  * An alternative would be to have a specific body validator in connexion that
+    does a specific verification and conversion for the case of creating files.
+    This is the most feasible solution, but it may open the door to weird
+    unknown bugs or security problems. Perhaps we can explore this later.
