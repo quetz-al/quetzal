@@ -1,6 +1,8 @@
 import io
+import json
 import logging
 import os
+import urllib.parse
 import uuid
 from collections import namedtuple
 
@@ -135,9 +137,62 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
     assert base_metadata == expected_metadata
 
 
-def test_create_file_correct_api():
+def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, make_file, user, mocker):
     """Creating a file sends a correct GCP API to create an object"""
-    pass
+    mocker.patch('google.auth.default',
+                 return_value=(AnonymousCredentials(), 'mock-project'))
+    mocker.patch('app.api.data.helpers.get_client',
+                 return_value=Client(project='mock-project'))
+    mocker.patch('google.cloud._http.JSONConnection.api_request',
+                 return_value={})
+    mocker.patch('app.api.data.file.uuid4', return_value=file_id)
+    request_mock = mocker.patch('google.auth.transport.requests.AuthorizedSession.request')
+
+    # A mock function to control external request. Here, there should be a call
+    # to create an object in the google cloud bucket
+    def create_object_side_effect(*args, **kwargs):
+        result_type = namedtuple('request', ['status_code', 'headers', 'json'])
+        return result_type(200,
+                           {'location': 'https://www.googleapis.com/storage/filename?upload_id=xxx'}
+                           if args[0] == 'POST' else {},
+                           lambda: {})
+
+    request_mock.side_effect = create_object_side_effect
+
+    # Create a workspace with the base family because the file create function
+    # assumes the workspace is correctly initialized: it must have a base family
+    workspace = make_workspace(families={'base': 0}, owner=user)
+
+    # Create a file with some dummy contents
+    content = make_file(name='filename.txt', path='a/b/c', content=b'hello world')
+    create(id=workspace.id, file_content=content, user=user)
+
+    # Verify the correct calls to the API
+
+    # There should have been two calls to the GCP API:
+    # one to create the object in the bucket
+    # one to send the contet
+    assert request_mock.call_count == 2
+
+    # call_args_list is a list of unittest.mock.Call objects, which can be
+    # either 2- or 3-tuple. We want the 2-tuple case
+    # See docs on: https://docs.python.org/3/library/unittest.mock.html#unittest.mock.call
+    args1, kwargs1 = request_mock.call_args_list[0]
+    args2, kwargs2 = request_mock.call_args_list[1]
+    bucket = urllib.parse.urlparse(app.config["QUETZAL_GCP_DATA_BUCKET"]).netloc
+
+    # The first call should follow
+    # https://cloud.google.com/storage/docs/json_api/v1/objects/insert
+    assert args1[0] == 'POST'
+    assert args1[1] == f'https://www.googleapis.com/upload/storage/v1/b/{bucket}/o?uploadType=resumable'
+    assert json.loads(kwargs1['data']) == {'name': str(file_id)}
+
+    # The second call should follow
+    # https://cloud.google.com/storage/docs/json_api/v1/objects/update
+    assert args2[0] == 'PUT'
+    assert args2[1] == 'https://www.googleapis.com/storage/filename?upload_id=xxx'
+    assert kwargs2['data'] == b'hello world'
+    assert kwargs2['headers']['content-type'] == 'application/octet-stream'
 
 
 def test_create_file_missing_workspace():
