@@ -57,16 +57,21 @@ def create(*, id, file_content, user, token_info=None):
     # (everything at the same time instead of doing a two-pass read)
 
     # Send file to bucket
-    data_bucket = get_data_bucket()
-    blob = data_bucket.blob(str(meta.id_file))
-    blob.upload_from_file(file_content, rewind=True)
-    meta.json['url'] = f'gs://{data_bucket.name}/{meta.id_file}'
+    meta.json['url'] = _upload_file(str(meta.id_file), file_content)
 
     # Save model
     db.session.add(meta)
     db.session.commit()
 
     return meta.to_dict(), codes.created
+
+
+def _upload_file(name, content):
+    """Upload contents to the google data bucket"""
+    data_bucket = get_data_bucket()
+    blob = data_bucket.blob(name)
+    blob.upload_from_file(content, rewind=True)
+    return f'gs://{data_bucket.name}/{name}'
 
 
 def update_metadata(*, id, uuid, body):

@@ -12,7 +12,7 @@ from sqlalchemy.schema import Index, UniqueConstraint, CheckConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-from app.api.exceptions import InvalidTransitionException, APIException
+from app.api.exceptions import InvalidTransitionException, ObjectNotFoundException
 
 
 logger = logging.getLogger(__name__)
@@ -129,9 +129,9 @@ class Workspace(db.Model):
         """Get a workspace by id or raise an APIException"""
         w = Workspace.query.get(id)
         if w is None:
-            raise APIException(status=codes.not_found,
-                               title='Not found',
-                               detail=f'Workspace {id} does not exist')
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='Not found',
+                                          detail=f'Workspace {id} does not exist')
         return w
 
     @property

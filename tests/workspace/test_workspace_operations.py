@@ -7,7 +7,7 @@ import pytest
 from kombu.exceptions import OperationalError
 from sqlalchemy import func
 
-from app.api.exceptions import APIException
+from app.api.exceptions import APIException, ObjectNotFoundException
 from app.api.data.workspace import create, fetch, details, delete
 from app.models import Workspace, WorkspaceState
 
@@ -144,7 +144,7 @@ def test_details_workspace_missing(app, db_session):
     max_id = db_session.query(func.max(Workspace.id)).scalar() or 0
 
     with app.test_request_context():
-        with pytest.raises(APIException) as exc_info:
+        with pytest.raises(ObjectNotFoundException) as exc_info:
             # max_id + 1 should not exist
             details(id=max_id+1)
 
@@ -183,7 +183,7 @@ def test_delete_workspace_missing(app, db_session):
     # Get the latest workspace id in order to request one that does not exist
     max_id = db_session.query(func.max(Workspace.id)).scalar() or 0
 
-    with pytest.raises(APIException) as exc_info:
+    with pytest.raises(ObjectNotFoundException) as exc_info:
         # max_id + 1 should not exist
         delete(id=max_id+1)
 

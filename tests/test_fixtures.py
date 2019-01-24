@@ -1,3 +1,4 @@
+"""Tests on correct fixtures"""
 
 
 def test_app_fixture(app):
@@ -14,4 +15,3 @@ def test_db_fixture(db):
 def test_session_fixture(db_session):
     """db_session fixture is loaded"""
     assert db_session is not None
-

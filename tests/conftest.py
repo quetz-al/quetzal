@@ -2,6 +2,7 @@
 import io
 import os
 import uuid
+from unittest import mock
 
 import pytest
 from sqlalchemy import func
@@ -51,6 +52,7 @@ def workspace(make_workspace):
     workspace = make_workspace()
     return workspace
 
+
 @pytest.fixture(scope='function')
 def missing_workspace_id(db, db_session):
     # Get the latest workspace id in order to request one that does not exist
@@ -99,7 +101,7 @@ def make_file(request):
     class _NamedBytesIO(io.BytesIO):
         filename = 'some_name'
 
-    def file_factory(name='', path='', content=b''):
+    def _make_file_contents(name='', path='', content=b''):
         if not content:
             content = os.urandom(64)
         if not name and not path:
@@ -108,4 +110,18 @@ def make_file(request):
         instance.filename = os.path.join(path, name)
         return instance
 
-    return file_factory
+    return _make_file_contents
+
+
+@pytest.fixture(scope='function')
+def upload_file(make_file, user):
+    """Factory method to upload files to a workspace"""
+    _user = user
+
+    def _upload_file(workspace, user=None, url=None, **kwargs):
+        from app.api.data.file import create
+        with mock.patch('app.api.data.file._upload_file', return_value=url or ''):
+            response, _ = create(id=workspace.id, file_content=make_file(**kwargs), user=user or _user)
+            return response['id']
+
+    return _upload_file

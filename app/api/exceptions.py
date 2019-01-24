@@ -10,7 +10,14 @@ class APIException(ProblemException):
     pass
 
 
-class APIBackendException(Exception):
+class ObjectNotFoundException(APIException):
+    """Exception for cases when an object does not exist
+
+    Typically, when a workspace or file does not exist
+    """
+
+
+class QuetzalException(Exception):
     """Represents an internal error in the data API
 
     Use for exceptions that don't need to be transmitted back as a response
@@ -18,10 +25,10 @@ class APIBackendException(Exception):
     pass
 
 
-class InvalidTransitionException(APIBackendException):
+class InvalidTransitionException(QuetzalException):
     pass
 
 
-class WorkerException(APIBackendException):
+class WorkerException(QuetzalException):
     pass
 

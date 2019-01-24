@@ -8,30 +8,14 @@ from google.auth.credentials import AnonymousCredentials
 from google.cloud.storage import Client
 
 from app.api.data.file import create
-from app.api.exceptions import APIException
+from app.api.exceptions import APIException, ObjectNotFoundException
 from app.models import Metadata, WorkspaceState
 
 
 def test_create_file_success(db, db_session, user, make_workspace, file_id, make_file, mocker):
     """File create on success conditions"""
-    mocker.patch('google.auth.default',
-                 return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('app.api.data.helpers.get_client',
-                 return_value=Client(project='mock-project'))
-    mocker.patch('google.cloud._http.JSONConnection.api_request',
-                 return_value={})
+    mocker.patch('app.api.data.file._upload_file', return_value='gs://some_url')
     mocker.patch('app.api.data.file.uuid4', return_value=file_id)
-    request_mock = mocker.patch('google.auth.transport.requests.AuthorizedSession.request')
-
-    # A mock function to control external request. Here, there should be a call
-    # to create an object in the google cloud bucket
-    def authorized_session_request_result(*args, **kwargs):
-        result_type = namedtuple('request', ['status_code', 'headers', 'json'])
-        return result_type(200,
-                           {'location': 'something'},
-                           lambda: {})
-
-    request_mock.side_effect = authorized_session_request_result
 
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
@@ -171,7 +155,7 @@ def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, m
 
 def test_create_file_missing_workspace(missing_workspace_id, make_file, user):
     """Create a file on a missing workspace fails"""
-    with pytest.raises(APIException):
+    with pytest.raises(ObjectNotFoundException):
         create(id=missing_workspace_id, file_content=make_file(), user=user)
 
 
@@ -190,16 +174,20 @@ def test_create_file_invalid_state(db, db_session, make_workspace, state, make_f
 
 
 def test_download_file_content_in_workspace():
+    """Retrieve file contents of a file uploaded to a workspace"""
     pass
 
 
 def test_download_file_metadata_in_workspace():
+    """Retrieve file metadata of a file uploaded to a workspace"""
     pass
 
 
 def test_download_file_content_in_global():
+    """Retrieve file contents of a file uploaded and committed"""
     pass
 
 
 def test_download_file_metadata_in_global():
+    """Retrieve file contents of a file uploaded and committed"""
     pass
