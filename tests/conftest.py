@@ -1,13 +1,13 @@
 """Common fixtures for the data api tests"""
 import io
 import os
-import uuid
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import func
 
-from app.models import Family, Workspace, WorkspaceState
+from app.models import Family, Metadata, Workspace, WorkspaceState
 
 
 @pytest.fixture(scope='function')
@@ -91,7 +91,7 @@ def make_family(db, db_session, user, request):
 @pytest.fixture(scope='function')
 def file_id():
     """Random file identifier as a uuid4"""
-    return uuid.uuid4()
+    return uuid4()
 
 
 @pytest.fixture(scope='function')
@@ -125,3 +125,37 @@ def upload_file(make_file, user):
             return response['id']
 
     return _upload_file
+
+
+@pytest.fixture(scope='function')
+def committed_file(request, db_session, make_family, file_id):
+    """A file that is not associated to a workspace because it is committed"""
+    base_family = make_family(name='base', version=1, workspace=None)
+    other_family = make_family(name='other', version=1, workspace=None)
+    base_metadata = Metadata(id_file=file_id, family=base_family, json={
+        'id': str(file_id),
+        'filename': request.function.__name__,
+        'path': 'a/b/c',
+        'size': 0,
+        'checksum': 'd41d8cd98f00b204e9800998ecf8427e',
+        'url': '',
+    })
+    other_metadata = Metadata(id_file=file_id, family=other_family, json={
+        'id': str(file_id),
+        'key': 'value',
+    })
+
+    db_session.add(base_family)
+    db_session.add(other_family)
+    db_session.add(base_metadata)
+    db_session.add(other_metadata)
+    db_session.commit()
+
+    return {
+        'id': str(file_id),
+        'content': b'',
+        'metadata': {
+            'base': base_metadata.json,
+            'other': other_metadata.json
+        },
+    }

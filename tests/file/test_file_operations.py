@@ -7,7 +7,7 @@ import pytest
 from google.auth.credentials import AnonymousCredentials
 from google.cloud.storage import Client
 
-from app.api.data.file import create
+from app.api.data.file import create, details, details_w
 from app.api.exceptions import APIException, ObjectNotFoundException
 from app.models import Metadata, WorkspaceState
 
@@ -173,21 +173,60 @@ def test_create_file_invalid_state(db, db_session, make_workspace, state, make_f
         create(id=workspace.id, file_content=make_file(), user=user)
 
 
-def test_download_file_content_in_workspace():
+def test_download_file_content_in_workspace(app, db_session, make_workspace, upload_file):
     """Retrieve file contents of a file uploaded to a workspace"""
-    pass
+    # Create a workspace with the base family because the file create function
+    # assumes the workspace is correctly initialized: it must have a base family
+    workspace = make_workspace(families={'base': 0})
+    known_content = b'some content bytes'
+    file_id = upload_file(workspace=workspace, content=known_content)
+    # TODO: mock the google bucket object read request
+
+    headers = {'accept': 'application/octet-stream'}
+    with app.test_request_context(headers=headers):
+        content, code = details_w(id=workspace.id, uuid=file_id)
+
+    assert code == 200
+    assert content.data == known_content
 
 
-def test_download_file_metadata_in_workspace():
+def test_download_file_metadata_in_workspace(app, db_session, make_workspace, upload_file):
     """Retrieve file metadata of a file uploaded to a workspace"""
-    pass
+    # Create a workspace with the base family because the file create function
+    # assumes the workspace is correctly initialized: it must have a base family
+    workspace = make_workspace(families={'base': 0})
+    file_id = upload_file(workspace=workspace)
+
+    headers = {'accept': 'application/json'}
+    with app.test_request_context(headers=headers):
+        details, code = details_w(id=workspace.id, uuid=file_id)
+
+    assert code == 200
+    assert details['id'] == file_id
+    assert 'metadata' in details
 
 
-def test_download_file_content_in_global():
+def test_download_file_content_in_global(app, db_session, committed_file):
     """Retrieve file contents of a file uploaded and committed"""
-    pass
+    file_id = committed_file['id']
+    file_contents = committed_file['content']
+
+    headers = {'accept': 'application/octet-stream'}
+    with app.test_request_context(headers=headers):
+        content, code = details(uuid=file_id)
+
+    assert code == 200
+    assert content.data == file_contents
 
 
-def test_download_file_metadata_in_global():
+def test_download_file_metadata_in_global(app, db_session, committed_file):
     """Retrieve file contents of a file uploaded and committed"""
-    pass
+    file_id = committed_file['id']
+    file_metadata = committed_file['metadata']
+
+    headers = {'accept': 'application/json'}
+    with app.test_request_context(headers=headers):
+        metadata, code = details(uuid=file_id)
+
+    assert code == 200
+    assert metadata == file_metadata
