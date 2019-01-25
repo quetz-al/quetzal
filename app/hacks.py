@@ -21,8 +21,11 @@ logger = logging.getLogger(__name__)
 class CustomResponseValidator(ResponseValidator):
 
     def validate_response_with_request(self, request, data, status_code, headers, url):
-        if self.operation.operation_id == 'app.api.data.file.details' and \
-                request.headers.get('accept', '') == 'application/octet-stream':
+        details_op = self.operation.operation_id in ('app.api.data.file.details',
+                                                     'app.api.data.file.details_w')
+        accept_octet_header = (request.headers.get('accept', '') == 'application/octet-stream')
+        logger.info('needs circumvent? %s %s', details_op, accept_octet_header)
+        if details_op and accept_octet_header:
             logging.debug('Circumventing validation for octet-stream')
             return True
         return self.validate_response(data, status_code, headers, url)

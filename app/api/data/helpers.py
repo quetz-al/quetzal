@@ -46,6 +46,14 @@ def get_bucket(url, *, client=None):
     return client.get_bucket(bucket_name)
 
 
+def get_object(url, *, client=None):
+    if client is None:
+        client = get_client()
+    blob_name = urlparse(url).path.lstrip('/')
+    bucket = get_bucket(url, client=client)
+    return bucket.get_blob(blob_name, client=client)
+
+
 def get_data_bucket(*, client=None):
     """ Get Quetzal's data bucket
 

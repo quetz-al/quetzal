@@ -138,6 +138,9 @@ class Workspace(db.Model):
     def can_change_metadata(self):
         return self.state in {WorkspaceState.READY, WorkspaceState.CONFLICT}
 
+    def get_base_family(self):
+        return self.families.filter_by(name='base').one()
+
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \
                f'state={self.state.name if self.state else "unset"}]>'
@@ -168,7 +171,7 @@ class Family(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(64), index=True, nullable=False)
-    version = db.Column(db.Integer)
+    version = db.Column(db.Integer)  # Can be temporary nullable during workspace creation
     description = db.Column(db.Text)
 
     fk_workspace_id = db.Column(db.Integer, db.ForeignKey('workspace.id'))
@@ -190,6 +193,7 @@ class Metadata(db.Model):
         # Do not allow metadata without an "id" entry
         CheckConstraint("json ? 'id'", name='check_id'),
         # TODO: add constraint check file_id == json->'id' ?
+        # TODO: add index on id? Would it be useful? For jsonb indices, see https://stackoverflow.com/a/17808864/227103
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -247,17 +251,21 @@ class Metadata(db.Model):
     @staticmethod
     def get_latest(file_id, family):
         latest = Metadata.query.filter_by(id_file=file_id, family=family).first()
-        # TODO: add unit test so that adding two modifications to a family does not entail two records
-        # ie: the first here is the only possible result
+        # There is the only possible result (tested by test_update_metadata_db_records)
         if latest is not None:
             logger.info('Latest is from this workspace: %s', latest)
             return latest
 
         # Nothing in the workspace was found, try the previous global metadata
+        # Important: this function only looks on the global workspace until
+        # a certain metadata id reference. It will not find metadata that has
+        # been added after this reference because this would be new metadata
+        # that the workspace should not be able to access
         workspace = family.workspace
         reference = 0
         if workspace.fk_last_metadata_id is not None:
             reference = workspace.fk_last_metadata_id
+
         latest_global = (
             Metadata
             .query
@@ -272,3 +280,22 @@ class Metadata(db.Model):
             return latest_global
 
         return None
+
+    @staticmethod
+    def get_latest_global(file_id, family_name=None):
+        # Get the families with null workspace (these are the committed families).
+        # From these, get the max version of each family.
+        # Finally, what we want is the associated metadata so we need to join
+        # with the Metadata
+        queryset = (
+            Metadata
+            .query
+            .join(Family)
+            .filter(Metadata.id_file == file_id,
+                    Family.fk_workspace_id.is_(None),
+                    # Handy trick to add an inline filter only when family_name is set
+                    Family.name == family_name if family_name is not None else True)
+            .distinct(Family.name)
+            .order_by(Family.name, Family.version.desc())
+        )
+        return queryset.all()

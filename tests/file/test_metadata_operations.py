@@ -212,7 +212,7 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
         'size': 11,
         'url': 'gs://some_bucket/some_name',
     }
-    other_metadata_expected = new_metadata.copy()
+    other_metadata_expected = new_metadata['other'].copy()
     other_metadata_expected['id'] = file_id
     assert base_metadata_db.json == base_metadata_expected
     assert other_metadata_db.json == other_metadata_expected
