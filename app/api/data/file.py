@@ -232,7 +232,43 @@ def details_w(*, id=None, uuid):
 
 
 def fetch(*, id):
-    raise NotImplementedError
+    """Get all the files on a workspace"""
+    workspace = Workspace.get_or_404(id)
+
+    # Get all the committed base metadata that existed before the creation of
+    # the workspace
+    previous_meta = (
+        Metadata
+        .query
+        .join(Family)
+        .filter(Family.name == 'base',
+                # Check that the family's workspace is None: this means is committed
+                Family.fk_workspace_id.is_(None),
+                # Verify the reference when there is a reference, otherwise it means
+                # that there was no metadata before
+                Metadata.id <= workspace.fk_last_metadata_id
+                if workspace.fk_last_metadata_id is not None else False)
+    )
+
+    # Get all the metadata that has been added to this workspace
+    workspace_meta = (
+        Metadata
+        .query
+        .join(Family)
+        .filter(Family.name == 'base',
+                Family.workspace == workspace)
+    )
+
+    # Now take the results of both queries, but drop repeated entries by file_id,
+    # which is possible through a DISTINCT ON combined with an ORDER BY
+    union_query = (
+        previous_meta.union(workspace_meta)
+        .distinct(Metadata.id_file)
+        .order_by(Metadata.id_file, Metadata.id.desc())
+    )
+
+    response = [meta.json for meta in union_query.all()]
+    return response, 200
 
 
 def _all_metadata(file_id, workspace):
