@@ -1,3 +1,4 @@
+import io
 import json
 import logging
 import urllib.parse
@@ -59,6 +60,7 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
     mocker.patch('google.cloud._http.JSONConnection.api_request',
                  return_value={})
     mocker.patch('app.api.data.file.uuid4', return_value=file_id)
+    mocker.patch('app.api.data.file._now', return_value='2019-02-03 16:30:11.350719+00:00')
     request_mock = mocker.patch('google.auth.transport.requests.AuthorizedSession.request')
 
     # A mock function to control external request. Here, there should be a call
@@ -89,7 +91,8 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
         'path': 'a/b/c',
         'size': 11,
         'checksum': '5eb63bbbe01eeed093cb22bb8f5acdc3',
-        'url': f'{bucket_url}/{file_id}'
+        'url': f'{bucket_url}/{file_id}',
+        'date': '2019-02-03 16:30:11.350719+00:00',
     }
 
     assert base_metadata == expected_metadata
@@ -173,14 +176,14 @@ def test_create_file_invalid_state(db, db_session, make_workspace, state, make_f
         create(id=workspace.id, file_content=make_file(), user=user)
 
 
-def test_download_file_content_in_workspace(app, db_session, make_workspace, upload_file):
+def test_download_file_content_in_workspace(app, db_session, make_workspace, upload_file, mocker):
     """Retrieve file contents of a file uploaded to a workspace"""
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
     workspace = make_workspace(families={'base': 0})
     known_content = b'some content bytes'
+    mocker.patch('app.api.data.file._download_file', return_value=io.BytesIO(known_content))
     file_id = upload_file(workspace=workspace, content=known_content)
-    # TODO: mock the google bucket object read request
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
@@ -206,10 +209,11 @@ def test_download_file_metadata_in_workspace(app, db_session, make_workspace, up
     assert 'metadata' in details
 
 
-def test_download_file_content_in_global(app, db_session, committed_file):
+def test_download_file_content_in_global(app, db_session, committed_file, mocker):
     """Retrieve file contents of a file uploaded and committed"""
     file_id = committed_file['id']
     file_contents = committed_file['content']
+    mocker.patch('app.api.data.file._download_file', return_value=io.BytesIO(file_contents))
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
@@ -229,4 +233,43 @@ def test_download_file_metadata_in_global(app, db_session, committed_file):
         metadata, code = details(uuid=file_id)
 
     assert code == 200
-    assert metadata == file_metadata
+    assert metadata['metadata'] == file_metadata
+
+
+def test_download_file_content_correct_api(app, db_session, make_workspace, upload_file, mocker):
+    """Retrieve file contents of a file uploaded to a workspace"""
+    # There are a lot of mocks to do in order to test file downloading.
+    result_type = namedtuple('request', ['status_code', 'headers', 'json'])
+    mocker.patch('google.auth.default',
+                 return_value=(AnonymousCredentials(), 'mock-project'))
+    mocker.patch('app.api.data.helpers.get_client',
+                 return_value=Client(project='mock-project'))
+    request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request',
+                                side_effect=result_type(200, {'location': 'something'}, lambda: {}))
+    transport_request_mock = mocker.patch('google.auth.transport.requests.AuthorizedSession.request',
+                                          return_value=result_type(200, {}, lambda: {}))
+    mocker.patch('google.resumable_media.requests.download.Download._write_to_stream')
+
+    # Create workspace and with a file
+    workspace = make_workspace(families={'base': 0})
+    file_id = upload_file(workspace=workspace, url='gs://bucket_name/object_name')
+
+    headers = {'accept': 'application/octet-stream'}
+    with app.test_request_context(headers=headers):
+        details_w(id=workspace.id, uuid=file_id)
+
+    # the first two calls concern getting the bucket name
+    assert request_mock.call_count == 2
+
+    args1, kwargs1 = request_mock.call_args_list[0]
+    args2, kwargs2 = request_mock.call_args_list[1]
+    assert kwargs1['method'] == kwargs2['method'] == 'GET'
+    assert kwargs1['path'] == '/b/bucket_name'
+    assert kwargs2['path'] == '/b/bucket_name/o/object_name'
+
+    # the last call concerns the downloading and should respect
+    # https://cloud.google.com/storage/docs/json_api/v1/objects/get
+    transport_request_mock.assert_called_once()
+    args3, kwargs3 = transport_request_mock.call_args
+    assert args3[0] == 'GET'
+    assert args3[1] == 'https://www.googleapis.com/download/storage/v1/b/bucket_name/o/object_name?alt=media'

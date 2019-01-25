@@ -1,4 +1,5 @@
 """Common fixtures for the data api tests"""
+import datetime
 import io
 import os
 from unittest import mock
@@ -118,9 +119,10 @@ def upload_file(make_file, user):
     """Factory method to upload files to a workspace"""
     _user = user
 
-    def _upload_file(workspace, user=None, url=None, **kwargs):
+    def _upload_file(workspace, user=None, url=None, date=None, **kwargs):
         from app.api.data.file import create
-        with mock.patch('app.api.data.file._upload_file', return_value=url or ''):
+        with mock.patch('app.api.data.file._upload_file', return_value=url or ''), \
+             mock.patch('app.api.data.file._now', return_value=date or str(datetime.datetime.now(datetime.timezone.utc))):
             response, _ = create(id=workspace.id, file_content=make_file(**kwargs), user=user or _user)
             return response['id']
 
@@ -139,6 +141,7 @@ def committed_file(request, db_session, make_family, file_id):
         'size': 0,
         'checksum': 'd41d8cd98f00b204e9800998ecf8427e',
         'url': '',
+        'date': '2019-02-03 16:30:11.350719+00:00',
     })
     other_metadata = Metadata(id_file=file_id, family=other_family, json={
         'id': str(file_id),
@@ -153,7 +156,7 @@ def committed_file(request, db_session, make_family, file_id):
 
     return {
         'id': str(file_id),
-        'content': b'',
+        'content': b'',  # content with md5 == 'd41d8cd98f00b204e9800998ecf8427e'
         'metadata': {
             'base': base_metadata.json,
             'other': other_metadata.json

@@ -52,7 +52,7 @@ def test_update_metadata_missing_workspace(missing_workspace_id):
                         body={'family': {'key': 'value'}})
 
 
-@pytest.mark.parametrize('key', ['id', 'size', 'checksum', 'url'])
+@pytest.mark.parametrize('key', ['id', 'size', 'checksum', 'url', 'date'])
 def test_update_metadata_base_blacklist(db_session, make_workspace, upload_file, key):
     """It should not be possible to change some keys in the base family"""
     workspace = make_workspace(families={'base': 0})
@@ -146,7 +146,8 @@ def test_update_metadata_correct_content_local(db_session, make_workspace, uploa
     workspace = make_workspace(families={'base': 0, 'existing': 0})
     file_id = upload_file(workspace=workspace, name='filename.txt',
                           path='a/b/c', content=b'hello world',
-                          url='gs://some_bucket/some_name')
+                          url='gs://some_bucket/some_name',
+                          date='2019-02-03 16:30:11.350719+00:00')
 
     new_metadata = {
         'existing': {
@@ -169,6 +170,7 @@ def test_update_metadata_correct_content_local(db_session, make_workspace, uploa
         'checksum': '5eb63bbbe01eeed093cb22bb8f5acdc3',
         'size': 11,
         'url': 'gs://some_bucket/some_name',
+        'date': '2019-02-03 16:30:11.350719+00:00',
     }
 
     assert result == expected_result
@@ -179,7 +181,8 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
     workspace = make_workspace(families={'base': 0, 'other': 0})
     file_id = upload_file(workspace=workspace, name='filename.txt',
                           path='a/b/c', content=b'hello world',
-                          url='gs://some_bucket/some_name')
+                          url='gs://some_bucket/some_name',
+                          date='2019-02-03 16:30:11.350719+00:00')
 
     new_metadata = {
         'other': {
@@ -211,6 +214,7 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
         'checksum': '5eb63bbbe01eeed093cb22bb8f5acdc3',
         'size': 11,
         'url': 'gs://some_bucket/some_name',
+        'date': '2019-02-03 16:30:11.350719+00:00',
     }
     other_metadata_expected = new_metadata['other'].copy()
     other_metadata_expected['id'] = file_id

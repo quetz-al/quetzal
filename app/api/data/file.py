@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import pathlib
@@ -56,6 +57,7 @@ def create(*, id, file_content, user, token_info=None):
         'path': path,
         'size': size,
         'checksum': md5,
+        'date': _now(),
         'url': '',
     }
     db.session.add(meta)
@@ -351,8 +353,16 @@ def _verify_filename_path(filename, path):
                                title='Invalid path metadata modification',
                                detail='Path contains traversal operation')
 
-    # Path must be normalized
-    if os.path.normpath(path) != path:
-        raise APIException(status=codes.bad_request,
-                           title='Invalid path modification',
-                           detail='Path must be normalized')
+        # Path must be normalized
+        if os.path.normpath(path) != path:
+            raise APIException(status=codes.bad_request,
+                               title='Invalid path modification',
+                               detail='Path must be normalized')
+
+
+def _now():
+    """Get a datetime object with the current datetime (in UTC) as a string
+
+    This function is also created for ease of unit test mocks
+    """
+    return str(datetime.datetime.now(datetime.timezone.utc))
