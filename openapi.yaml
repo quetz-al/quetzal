@@ -15,7 +15,7 @@ paths:
         - basic: []
         - bearer: []
       responses:
-        200:
+        '200':
           description: Authentication token
           content:
             application/json:
@@ -46,7 +46,7 @@ paths:
         schema:
           type: boolean
       responses:
-        200:
+        '200':
           description: Workspace list
           content:
             application/json:
@@ -66,7 +66,7 @@ paths:
               $ref: '#/components/schemas/NewWorkspace'
         required: true
       responses:
-        201:
+        '201':
           description: Workspace created successfully
           content:
             application/json:
@@ -87,7 +87,7 @@ paths:
         - data
       operationId: app.api.data.workspace.details
       responses:
-        200:
+        '200':
           description: Workspace details
           content:
             application/json:
@@ -104,7 +104,7 @@ paths:
         - data
       operationId: app.api.data.workspace.delete
       responses:
-        202:
+        '202':
           description: Workspace marked for deletion
   /api/data/workspaces/{id}/commit:
     put:
@@ -124,7 +124,7 @@ paths:
           schema:
             type: integer
       responses:
-        202:
+        '202':
           description: Successfully requested a workspace commit operation
           content:
             application/json:
@@ -148,7 +148,7 @@ paths:
           schema:
             type: integer
       responses:
-        202:
+        '202':
           description: Successfully requested a workspace scan operation
           content:
             application/json:
@@ -172,7 +172,7 @@ paths:
         - data
       operationId: app.api.data.file.fetch
       responses:
-        200:
+        '200':
           description: List of workspace files
           content:
             application/json:
@@ -200,7 +200,7 @@ paths:
                   type: string
                   format: binary
       responses:
-        201:
+        '201':
           description: File uploaded successfully
           content:
             application/json:
@@ -232,7 +232,7 @@ paths:
         - data
       operationId: app.api.data.file.details_w
       responses:
-        200:
+        '200':
           description: File contents or metadata
           content:
             application/json:
@@ -259,7 +259,7 @@ paths:
             schema:
               type: object
       responses:
-        200:
+        '200':
           description: Metadata successfully updated
           content:
             application/json:
@@ -280,7 +280,7 @@ paths:
             schema:
               type: object
       responses:
-        200:
+        '200':
           description: Metadata successfully saved
           content:
             application/json:
@@ -305,7 +305,7 @@ paths:
         - data
       operationId: app.api.data.file.details
       responses:
-        200:
+        '200':
           description: File contents or metadata
           content:
             application/json:
@@ -404,7 +404,7 @@ components:
             "status": "ready",
             "description": "Details on what this workspace is for",
             "families": {},
-            "creation_date": "2019-28-02T12:23:55",
+            "creation_date": "'201'9-28-02T12:23:55",
             "temporary": false,
             "owner": "username",
             "data_url": "gs://some_bucket_name"
