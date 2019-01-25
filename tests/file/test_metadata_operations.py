@@ -2,7 +2,7 @@ import pytest
 
 from app.api.data.file import update_metadata
 from app.api.exceptions import APIException, ObjectNotFoundException
-from app.models import WorkspaceState, Workspace, Metadata
+from app.models import Family, Metadata, WorkspaceState, Workspace
 
 
 def test_update_metadata_success(db_session, make_workspace, upload_file):
@@ -216,3 +216,60 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
     other_metadata_expected['id'] = file_id
     assert base_metadata_db.json == base_metadata_expected
     assert other_metadata_db.json == other_metadata_expected
+
+
+def test_update_metadata_db_records(make_workspace, upload_file):
+    """Changing existing metadata reuses the previous entry on the DB"""
+    workspace = make_workspace(families={'base': 0, 'other': 0})
+    file_id = upload_file(workspace=workspace)
+
+    master_query = (
+        Metadata
+        .query
+        .filter_by(id_file=file_id)
+        .join(Family)
+    )
+    base_query = master_query.filter(Family.name == 'base')
+    other_query = master_query.filter(Family.name == 'other')
+    prev_meta_base_ids = {m.id for m in base_query.all()}
+    prev_meta_other_ids = {m.id for m in other_query.all()}
+
+    # Modify the base metadata
+    new_metadata_1 = {
+        'base': {
+            'path': 'new/path/value',
+        }
+    }
+    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata_1)
+
+    # Verify there are still the same number of objects
+    new_meta_base_ids = {m.id for m in base_query.all()}
+    assert new_meta_base_ids == prev_meta_base_ids
+
+    # Now modify the other metadata
+    new_metadata_2 = {
+        'other': {
+            'key': 'value',
+        }
+    }
+    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata_2)
+
+    # Verify there is only one new object
+    new_meta_other_ids_1 = {m.id for m in other_query.all()}
+    assert len(new_meta_other_ids_1 - prev_meta_other_ids) == 1
+
+    # Modify the other metadata again
+    new_metadata_3 = {
+        'other': {
+            'another_key': 'another value',
+        }
+    }
+    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata_3)
+
+    # Verify there are still the same number of objects
+    new_meta_other_ids_2 = {m.id for m in other_query.all()}
+    assert new_meta_other_ids_1 == new_meta_other_ids_2
+
+
+
+

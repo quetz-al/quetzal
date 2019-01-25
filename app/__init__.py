@@ -8,12 +8,14 @@ import connexion
 
 from config import config
 from .celery_helper import Celery
+from .hacks import CustomResponseValidator
 
 
 # Common objects usable accross the application
 db = SQLAlchemy()
 migrate = Migrate()
 celery = Celery()
+
 
 
 def create_app(config_name=None):
@@ -48,7 +50,8 @@ def create_app(config_name=None):
     flask_app.celery = celery
 
     # APIs
-    connexion_app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True)
+    connexion_app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True,
+                          validator_map={'response': CustomResponseValidator})
 
     # Command-line interface tools
     from app.api.data.commands import init_buckets  # nopep8
