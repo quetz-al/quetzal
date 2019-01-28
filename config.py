@@ -66,7 +66,14 @@ class Config:
             # Some Python internal loggers that are too verbose
             'parso': {
                 'level': 'WARNING',
-            }
+            },
+            # ...
+            'connexion': {
+                'level': 'INFO',
+            },
+            'openapi_spec_validator': {
+                'level': 'INFO',
+            },
         },
         'root': {
             'level': 'DEBUG',  # on debug so that the file has all details
@@ -80,13 +87,22 @@ class Config:
             'postgresql://' +
             # Sole difference with the production config: there is a default
             # value for the user and password (it does not fail if not set)
-            os.environ.get('DB_USERNAME', 'postgres') + ':' +
-            os.environ.get('DB_PASSWORD', 'pg_password') + '@' +
+            os.environ.get('DB_USERNAME', 'db_user') + ':' +
+            os.environ.get('DB_PASSWORD', 'db_password') + '@' +
             os.environ.get('DB_HOST', 'db') + ':' +
             os.environ.get('DB_PORT', '5432') + '/' +
             os.environ.get('DB_DATABASE', 'quetzal')
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_BINDS = {
+        'read_only_bind':
+            'postgresql://' +
+            os.environ.get('DB_RO_USERNAME', 'db_ro_user') + ':' +
+            os.environ.get('DB_RO_PASSWORD', 'db_ro_user') + '@' +
+            os.environ.get('DB_HOST', 'db') + ':' +
+            os.environ.get('DB_PORT', '5432') + '/' +
+            os.environ.get('DB_DATABASE', 'quetzal')
+    }
 
     # Celery configuration
     # Note that from Celery 4.0, configuration keys are in lowercase. This is
@@ -149,13 +165,22 @@ class TestConfig(Config):
     # Database configuration
     SQLALCHEMY_DATABASE_URI = (
             'postgresql://' +
-            os.environ.get('DB_USERNAME', 'postgres') + ':' +
-            os.environ.get('DB_PASSWORD', 'pg_password') + '@' +
+            os.environ.get('DB_USERNAME', 'db_user') + ':' +
+            os.environ.get('DB_PASSWORD', 'db_password') + '@' +
             os.environ.get('DB_HOST', 'db') + ':' +
             os.environ.get('DB_PORT', '5432') + '/' +
             os.environ.get('DB_DATABASE', 'unittests')
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_BINDS = {
+        'read_only_bind':
+            'postgresql://' +
+            os.environ.get('DB_RO_USERNAME', 'db_ro_user') + ':' +
+            os.environ.get('DB_RO_PASSWORD', 'db_ro_password') + '@' +
+            os.environ.get('DB_HOST', 'db') + ':' +
+            os.environ.get('DB_PORT', '5432') + '/' +
+            os.environ.get('DB_DATABASE', 'unittests')
+    }
 
     # Quetzal-specific configuration
     QUETZAL_GCP_CREDENTIALS = None
@@ -170,8 +195,11 @@ class LocalTestConfig(TestConfig):
     """
 
     # Database configuration
-    SQLALCHEMY_DATABASE_URI = 'postgresql://postgres:pg_password@localhost:5432/unittests'
+    SQLALCHEMY_DATABASE_URI = 'postgresql://db_user:db_password@localhost:5432/unittests'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    SQLALCHEMY_BINDS = {
+        'read_only_bind': 'postgresql://db_ro_user:db_ro_password@localhost:5432/unittests'
+    }
 
     # Celery configuration on eager mode
     CELERY = {
@@ -191,11 +219,6 @@ class LocalTestConfig(TestConfig):
 
 class ProductionConfig(Config):
     pass
-
-
-class MigrationsConfig(Config):
-    SQLALCHEMY_DATABASE_URI = f'sqlite:///{os.path.join(basedir, "app.db")}'
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 # Map of environment name -> configuration object

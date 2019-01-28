@@ -7,19 +7,15 @@ CREATE DATABASE quetzal;
 -- Create unit testing database
 CREATE DATABASE unittests;
 
--- TODO: manage permissions
+-- Create a user for the application
+CREATE ROLE db_user WITH LOGIN PASSWORD 'db_password';
+GRANT ALL PRIVILEGES ON DATABASE quetzal TO db_user;
+GRANT ALL PRIVILEGES ON DATABASE unittests TO db_user;
 
--- Creation of readonly user
--- CREATE ROLE readonly_user WITH LOGIN PASSWORD 'readonly_password'
--- NOSUPERUSER INHERIT NOCREATEDB NOCREATEROLE NOREPLICATION VALID UNTIL 'infinity';
+-- Create a readonly user for the workspace views
+CREATE ROLE db_ro_user WITH LOGIN PASSWORD 'db_ro_password';
 
--- -- connect to the django_db to correctly configure its permissions
--- \connect django_db;
--- -- do not permit the public role to create tables
--- REVOKE CREATE ON SCHEMA public FROM PUBLIC;
--- -- do permit everything to the django user
--- GRANT ALL PRIVILEGES ON SCHEMA public TO django_dbuser;
---
--- -- TODO: after django creates its tables, change its permissions so that only
--- -- django_dbuser can read them. This is important for the auth table, for
--- -- example.
+-- readonly_user permissions: only grant connect; anything else will be
+-- disallowed. This is based on https://stackoverflow.com/a/762649/227103
+GRANT CONNECT ON DATABASE quetzal TO db_ro_user;
+GRANT CONNECT ON DATABASE unittests TO db_ro_user;
