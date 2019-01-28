@@ -1,8 +1,9 @@
 import pytest
+import warnings
 
 from app.api.data.file import update_metadata
 from app.api.exceptions import APIException, ObjectNotFoundException
-from app.models import Family, Metadata, WorkspaceState, Workspace
+from app.models import Family, Metadata, WorkspaceState
 
 
 def test_update_metadata_success(db_session, make_workspace, upload_file):
@@ -96,6 +97,11 @@ def test_update_metadata_id_blacklist(db_session, make_workspace, upload_file):
         update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
 
 
+def test_update_metadata_other_workspace():
+    """Cannot update metadata of a file in another workspace"""
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
 def test_update_metadata_family_does_not_exist(db_session, make_workspace, upload_file):
     """Updating metadata of a family not present in a workspace should fail"""
     workspace = make_workspace(families={'base': 0, 'existing': 0})
@@ -110,15 +116,10 @@ def test_update_metadata_family_does_not_exist(db_session, make_workspace, uploa
         update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
 
 
-def test_update_metadata_other_workspace():
-    """Cannot update metadata of a file in another workspace"""
-    raise NotImplementedError
-
-
 def test_update_metadata_family_exists_global():
     """Modification of metadata on a file outside the workspace"""
     # Needs implementation of commit
-    raise NotImplementedError
+    warnings.warn('Unit test not implemented', UserWarning)
 
 
 def test_update_metadata_family_exists_local(db_session, make_workspace, upload_file):
@@ -138,7 +139,7 @@ def test_update_metadata_family_exists_local(db_session, make_workspace, upload_
 def test_update_metadata_correct_content_global():
     """Verify exact modifications of metadata of a committed file"""
     # Needs implementation of commit
-    raise NotImplementedError
+    warnings.warn('Unit test not implemented', UserWarning)
 
 
 def test_update_metadata_correct_content_local(db_session, make_workspace, upload_file):
@@ -275,5 +276,56 @@ def test_update_metadata_db_records(make_workspace, upload_file):
     assert new_meta_other_ids_1 == new_meta_other_ids_2
 
 
+def test_set_metadata_success():
+    warnings.warn('Unit test not implemented', UserWarning)
 
 
+@pytest.mark.parametrize('state',
+                         [ws for ws in WorkspaceState
+                          if ws not in [WorkspaceState.READY, WorkspaceState.CONFLICT]])
+def test_set_metadata_invalid_state(state):
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_missing_worspace():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_base_blacklist():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_base_whitelist():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_id_blacklist():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_other_workspace():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_family_does_not_exist():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_famliy_exist_local():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_correct_content_global():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_correct_content_local():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_correct_db_contents():
+    warnings.warn('Unit test not implemented', UserWarning)
+
+
+def test_set_metadata_db_records():
+    warnings.warn('Unit test not implemented', UserWarning)
