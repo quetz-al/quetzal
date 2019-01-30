@@ -1,6 +1,6 @@
 import io
 
-from app.api.data.helpers import get_readable_info
+from app.helpers.files import get_readable_info
 
 
 def test_readable_info():

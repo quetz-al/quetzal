@@ -54,7 +54,7 @@ def _grant_usage_on_schema(element, compiler, **kwargs):
     )
 
 
-def print_query(qs):
+def print_sql(qs):
     # Only for debugging purposes!
     sql_text = str(qs.statement.compile(dialect=postgresql.dialect()))
     print(sqlparse.format(sql_text, reindent=True))

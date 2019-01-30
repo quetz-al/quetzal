@@ -98,7 +98,7 @@ class Config:
         'read_only_bind':
             'postgresql://' +
             os.environ.get('DB_RO_USERNAME', 'db_ro_user') + ':' +
-            os.environ.get('DB_RO_PASSWORD', 'db_ro_user') + '@' +
+            os.environ.get('DB_RO_PASSWORD', 'db_ro_password') + '@' +
             os.environ.get('DB_HOST', 'db') + ':' +
             os.environ.get('DB_PORT', '5432') + '/' +
             os.environ.get('DB_DATABASE', 'quetzal')

@@ -3,7 +3,7 @@ from urllib.parse import urlparse
 
 from flask import current_app
 
-from .helpers import get_client
+from app.helpers.google_api import get_client
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ def init_buckets():
     if bucket.exists():
         raise CommandException(f'Cannot create bucket {bucket_name}: already exists')
 
+    # TODO: parametrize on config or in command line
     bucket.storage_class = 'REGIONAL'
     bucket.location = 'europe-west1'
     bucket.create()

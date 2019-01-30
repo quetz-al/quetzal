@@ -8,6 +8,7 @@ This bug has been documented on:
 https://github.com/Robpol86/Flask-Celery-Helper/issues/23
 
 """
+import logging
 
 from celery import _state, Celery as CeleryGrandParentClass
 from flask_celery import _CeleryState, Celery as CeleryParentClass
@@ -46,7 +47,7 @@ class Celery(CeleryParentClass):
             def __call__(self, *_args, **_kwargs):
                 if app.config['TESTING']:
                     with app.test_request_context():
-                        return mockable_call(task_base, self, *_args, **_kwargs)
+                        return _mockable_call(task_base, self, *_args, **_kwargs)
                 with app.app_context():
                     return task_base.__call__(self, *_args, **_kwargs)
         setattr(ContextTask, 'abstract', True)
@@ -61,6 +62,23 @@ class Celery(CeleryParentClass):
         self.finalize()
 
 
-def mockable_call(base, obj, *args, **kwargs):
-    print('mockable call!')
+def _mockable_call(base, obj, *args, **kwargs):
+    """Helper function to replace Task.__call__ for mockable tests """
     return base.__call__(obj, *args, **kwargs)
+
+
+def log_task(task, level=logging.INFO, limit=10, _logger=None):
+    """Log the ids of a task or chain of tasks in celery"""
+    ids = []
+    while task is not None and len(ids) < limit:
+        ids.append(str(task.id))
+        if hasattr(task, 'parent'):
+            task = task.parent
+        else:
+            task = None
+    # Reverse the order because celery orders it backwards (to my understanding)
+    ids = ids[::-1]
+    if len(ids) == limit and task is not None:
+        ids.append('...')
+    logger = _logger or logging.getLogger(__name__)
+    logger.log(level, 'Task chain: %s', ' -> '.join(ids))

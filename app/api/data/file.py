@@ -9,9 +9,8 @@ from flask import request, send_file
 from requests import codes
 
 from app import db
-from app.api.data.helpers import (
-    get_object, get_data_bucket, get_readable_info, split_check_path
-)
+from app.helpers.google_api import get_object, get_data_bucket
+from app.helpers.files import split_check_path, get_readable_info
 from app.api.exceptions import APIException
 from app.models import Family, Workspace, Metadata
 

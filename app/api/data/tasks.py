@@ -6,8 +6,8 @@ from sqlalchemy.dialects.postgresql import UUID
 from app import celery, db
 from app.models import Workspace, WorkspaceState, Metadata, Family
 from app.api.exceptions import WorkerException
-from app.api.data.helpers import get_client, get_bucket
-from app.api.data.query_helpers import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
+from app.helpers.google_api import get_client, get_bucket
+from app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
 
 
 logger = logging.getLogger(__name__)
@@ -202,6 +202,10 @@ def delete_workspace(id):
     # Delete the bucket
     bucket.delete()
 
+    # Drop schema used for queries
+    if workspace.pg_schema_name is not None:
+        db.session.execute(DropSchemaIfExists(workspace.pg_schema_name, cascade=True))
+
     # Update the database model
     workspace.state = WorkspaceState.DELETED
     db.session.add(workspace)
@@ -323,6 +327,9 @@ def commit_workspace(id):
     else:
         workspace.fk_last_metadata_id = None
 
+    # Update the workspace object
+    # TODO: consider if the schema be deleted?
     workspace.state = WorkspaceState.READY
     db.session.add(workspace)
+
     db.session.commit()

@@ -23,7 +23,7 @@ def test_create_workspace_backend_tasks(app, user, db_session, mocker):
         }
     }
 
-    run_mock = mocker.patch('app.celery_helper.mockable_call')
+    run_mock = mocker.patch('app.helpers.celery._mockable_call')
     result, code = create(body=request, user=user)
 
     # There should have been three calls to a celery task:
@@ -284,3 +284,7 @@ def test_delete_workspace_task_invalid_state(db_session, make_workspace, state):
     w = make_workspace(state=state)
     with pytest.raises(WorkerException):
         delete_workspace(w.id)
+
+
+# TODO: add test that uses mockable_call to verify that tasks are called by celery
+# This is only done for the create_workspace case but not for the others

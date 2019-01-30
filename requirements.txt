@@ -10,6 +10,7 @@ Flask-SQLAlchemy
 Flask-Migrate
 alembic
 psycopg2-binary
+sqlparse
 requests
 Click
 

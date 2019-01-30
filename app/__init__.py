@@ -7,7 +7,7 @@ import click
 import connexion
 
 from config import config
-from .celery_helper import Celery
+from app.helpers.celery import Celery
 from .hacks import CustomResponseValidator
 
 
@@ -15,7 +15,6 @@ from .hacks import CustomResponseValidator
 db = SQLAlchemy()
 migrate = Migrate()
 celery = Celery()
-
 
 
 def create_app(config_name=None):
@@ -43,7 +42,7 @@ def create_app(config_name=None):
     flask_app.config['CELERY_BROKER_URL'] = flask_app.config['CELERY']['broker_url']
     celery.init_app(flask_app)
     # This is needed if flask-celery-helper is used instead of the
-    # custom made Celery object in the celery_helper.py helper script
+    # custom made Celery object in the app/helpers/celery.py helper script
     # celery.conf.update(flask_app.config['CELERY'])
 
     # Make configured Celery instance attach to Flask

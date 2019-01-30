@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import Family, Workspace, WorkspaceState
 from app.api.exceptions import APIException
-from app.api.data.helpers import log_task
+from app.helpers.celery import log_task
 from app.api.data.tasks import init_workspace, init_data_bucket, \
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
 from app.api.exceptions import InvalidTransitionException
