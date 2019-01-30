@@ -274,6 +274,9 @@ def scan(*, id):
                            title=f'Workspace cannot be scanned',
                            detail=f'Cannot scan a workspace on {workspace.state.name} state')
 
+    # Update database before sending the async task
+    db.session.commit()
+
     # Schedule the scanning task
     background_task = (
         scan_workspace.si(workspace.id)
@@ -285,3 +288,17 @@ def scan(*, id):
     return workspace.to_dict(), codes.accepted
 
 
+def query(*, id, user, token_info=None, **kwargs):
+    workspace = Workspace.get_or_404(id)
+
+    # TODO: verify workspace state
+
+    logger.info('Querying %s as %s', id, kwargs)
+
+    schema_name = workspace.pg_schema_name
+    if schema_name is None:
+        raise APIException(status=codes.precondition_failed,
+                           title='Workspace cannot be queried',
+                           detail=f'Cannot query a workspace that has not been scanned')
+
+    return [{'id': 123}, {'id': 456}], codes.ok

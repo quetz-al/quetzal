@@ -24,7 +24,6 @@ class CustomResponseValidator(ResponseValidator):
         details_op = self.operation.operation_id in ('app.api.data.file.details',
                                                      'app.api.data.file.details_w')
         accept_octet_header = (request.headers.get('accept', '') == 'application/octet-stream')
-        logger.info('needs circumvent? %s %s', details_op, accept_octet_header)
         if details_op and accept_octet_header:
             logging.debug('Circumventing validation for octet-stream')
             return True

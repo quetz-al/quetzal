@@ -12,7 +12,9 @@ from sqlalchemy.schema import Index, UniqueConstraint, CheckConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-from app.api.exceptions import InvalidTransitionException, ObjectNotFoundException
+from app.api.exceptions import (
+    InvalidTransitionException, ObjectNotFoundException, QuetzalException
+)
 
 
 logger = logging.getLogger(__name__)
@@ -104,6 +106,7 @@ class Workspace(db.Model):
     creation_date = db.Column(db.DateTime(timezone=True), server_default=func.now())
     temporary = db.Column(db.Boolean, nullable=False, default=False)
     data_url = db.Column(db.String(2048))
+    pg_schema_name = db.Column(db.String(63))
 
     fk_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     fk_last_metadata_id = db.Column(db.Integer,
@@ -124,6 +127,10 @@ class Workspace(db.Model):
             raise InvalidTransitionException(f'Invalid state transition '
                                              f'{self._state} -> {new_state}')
 
+    @property
+    def can_change_metadata(self):
+        return self.state in {WorkspaceState.READY, WorkspaceState.CONFLICT}
+
     @staticmethod
     def get_or_404(id):
         """Get a workspace by id or raise an APIException"""
@@ -134,16 +141,66 @@ class Workspace(db.Model):
                                           detail=f'Workspace {id} does not exist')
         return w
 
-    @property
-    def can_change_metadata(self):
-        return self.state in {WorkspaceState.READY, WorkspaceState.CONFLICT}
+    def make_schema_name(self):
+        if self.id is None:
+            # Cannot generate schema name if this object is not saved yet
+            raise QuetzalException('Workspace does not have id yet')
+        return 'view_{workspace_id}_{user_id}_{date}'.format(
+            workspace_id=self.id,
+            user_id=self.owner.id if self.owner else None,
+            date=datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
+        )
 
     def get_base_family(self):
         return self.families.filter_by(name='base').one()
 
+    def get_previous_metadata(self):
+        # Important note: there can be repeated entries!
+        reference = self.fk_last_metadata_id
+        related_family_names = set(f.name for f in self.families.all())
+        previous_meta = (
+            Metadata
+            .query
+            .join(Family)
+            .filter(Family.name.in_(related_family_names),
+                    # Check that the family's workspace is None: this means is committed
+                    Family.fk_workspace_id.is_(None))
+        )
+        if self.fk_last_metadata_id is not None:
+            # Verify the reference when there is one defined, otherwise it means
+            # that there was no metadata before
+            previous_meta = previous_meta.filter(Metadata.id <= reference)
+        return previous_meta
+
+    def get_current_metadata(self):
+        # Important note: there can be repeated entries!
+        related_family_names = set(f.name for f in self.families.all())
+        workspace_meta = (
+            Metadata
+            .query
+            .join(Family)
+            .filter(Family.name.in_(related_family_names),
+                    Family.workspace == self)
+        )
+        return workspace_meta
+
+    def get_metadata(self):
+        # Important note: this one does not have repeated entries!
+        merged_metadata = (
+            self.get_previous_metadata()
+            .union(
+                self.get_current_metadata()
+            )
+            .join(Family)  # Need to join again with family to use it in the distinct
+            .distinct(Metadata.id_file, Family.name)
+            .order_by(Metadata.id_file, Family.name, Metadata.id.desc())
+        )
+        return merged_metadata
+
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \
-               f'state={self.state.name if self.state else "unset"}]>'
+               f'state={self.state.name if self.state else "unset"}] ' \
+               f'view={self.pg_schema_name}>'
 
     def to_dict(self):
         return {
@@ -170,7 +227,7 @@ class Family(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    name = db.Column(db.String(64), index=True, nullable=False)
+    name = db.Column(db.String(60), index=True, nullable=False)  # 63 due to postgres limit, -3 for internal suffixes
     version = db.Column(db.Integer)  # Can be temporary nullable during workspace creation
     description = db.Column(db.Text)
 

@@ -126,10 +126,3 @@ def log_task(task, level=logging.INFO, limit=10):
     if len(ids) == limit and task is not None:
         ids.append('...')
     logger.log(level, 'Task chain: %s', ' -> '.join(ids))
-
-
-def print_query(qs):
-    # Only for debugging purposes!
-    from sqlalchemy.dialects import postgresql
-    print(qs.statement.compile(dialect=postgresql.dialect()))
-    return qs

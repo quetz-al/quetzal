@@ -1,9 +1,13 @@
 import logging
+from sqlalchemy import func, types
+from sqlalchemy.sql.ddl import CreateSchema
+from sqlalchemy.dialects.postgresql import UUID
 
 from app import celery, db
 from app.models import Workspace, WorkspaceState, Metadata, Family
 from app.api.exceptions import WorkerException
 from app.api.data.helpers import get_client, get_bucket
+from app.api.data.query_helpers import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
 
 
 logger = logging.getLogger(__name__)
@@ -67,6 +71,7 @@ def init_workspace(id):
 
     # Determine the most recent "global" metadata entry so that the workspace
     # has a reference number from which any new metadata will be ignored
+    # TODO: needs to consider the version!
     latest_metadata = (
         db.session.query(Metadata)
         .join(Family)
@@ -215,10 +220,66 @@ def scan_workspace(id):
     if workspace.state != WorkspaceState.SCANNING:
         raise WorkerException('Workspace was not on the expected state')
 
-    # Do the scanning task
-    import time; time.sleep(5)
+    # The scanning task consists on the following procedure:
+    # 1. create a new database directory (aka schema in postgres)
+    # 2. get the workspace metadata
+    # 3. for each family f
+    # 3.1. determine the type of each column (this is currently not very smart)
+    # 3.2. create a table in the directory from a query on the workspace metadata
+    #      but only filtering the entries of the family f
+    # 3.3. create index on the id column of this table for efficient joins
+    # 4. grant permissions on the directory
+    # 5. drop previous directory if any
+
+    # create postgres schema
+    old_schema = workspace.pg_schema_name
+    new_schema = workspace.make_schema_name()
+    db.session.execute(CreateSchema(new_schema))
+
+    # 2. For each family
+    workspace_metadata = workspace.get_metadata()
+    for family in workspace.families.all():
+
+        tmp = workspace_metadata.filter(Family.name == family.name).subquery()
+        keys_query = db.session.query(func.jsonb_object_keys(tmp.c.metadata_json)).distinct()
+        keys = set(res[0] for res in keys_query.all()) - {'id'}
+        logger.info('Keys for family %s are %s', family.name, keys)
+
+        # 2.1 Determine the type of all columns
+        # TODO consider this, for the moment, everything is a string
+        types_schema = {}
+        if family.name == 'base':  # TODO refactor base schema to an external variable
+            types_schema['size'] = types.Integer
+            types_schema['date'] = types.DateTime(timezone=True)
+
+        # 2.2 Create table
+        columns = [Metadata.json['id'].astext.cast(UUID).label('id')]
+        for k in keys:
+            col_k = Metadata.json[k].astext  # TODO: do we need to protect the key names from injection?
+            if k in types_schema:
+                col_k = col_k.cast(types_schema[k])
+            columns.append(col_k.label(k))
+
+        create_table_query = workspace_metadata.filter(Family.name == family.name).with_entities(*columns).subquery()
+        family_table_name = f'{new_schema}.{family.name}'
+        create_table_statement = CreateTableAs(family_table_name, create_table_query)
+        db.session.execute(create_table_statement)
+
+        # TODO: create an index on the id column
+
+    # Set permissions on readonly user to the schema contents
+    db.session.execute(GrantUsageOnSchema(new_schema, 'db_ro_user'))
+
+    # Drop previous schema
+    if old_schema is not None:
+        db.session.execute(DropSchemaIfExists(old_schema, cascade=True))
+
+    # Update the workspace object to have the correct schema and state
+    workspace.pg_schema_name = new_schema
     workspace.state = WorkspaceState.READY
     db.session.add(workspace)
+
+    # Commit all changes
     db.session.commit()
 
 
@@ -235,7 +296,33 @@ def commit_workspace(id):
         raise WorkerException('Workspace was not on the expected state')
 
     # Do the committing task
-    import time; time.sleep(5)
+
+    # TODO: verify conflicts
+    logger.warning('No conflict detection implemented!')
+
+    for family in workspace.families.all():
+        new_family = family.increment()
+        family.version = new_family.version
+        family.workspace = None
+        db.session.add_all([family, new_family])
+
+    # update the fk_last_metadata_id:
+    # Determine the most recent "global" metadata entry so that the workspace
+    # has a reference number from which any new metadata will be ignored
+    # TODO: needs to consider the version!
+    # TODO: consider refactor into workspace model
+    latest_metadata = (
+        db.session.query(Metadata)
+        .join(Family)
+        .filter_by(workspace=None)
+        .order_by(Metadata.id.desc())
+        .first()
+    )
+    if latest_metadata is not None:
+        workspace.fk_last_metadata_id = latest_metadata.id
+    else:
+        workspace.fk_last_metadata_id = None
+
     workspace.state = WorkspaceState.READY
     db.session.add(workspace)
     db.session.commit()

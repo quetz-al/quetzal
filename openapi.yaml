@@ -154,6 +154,36 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+  /api/data/workspaces/{id}/query:
+    get:  # TODO: continue here; this cannot be GET because the body is ignored
+      summary: Query metadata in workspace
+      description: |-
+        Description
+      tags:
+        - data
+      operationId: app.api.data.workspace.query
+      parameters:
+        - name: id
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewQuery'
+        required: true
+      responses:
+        '200':
+          description: Workspace metadata
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
   /api/data/workspaces/{id}/files/:
     parameters:
       - name: id
@@ -421,6 +451,22 @@ components:
         metadata:
           description: File metadata
           type: object
+    NewQuery:
+      title: Query type
+      description: Metadata workspace query
+      type: object
+      properties:
+        dialect:
+          description: Dialect of query
+          type: string
+        query:
+          description: Query
+          type: string
+      example: |-
+        {
+          "dialect": "postgresql",
+          "query": "SELECT * FROM base"
+        }
   securitySchemes:
     basic:
       type: http

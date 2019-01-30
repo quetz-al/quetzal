@@ -1,6 +1,6 @@
 """user model
 
-Revision ID: 0000
+Revision ID: 0001
 Revises: 
 Create Date: 2019-01-02 18:30:03.103309
 
