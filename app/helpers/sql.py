@@ -48,9 +48,12 @@ class GrantUsageOnSchema(Executable, ClauseElement):
 
 @compiles(GrantUsageOnSchema, 'postgresql')
 def _grant_usage_on_schema(element, compiler, **kwargs):
-    return 'GRANT USAGE ON SCHEMA %s TO %s' % (
-        element.schema,
-        element.user
+    return (
+        'GRANT USAGE ON SCHEMA {schema} TO {user}; '
+        'GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO {user};'
+    ).format(
+        schema=element.schema,
+        user=element.user,
     )
 
 

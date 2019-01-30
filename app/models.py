@@ -29,6 +29,7 @@ class User(UserMixin, db.Model):
     token_expiration = db.Column(db.DateTime)
 
     workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
+    queries = db.relationship('Query', backref='owner', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -114,6 +115,7 @@ class Workspace(db.Model):
                                     nullable=True)
 
     families = db.relationship('Family', backref='workspace', lazy='dynamic')
+    queries = db.relationship('Query', backref='workspace', lazy='dynamic')
 
     @property
     def state(self):
@@ -356,3 +358,63 @@ class Metadata(db.Model):
             .order_by(Family.name, Family.version.desc())
         )
         return queryset.all()
+
+
+class QueryDialect(enum.Enum):
+    POSTGRESQL = 'postgresql'
+
+
+class Query(db.Model):
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    dialect = db.Column(db.Enum(QueryDialect), nullable=False)
+    code = db.Column(db.Text, nullable=False)
+
+    fk_workspace_id = db.Column(db.Integer, db.ForeignKey('workspace.id'))
+    fk_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+
+    @staticmethod
+    def get_or_create(*args, **kwargs):
+        instance = Query(*args, **kwargs)
+        if 'workspace' in kwargs:
+            fk_workspace_id = kwargs['workspace'].id
+        else:
+            fk_workspace_id = kwargs['fk_workspace_id']
+        if 'owner' in kwargs:
+            fk_user_id = kwargs['owner'].id
+        else:
+            fk_user_id = kwargs['fk_user_id']
+        existing = (
+            Query
+            .query
+            .filter_by(dialect=instance.dialect,
+                       code=instance.code,
+                       fk_workspace_id=fk_workspace_id,
+                       fk_user_id=fk_user_id)
+            .first()
+        )
+        return existing or instance
+
+    @staticmethod
+    def get_or_404(id):
+        """Get a workspace by id or raise an APIException"""
+        q = Query.query.get(id)
+        if q is None:
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='Not found',
+                                          detail=f'Query {id} does not exist')
+        return q
+
+    def to_dict(self, results=None):
+        _dict = {
+            'id': self.id,
+            'workspace_id': self.fk_workspace_id,
+            'dialect': self.dialect.value,
+            'query': self.code,
+        }
+        if results is not None:
+            _dict['results'] = results
+        return _dict
+
+    def __repr__(self):
+        return f'<Query {self.id} ({self.dialect})>'

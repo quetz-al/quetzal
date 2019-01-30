@@ -8,7 +8,8 @@ import connexion
 
 from config import config
 from app.helpers.celery import Celery
-from .hacks import CustomResponseValidator
+from app.hacks import CustomResponseValidator
+from app.middleware.debug import debug_request, debug_response
 
 
 # Common objects usable accross the application
@@ -76,7 +77,9 @@ def create_app(config_name=None):
     flask_app.cli.add_command(user_cli)
 
     # Flask shell configuration
-    from app.models import Metadata, Family, User, Workspace, WorkspaceState
+    from app.models import (
+        Metadata, Family, User, Query, QueryDialect, Workspace, WorkspaceState
+    )
 
     @flask_app.shell_context_processor
     def make_shell_context():
@@ -87,8 +90,14 @@ def create_app(config_name=None):
             'User': User,
             'Metadata': Metadata,
             'Family': Family,
+            'Query': Query,
+            'QueryDialect': QueryDialect,
             'Workspace': Workspace,
             'WorkspaceState': WorkspaceState,
         }
+
+    # Request/response logging
+    flask_app.before_request(debug_request)
+    flask_app.after_request(debug_response)
 
     return flask_app

@@ -63,6 +63,9 @@ class Config:
                 'level': 'DEBUG',
                 'handlers': ['file_worker']
             },
+            'app.middleware.debug': {
+                'level': 'INFO',
+            },
             # Some Python internal loggers that are too verbose
             'parso': {
                 'level': 'WARNING',
@@ -108,7 +111,9 @@ class Config:
     # Note that from Celery 4.0, configuration keys are in lowercase. This is
     # why the Celery configuration is set in this inner dictionary
     CELERY = {
-        'broker_url': 'amqp://guest:guest@rabbitmq:5672//',
+        'broker_url': 'amqp://guest:guest@' +
+                      os.environ.get('RABBITMQ_HOST', 'rabbitmq') +
+                      ':5672//',
         'result_backend': 'rpc://',
         'include': ['app.api.data.tasks'],
         'broker_transport_options': {
@@ -133,6 +138,7 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     JSON_SORT_KEYS = False
+    SERVER_NAME = 'localhost:5000'
 
 
 class TestConfig(Config):

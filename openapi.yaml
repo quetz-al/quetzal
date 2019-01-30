@@ -154,36 +154,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
-  /api/data/workspaces/{id}/query:
-    get:  # TODO: continue here; this cannot be GET because the body is ignored
-      summary: Query metadata in workspace
-      description: |-
-        Description
-      tags:
-        - data
-      operationId: app.api.data.workspace.query
-      parameters:
-        - name: id
-          in: path
-          description: Workspace identifier
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewQuery'
-        required: true
-      responses:
-        '200':
-          description: Workspace metadata
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  type: object
   /api/data/workspaces/{id}/files/:
     parameters:
       - name: id
@@ -316,6 +286,85 @@ paths:
             application/json:
               schema:
                 type: object
+  /api/data/workspaces/{id}/queries/:
+    parameters:
+      - name: id
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: List all queries of a workspace
+      description: |-
+        List all the queries that are associated with a workspace.
+      tags:
+        - data
+      operationId: app.api.data.query.fetch
+      responses:
+        '200':
+          description: List of queries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Query'
+    post:
+      summary: Prepare a query for a workspace
+      description: |-
+        Description
+      tags:
+        - data
+      operationId: app.api.data.query.create
+      parameters:
+        - name: id
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewQuery'
+        required: true
+      responses:
+        '301':
+          description: Workspace metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+  /api/data/workspaces/{id}/queries/{query_id}:
+    parameters:
+      - name: id
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+      - name: query_id
+        in: path
+        description: Query identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get details on query
+      description: |-
+        Description.
+      tags:
+        - data
+      operationId: app.api.data.query.details
+      responses:
+        '200':
+          description: Query details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
   /api/data/files/{uuid}:
     parameters:
       - name: uuid
@@ -452,13 +501,17 @@ components:
           description: File metadata
           type: object
     NewQuery:
-      title: Query type
+      title: Query creation input type
       description: Metadata workspace query
+      required:
+        - dialect
+        - query
       type: object
       properties:
         dialect:
           description: Dialect of query
-          type: string
+          enum:
+            - postgresql
         query:
           description: Query
           type: string
@@ -466,6 +519,51 @@ components:
         {
           "dialect": "postgresql",
           "query": "SELECT * FROM base"
+        }
+    Query:
+      title: Query type
+      description: Metadata workspace query
+      required:
+        - id
+        - workspace_id
+        - dialect
+        - query
+      type: object
+      properties:
+        id:
+          description: Query identifier
+          type: integer
+        workspace_id:
+          description: Workspace identifier where the query operates
+          type: integer
+        dialect:
+          description: Dialect of query
+          enum:
+            - postgresql
+        query:
+          description: Query
+          type: string
+        results:
+          description: Query results
+          type: array
+          items:
+            type: object
+      example: |-
+        {
+          "id": 123,
+          "workspace_id: 456,
+          "dialect": "postgresql",
+          "query": "SELECT * FROM base",
+          "results": [
+            {
+              "id": "00000000-0000-4000-8000-000000000000",
+              "key": "value"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "key": "other_value"
+            }
+           ]
         }
   securitySchemes:
     basic:
