@@ -29,7 +29,7 @@ class User(UserMixin, db.Model):
     token_expiration = db.Column(db.DateTime)
 
     workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
-    queries = db.relationship('Query', backref='owner', lazy='dynamic')
+    queries = db.relationship('MetadataQuery', backref='owner', lazy='dynamic')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -115,7 +115,7 @@ class Workspace(db.Model):
                                     nullable=True)
 
     families = db.relationship('Family', backref='workspace', lazy='dynamic')
-    queries = db.relationship('Query', backref='workspace', lazy='dynamic')
+    queries = db.relationship('MetadataQuery', backref='workspace', lazy='dynamic')
 
     @property
     def state(self):
@@ -134,13 +134,13 @@ class Workspace(db.Model):
         return self.state in {WorkspaceState.READY, WorkspaceState.CONFLICT}
 
     @staticmethod
-    def get_or_404(id):
+    def get_or_404(wid):
         """Get a workspace by id or raise an APIException"""
-        w = Workspace.query.get(id)
+        w = Workspace.query.get(wid)
         if w is None:
             raise ObjectNotFoundException(status=codes.not_found,
                                           title='Not found',
-                                          detail=f'Workspace {id} does not exist')
+                                          detail=f'Workspace {wid} does not exist')
         return w
 
     def make_schema_name(self):
@@ -364,7 +364,7 @@ class QueryDialect(enum.Enum):
     POSTGRESQL = 'postgresql'
 
 
-class Query(db.Model):
+class MetadataQuery(db.Model):
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     dialect = db.Column(db.Enum(QueryDialect), nullable=False)
@@ -375,7 +375,7 @@ class Query(db.Model):
 
     @staticmethod
     def get_or_create(*args, **kwargs):
-        instance = Query(*args, **kwargs)
+        instance = MetadataQuery(*args, **kwargs)
         if 'workspace' in kwargs:
             fk_workspace_id = kwargs['workspace'].id
         else:
@@ -385,7 +385,7 @@ class Query(db.Model):
         else:
             fk_user_id = kwargs['fk_user_id']
         existing = (
-            Query
+            MetadataQuery
             .query
             .filter_by(dialect=instance.dialect,
                        code=instance.code,
@@ -396,13 +396,13 @@ class Query(db.Model):
         return existing or instance
 
     @staticmethod
-    def get_or_404(id):
+    def get_or_404(qid):
         """Get a workspace by id or raise an APIException"""
-        q = Query.query.get(id)
+        q = MetadataQuery.query.get(qid)
         if q is None:
             raise ObjectNotFoundException(status=codes.not_found,
                                           title='Not found',
-                                          detail=f'Query {id} does not exist')
+                                          detail=f'MetadataQuery {qid} does not exist')
         return q
 
     def to_dict(self, results=None):
@@ -417,4 +417,4 @@ class Query(db.Model):
         return _dict
 
     def __repr__(self):
-        return f'<Query {self.id} ({self.dialect})>'
+        return f'<MetadataQuery {self.id} ({self.dialect})>'

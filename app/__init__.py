@@ -78,7 +78,7 @@ def create_app(config_name=None):
 
     # Flask shell configuration
     from app.models import (
-        Metadata, Family, User, Query, QueryDialect, Workspace, WorkspaceState
+        Metadata, Family, User, MetadataQuery, QueryDialect, Workspace, WorkspaceState
     )
 
     @flask_app.shell_context_processor
@@ -90,7 +90,7 @@ def create_app(config_name=None):
             'User': User,
             'Metadata': Metadata,
             'Family': Family,
-            'Query': Query,
+            'MetadataQuery': MetadataQuery,
             'QueryDialect': QueryDialect,
             'Workspace': Workspace,
             'WorkspaceState': WorkspaceState,

@@ -18,8 +18,8 @@ from app.models import Family, Workspace, Metadata
 logger = logging.getLogger(__name__)
 
 
-def create(*, id, file_content, user, token_info=None):
-    workspace = Workspace.get_or_404(id)
+def create(*, wid, file_content, user, token_info=None):
+    workspace = Workspace.get_or_404(wid)
 
     # Creating a file requires new metadata, so the check here is to verify
     # that the workspace status permits changes on metadata
@@ -74,10 +74,10 @@ def create(*, id, file_content, user, token_info=None):
     return meta.to_dict(), codes.created
 
 
-def update_metadata(*, id, uuid, body):
+def update_metadata(*, wid, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
 
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
@@ -134,7 +134,7 @@ def update_metadata(*, id, uuid, body):
         latest.update(content)
         db.session.add(latest)
 
-    # Query again the latest metadata
+    # MetadataQuery again the latest metadata
     meta = _all_metadata(uuid, workspace)
 
     # Save changes
@@ -143,9 +143,9 @@ def update_metadata(*, id, uuid, body):
     return meta, codes.ok
 
 
-def set_metadata(*, id, uuid, body):
+def set_metadata(*, wid, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
@@ -200,9 +200,9 @@ def details(*, uuid):
                        detail=f'Cannot serve content of type {request.accept_mimetypes}')
 
 
-def details_w(*, id=None, uuid):
+def details_w(*, wid=None, uuid):
     """Get contents or metadata of a file on a workspace"""
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     # Content negotiation
     best = request.accept_mimetypes.best_match(['application/json',
@@ -220,7 +220,7 @@ def details_w(*, id=None, uuid):
         if not base_meta:
             raise APIException(status=codes.not_found,
                                title='File not found',
-                               detail=f'File {uuid} does not exist in workspace {id}')
+                               detail=f'File {uuid} does not exist in workspace {wid}')
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
@@ -232,9 +232,9 @@ def details_w(*, id=None, uuid):
                        detail=f'Cannot serve content of type {request.accept_mimetypes}')
 
 
-def fetch(*, id):
+def fetch(*, wid):
     """Get all the files on a workspace"""
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     # Get all the committed base metadata that existed before the creation of
     # the workspace

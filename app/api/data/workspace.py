@@ -140,12 +140,12 @@ def create(*, body, user, token_info=None):
     return workspace.to_dict(), codes.created
 
 
-def details(*, id):
+def details(*, wid):
     """ Get workspace details by id
 
     Parameters
     ----------
-    id: int
+    wid: int
         Workspace identifier
 
     Returns
@@ -156,16 +156,16 @@ def details(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
     return workspace.to_dict(), codes.ok
 
 
-def delete(*, id):
+def delete(*, wid):
     """ Request deletion of a workspace by id
 
     Parameters
     ----------
-    id: int
+    wid: int
         Workspace identifier
 
     Returns
@@ -176,7 +176,7 @@ def delete(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -203,12 +203,12 @@ def delete(*, id):
     return workspace.to_dict(), codes.accepted
 
 
-def commit(*, id):
+def commit(*, wid):
     """ Request commit of all metadata and files of a workspace
 
     Parameters
     ----------
-    id: int
+    wid: int
         Workspace identifier
 
     Returns
@@ -219,7 +219,7 @@ def commit(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -246,12 +246,12 @@ def commit(*, id):
     return workspace.to_dict(), codes.accepted
 
 
-def scan(*, id):
+def scan(*, wid):
     """ Request an update of the views of a workspace
 
     Parameters
     ----------
-    id: int
+    wid: int
         Workspace identifier
 
     Returns
@@ -262,7 +262,7 @@ def scan(*, id):
         HTTP response code
 
     """
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -288,12 +288,12 @@ def scan(*, id):
     return workspace.to_dict(), codes.accepted
 
 
-def query(*, id, user, token_info=None, **kwargs):
-    workspace = Workspace.get_or_404(id)
+def query(*, wid, user, token_info=None, **kwargs):
+    workspace = Workspace.get_or_404(wid)
 
     # TODO: verify workspace state
 
-    logger.info('Querying %s as %s', id, kwargs)
+    logger.info('Querying %s as %s', wid, kwargs)
 
     schema_name = workspace.pg_schema_name
     if schema_name is None:

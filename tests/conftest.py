@@ -123,7 +123,7 @@ def upload_file(make_file, user):
         from app.api.data.file import create
         with mock.patch('app.api.data.file._upload_file', return_value=url or ''), \
              mock.patch('app.api.data.file._now', return_value=date or str(datetime.datetime.now(datetime.timezone.utc))):
-            response, _ = create(id=workspace.id, file_content=make_file(**kwargs), user=user or _user)
+            response, _ = create(wid=workspace.id, file_content=make_file(**kwargs), user=user or _user)
             return response['id']
 
     return _upload_file

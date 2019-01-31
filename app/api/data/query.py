@@ -6,27 +6,27 @@ import sqlparse
 
 from app import db
 from app.api.exceptions import APIException
-from app.models import Query, QueryDialect, Workspace
+from app.models import MetadataQuery, QueryDialect, Workspace
 
 
 logger = logging.getLogger(__name__)
 
 
-def fetch(*args, **kwargs):
+def fetch(*, wid, user, token_info=None):
     return {}, 200
 
 
-def create(*, id, body, user, token_info=None):
+def create(*, wid, body, user, token_info=None):
 
-    workspace = Workspace.get_or_404(id)
+    workspace = Workspace.get_or_404(wid)
     # TODO: check state
 
     code = sqlparse.format(body['query'], strip_comments=True, reindent=True, keyword_case='upper')
 
-    query = Query.get_or_create(dialect=QueryDialect(body['dialect']),
-                                code=code,
-                                workspace=workspace,
-                                owner=user)
+    query = MetadataQuery.get_or_create(dialect=QueryDialect(body['dialect']),
+                                        code=code,
+                                        workspace=workspace,
+                                        owner=user)
     db.session.add(query)
     db.session.commit()
 
@@ -38,14 +38,14 @@ def create(*, id, body, user, token_info=None):
     return query.to_dict(), codes.moved_permanently, response_headers
 
 
-def details(*, id, query_id, user, token_info=None):
+def details(*, wid, qid, user, token_info=None):
 
-    workspace = Workspace.get_or_404(id)
-    query = Query.get_or_404(query_id)
+    workspace = Workspace.get_or_404(wid)
+    query = MetadataQuery.get_or_404(qid)
     if query.workspace != workspace:
         raise APIException(status=codes.not_found,
-                           title='Query not found',
-                           detail=f'Query {query_id} was not found on workspace {id}')
+                           title='MetadataQuery not found',
+                           detail=f'MetadataQuery {qid} was not found on workspace {wid}')
 
     if workspace.pg_schema_name is None:
         raise APIException(status=codes.precondition_failed,

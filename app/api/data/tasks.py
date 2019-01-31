@@ -14,30 +14,30 @@ logger = logging.getLogger(__name__)
 
 
 @celery.task(bind=True, max_retries=10)
-def wait_for_workspace(self, id):
+def wait_for_workspace(self, wid):
     """ Wait until a workspace is created on the database
 
     Parameters
     ----------
-    id: int
+    wid: int
         Workspace identifier
 
     Returns
     -------
 
     """
-    logger.info('Waiting for creation of workspace %s ...', id)
+    logger.info('Waiting for creation of workspace %s ...', wid)
 
-    workspace = Workspace.query.get(id)
+    workspace = Workspace.query.get(wid)
     if workspace is None:
         logger.info('Workspace is not available yet')
         raise self.retry(countdown=1)
 
-    logger.info('Workspace %s is now available', id)
+    logger.info('Workspace %s is now available', wid)
 
 
 @celery.task()
-def init_workspace(id):
+def init_workspace(wid):
     """ Initialize the internal representation of a workspace
 
     Once a request to create a workspace has been accepted, there are some
@@ -51,7 +51,7 @@ def init_workspace(id):
 
     Parameters
     ----------
-    id: int
+    wid: int
         Workspace identifier
 
     Returns
@@ -59,10 +59,10 @@ def init_workspace(id):
     None
 
     """
-    logger.info('Initializing workspace %s...', id)
+    logger.info('Initializing workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
-    workspace = Workspace.query.get(id)
+    workspace = Workspace.query.get(wid)
     if workspace is None:
         raise WorkerException('Workspace was not found')
 
@@ -151,11 +151,11 @@ def init_workspace(id):
 
 
 @celery.task()
-def init_data_bucket(id):
-    logger.info('Initializing bucket of workspace %s...', id)
+def init_data_bucket(wid):
+    logger.info('Initializing bucket of workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
-    workspace = Workspace.query.get(id)
+    workspace = Workspace.query.get(wid)
     if workspace is None:
         raise WorkerException('Workspace was not found')
 
@@ -179,11 +179,11 @@ def init_data_bucket(id):
 
 
 @celery.task()
-def delete_workspace(id):
-    logger.info('Deleting workspace %s...', id)
+def delete_workspace(wid):
+    logger.info('Deleting workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
-    workspace = Workspace.query.get(id)
+    workspace = Workspace.query.get(wid)
     if workspace is None:
         raise WorkerException('Workspace was not found')
 
@@ -213,11 +213,11 @@ def delete_workspace(id):
 
 
 @celery.task()
-def scan_workspace(id):
-    logger.info('Scanning workspace %s...', id)
+def scan_workspace(wid):
+    logger.info('Scanning workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
-    workspace = Workspace.query.get(id)
+    workspace = Workspace.query.get(wid)
     if workspace is None:
         raise WorkerException('Workspace was not found')
 
@@ -288,11 +288,11 @@ def scan_workspace(id):
 
 
 @celery.task()
-def commit_workspace(id):
-    logger.info('Committing workspace %s...', id)
+def commit_workspace(wid):
+    logger.info('Committing workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
-    workspace = Workspace.query.get(id)
+    workspace = Workspace.query.get(wid)
     if workspace is None:
         raise WorkerException('Workspace was not found')
 

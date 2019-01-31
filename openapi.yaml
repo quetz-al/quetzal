@@ -95,9 +95,9 @@ paths:
                 $ref: '#/components/schemas/Workspace'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}:
+  /api/data/workspaces/{wid}:
     parameters:
-      - name: id
+      - name: wid
         in: path
         description: Workspace identifier
         required: true
@@ -133,7 +133,7 @@ paths:
           description: Workspace marked for deletion
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}/commit:
+  /api/data/workspaces/{wid}/commit:
     put:
       summary: Commit a workspace
       description: |-
@@ -144,7 +144,7 @@ paths:
         - data
       operationId: app.api.data.workspace.commit
       parameters:
-        - name: id
+        - name: wid
           in: path
           description: Workspace identifier
           required: true
@@ -159,7 +159,7 @@ paths:
                 $ref: '#/components/schemas/Workspace'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}/scan:
+  /api/data/workspaces/{wid}/scan:
     put:
       summary: Update workspace views
       description: |-
@@ -170,7 +170,7 @@ paths:
         - data
       operationId: app.api.data.workspace.scan
       parameters:
-        - name: id
+        - name: wid
           in: path
           description: Workspace identifier
           required: true
@@ -185,9 +185,9 @@ paths:
                 $ref: '#/components/schemas/Workspace'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}/files/:
+  /api/data/workspaces/{wid}/files/:
     parameters:
-      - name: id
+      - name: wid
         in: path
         description: Workspace identifier
         required: true
@@ -241,9 +241,9 @@ paths:
                 type: object
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}/files/{uuid}:
+  /api/data/workspaces/{wid}/files/{uuid}:
     parameters:
-      - name: id
+      - name: wid
         in: path
         description: Workspace identifier
         required: true
@@ -327,9 +327,9 @@ paths:
                 type: object
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}/queries/:
+  /api/data/workspaces/{wid}/queries/:
     parameters:
-      - name: id
+      - name: wid
         in: path
         description: Workspace identifier
         required: true
@@ -361,7 +361,7 @@ paths:
         - data
       operationId: app.api.data.query.create
       parameters:
-        - name: id
+        - name: wid
           in: path
           description: Workspace identifier
           required: true
@@ -382,15 +382,15 @@ paths:
                 $ref: '#/components/schemas/Query'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{id}/queries/{query_id}:
+  /api/data/workspaces/{wid}/queries/{qid}:
     parameters:
-      - name: id
+      - name: wid
         in: path
         description: Workspace identifier
         required: true
         schema:
           type: integer
-      - name: query_id
+      - name: qid
         in: path
         description: Query identifier
         required: true
@@ -405,7 +405,7 @@ paths:
       operationId: app.api.data.query.details
       responses:
         '200':
-          description: Query details
+          description: Query details and results
           content:
             application/json:
               schema:
@@ -562,7 +562,7 @@ components:
           enum:
             - postgresql
         query:
-          description: Query
+          description: Query in code as needed by the dialect
           type: string
       example: |-
         {
@@ -570,8 +570,8 @@ components:
           "query": "SELECT * FROM base"
         }
     Query:
-      title: Query type
-      description: Metadata workspace query
+      title: Metadata query type
+      description: A query applied to the views provided by a workspace.
       required:
         - id
         - workspace_id
@@ -590,7 +590,7 @@ components:
           enum:
             - postgresql
         query:
-          description: Query
+          description: Query in code as needed by the dialect
           type: string
         results:
           description: Query results

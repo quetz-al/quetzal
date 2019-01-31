@@ -24,7 +24,7 @@ def test_create_file_success(db, db_session, user, make_workspace, file_id, make
 
     # Create a file with some dummy contents
     content = make_file()
-    create(id=workspace.id, file_content=content, user=user)
+    create(wid=workspace.id, file_content=content, user=user)
 
     # There should be a base metadata entry
     base_family = workspace.families.filter_by(name='base').first()
@@ -48,7 +48,7 @@ def test_create_file_missing_base(db, db_session, make_workspace, make_file, use
     # capture the logger.error log message emitted when the queue fails
     with caplog.at_level(logging.CRITICAL, logger='app.api.data.workspace'):
         with pytest.raises(APIException):
-            create(id=workspace.id, file_content=content, user=user)
+            create(wid=workspace.id, file_content=content, user=user)
 
 
 def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_id, make_file, user, mocker):
@@ -79,7 +79,7 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
 
     # Create a file with some dummy contents
     content = make_file(name='filename.txt', path='a/b/c', content=b'hello world')
-    create(id=workspace.id, file_content=content, user=user)
+    create(wid=workspace.id, file_content=content, user=user)
 
     # Verify that the base metadata entry is correct
     base_family = workspace.families.filter_by(name='base').first()
@@ -126,7 +126,7 @@ def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, m
 
     # Create a file with some dummy contents
     content = make_file(name='filename.txt', path='a/b/c', content=b'hello world')
-    create(id=workspace.id, file_content=content, user=user)
+    create(wid=workspace.id, file_content=content, user=user)
 
     # Verify the correct calls to the API
 
@@ -159,7 +159,7 @@ def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, m
 def test_create_file_missing_workspace(missing_workspace_id, make_file, user):
     """Create a file on a missing workspace fails"""
     with pytest.raises(ObjectNotFoundException):
-        create(id=missing_workspace_id, file_content=make_file(), user=user)
+        create(wid=missing_workspace_id, file_content=make_file(), user=user)
 
 
 @pytest.mark.parametrize('state',
@@ -173,7 +173,7 @@ def test_create_file_invalid_state(db, db_session, make_workspace, state, make_f
 
     # Create a file with some dummy contents
     with pytest.raises(APIException):
-        create(id=workspace.id, file_content=make_file(), user=user)
+        create(wid=workspace.id, file_content=make_file(), user=user)
 
 
 def test_download_file_content_in_workspace(app, db_session, make_workspace, upload_file, mocker):
@@ -187,7 +187,7 @@ def test_download_file_content_in_workspace(app, db_session, make_workspace, upl
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
-        content, code = details_w(id=workspace.id, uuid=file_id)
+        content, code = details_w(wid=workspace.id, uuid=file_id)
 
     assert code == 200
     assert content.data == known_content
@@ -202,7 +202,7 @@ def test_download_file_metadata_in_workspace(app, db_session, make_workspace, up
 
     headers = {'accept': 'application/json'}
     with app.test_request_context(headers=headers):
-        details, code = details_w(id=workspace.id, uuid=file_id)
+        details, code = details_w(wid=workspace.id, uuid=file_id)
 
     assert code == 200
     assert details['id'] == file_id
@@ -256,7 +256,7 @@ def test_download_file_content_correct_api(app, db_session, make_workspace, uplo
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
-        details_w(id=workspace.id, uuid=file_id)
+        details_w(wid=workspace.id, uuid=file_id)
 
     # the first two calls concern getting the bucket name
     assert request_mock.call_count == 2

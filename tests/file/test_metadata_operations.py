@@ -16,7 +16,7 @@ def test_update_metadata_success(db_session, make_workspace, upload_file):
             'key': 'value',
         }
     }
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 @pytest.mark.parametrize('state',
@@ -42,13 +42,13 @@ def test_update_metadata_invalid_state(db_session, make_workspace, upload_file, 
     }
 
     with pytest.raises(APIException):
-        update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+        update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 def test_update_metadata_missing_workspace(missing_workspace_id):
     """Updating the metadata on a missing workspace should fail"""
     with pytest.raises(ObjectNotFoundException):
-        update_metadata(id=missing_workspace_id,
+        update_metadata(wid=missing_workspace_id,
                         uuid='00000000-0000-4000-8000-000000000000',
                         body={'family': {'key': 'value'}})
 
@@ -65,7 +65,7 @@ def test_update_metadata_base_blacklist(db_session, make_workspace, upload_file,
         }
     }
     with pytest.raises(APIException):
-        update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+        update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 @pytest.mark.parametrize('key', ['filename', 'path'])
@@ -80,7 +80,7 @@ def test_update_metadata_base_whitelist(db_session, make_workspace, upload_file,
         }
     }
 
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 def test_update_metadata_id_blacklist(db_session, make_workspace, upload_file):
@@ -94,7 +94,7 @@ def test_update_metadata_id_blacklist(db_session, make_workspace, upload_file):
         }
     }
     with pytest.raises(APIException):
-        update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+        update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 def test_update_metadata_other_workspace():
@@ -113,7 +113,7 @@ def test_update_metadata_family_does_not_exist(db_session, make_workspace, uploa
         }
     }
     with pytest.raises(APIException):
-        update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+        update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 def test_update_metadata_family_exists_global():
@@ -133,7 +133,7 @@ def test_update_metadata_family_exists_local(db_session, make_workspace, upload_
         }
     }
 
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
 def test_update_metadata_correct_content_global():
@@ -161,7 +161,7 @@ def test_update_metadata_correct_content_local(db_session, make_workspace, uploa
         }
     }
 
-    result, _ = update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+    result, _ = update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
     expected_result = new_metadata.copy()
     expected_result['existing']['id'] = file_id
     expected_result['base'] = {
@@ -196,7 +196,7 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
         }
     }
 
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
     file_metadata_qs = Metadata.query.filter_by(id_file=file_id)
     assert file_metadata_qs.count() == 2
@@ -245,7 +245,7 @@ def test_update_metadata_db_records(make_workspace, upload_file):
             'path': 'new/path/value',
         }
     }
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata_1)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata_1)
 
     # Verify there are still the same number of objects
     new_meta_base_ids = {m.id for m in base_query.all()}
@@ -257,7 +257,7 @@ def test_update_metadata_db_records(make_workspace, upload_file):
             'key': 'value',
         }
     }
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata_2)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata_2)
 
     # Verify there is only one new object
     new_meta_other_ids_1 = {m.id for m in other_query.all()}
@@ -269,7 +269,7 @@ def test_update_metadata_db_records(make_workspace, upload_file):
             'another_key': 'another value',
         }
     }
-    update_metadata(id=workspace.id, uuid=file_id, body=new_metadata_3)
+    update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata_3)
 
     # Verify there are still the same number of objects
     new_meta_other_ids_2 = {m.id for m in other_query.all()}

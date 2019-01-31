@@ -132,7 +132,7 @@ def test_fetch_workspaces_success(app, db, db_session, user):
 def test_details_workspace_success(app, db_session, workspace):
     """Retrieving details succeeds for existing workspace"""
     with app.test_request_context():
-        result, code = details(id=workspace.id)
+        result, code = details(wid=workspace.id)
 
     assert workspace.to_dict() == result
 
@@ -146,7 +146,7 @@ def test_details_workspace_missing(app, db_session):
     with app.test_request_context():
         with pytest.raises(ObjectNotFoundException) as exc_info:
             # max_id + 1 should not exist
-            details(id=max_id+1)
+            details(wid=max_id + 1)
 
     assert exc_info.value.status == 404
 
@@ -159,7 +159,7 @@ def test_delete_workspace_success(db_session, make_workspace, state, mocker):
     w = make_workspace(state=state)
 
     mocker.patch('celery.canvas.Signature.apply_async')
-    result, code = delete(id=w.id)
+    result, code = delete(wid=w.id)
 
     assert code == 202
     assert w.to_dict() == result
@@ -173,7 +173,7 @@ def test_delete_workspace_calls_backend_task(db_session, make_workspace, mocker)
     w = make_workspace()
 
     async_mock = mocker.patch('celery.canvas.Signature.apply_async')
-    delete(id=w.id)
+    delete(wid=w.id)
 
     async_mock.assert_called_once()
 
@@ -185,7 +185,7 @@ def test_delete_workspace_missing(app, db_session):
 
     with pytest.raises(ObjectNotFoundException) as exc_info:
         # max_id + 1 should not exist
-        delete(id=max_id+1)
+        delete(wid=max_id + 1)
 
     assert exc_info.value.status == 404
 
@@ -200,6 +200,14 @@ def test_delete_invalid_state(app, db_session, state, make_workspace, mocker):
     mocker.patch('celery.canvas.Signature.apply_async')
 
     with pytest.raises(APIException) as exc_info:
-        delete(id=w.id)
+        delete(wid=w.id)
 
     assert exc_info.value.status == 412
+
+
+def test_commit_workspace():
+    pass
+
+
+def test_scan_workspace():
+    pass
