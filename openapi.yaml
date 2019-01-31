@@ -84,7 +84,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewWorkspace'
+              $ref: '#/components/schemas/Workspace'
         required: true
       responses:
         '201':
@@ -371,7 +371,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewQuery'
+              $ref: '#/components/schemas/Query'
         required: true
       responses:
         '301':
@@ -445,47 +445,19 @@ paths:
           $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
-    NewWorkspace:
-      title: Workspace creation input type
-      description: Input data type to create a workspace
-      required:
-      - families
-      - name
-      - description
-      type: object
-      properties:
-        name:
-          type: string
-        families:
-          description: |-
-            Metadata requested for this workspace. The metadata request
-            is represented by an object (i.e. a dictionary). The object keys are
-            metadata family names; their values are the version number of the family.
-            When the version is null, it is equivalent to requesting the latest
-            version available.
-          type: object
-        description:
-          description: Descriptive text of the purpose of this workspace
-          type: string
-        temporary:
-          type: boolean
-      example: |-
-        {
-            "name": "my_workspace",
-            "families": {
-                "base": null,
-                "application": 123
-            },
-            "temporary": false
-        }
     Workspace:
       title: Workspace details type
       description: Workspace details
+      required:
+        - name
+        - description
+        - families
       type: object
       properties:
         id:
           description: Workspace ID
           type: integer
+          readOnly: true
         status:
           description: Workspace status
           enum:
@@ -498,6 +470,24 @@ components:
             - INVALID
             - CONFLICT
             - DELETED
+          readOnly: true
+        creation_date:
+          format: date-time
+          description: Date when the workspace was created
+          type: string
+          readOnly: true
+        owner:
+          description: User who owns this workpace
+          type: string
+          readOnly: true
+        data_url:
+          description: URL of a remote storage location for files used in this workspace
+          type: string
+          readOnly: true
+          nullable: true
+        name:
+          description: Name of the workspace
+          type: string
         description:
           description: Descriptive text of the purpose of this workspace
           type: string
@@ -507,35 +497,25 @@ components:
             This property is a object whose keys are family names and values are
             integers.
           type: object
-        creation_date:
-          format: date-time
-          description: Date when the workspace was created
-          type: string
         temporary:
           description: |-
             Whether this workspace is temporary or not. Temporary workspaces
             are automatically deleted after some time.
           type: boolean
-        owner:
-          description: User who owns this workpace
-          type: string
-        data_url:
-          description: URL of a remote storage location for files used in this workspace
-          type: string
-          nullable: true
-        name:
-          description: Name of the workspace
-          type: string
       example: |-
         {
             "id": 1,
             "status": "ready",
-            "description": "Details on what this workspace is for",
-            "families": {},
-            "creation_date": "'201'9-28-02T12:23:55",
-            "temporary": false,
+            "creation_date": "'2019-28-02T12:23:55",
             "owner": "username",
             "data_url": "gs://some_bucket_name"
+            "name": "my_workspace",
+            "description": "Details on what this workspace is for",
+            "families": {
+                "base": 100,
+                "other": 14
+            },
+            "temporary": false
         }
     File:
       title: File details type
@@ -549,32 +529,10 @@ components:
         metadata:
           description: File metadata
           type: object
-    NewQuery:
-      title: Query creation input type
-      description: Metadata workspace query
-      required:
-        - dialect
-        - query
-      type: object
-      properties:
-        dialect:
-          description: Dialect of query
-          enum:
-            - postgresql
-        query:
-          description: Query in code as needed by the dialect
-          type: string
-      example: |-
-        {
-          "dialect": "postgresql",
-          "query": "SELECT * FROM base"
-        }
     Query:
       title: Metadata query type
       description: A query applied to the views provided by a workspace.
       required:
-        - id
-        - workspace_id
         - dialect
         - query
       type: object
@@ -582,9 +540,11 @@ components:
         id:
           description: Query identifier
           type: integer
+          readOnly: true
         workspace_id:
           description: Workspace identifier where the query operates
           type: integer
+          readOnly: true
         dialect:
           description: Dialect of query
           enum:
@@ -597,6 +557,7 @@ components:
           type: array
           items:
             type: object
+          readOnly: true
       example: |-
         {
           "id": 123,
