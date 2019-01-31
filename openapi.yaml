@@ -21,6 +21,14 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  token:
+                    description: Token for bearer authentication
+                    type: string
+                required:
+                  - token
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/:
     get:
       summary: Get all workspaces
@@ -54,6 +62,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
     post:
       summary: Create a new workspace
       tags:
@@ -72,6 +82,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}:
     parameters:
       - name: id
@@ -93,6 +105,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
     delete:
       summary: Request deletion of a workspace
       description: |-
@@ -106,6 +120,8 @@ paths:
       responses:
         '202':
           description: Workspace marked for deletion
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}/commit:
     put:
       summary: Commit a workspace
@@ -130,6 +146,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}/scan:
     put:
       summary: Update workspace views
@@ -154,6 +172,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}/files/:
     parameters:
       - name: id
@@ -180,6 +200,8 @@ paths:
                 type: array
                 items:
                   type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
     post:
       summary: Add a new file
       description: |-
@@ -206,6 +228,8 @@ paths:
             application/json:
               schema:
                 type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}/files/{uuid}:
     parameters:
       - name: id
@@ -242,6 +266,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        default:
+          $ref: '#/components/responses/ErrorResponse'
     patch:
       summary: Modify file metadata
       description: |-
@@ -265,6 +291,8 @@ paths:
             application/json:
               schema:
                 type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
     put:
       summary: Rewrite file metadata
       description: |-
@@ -286,6 +314,8 @@ paths:
             application/json:
               schema:
                 type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}/queries/:
     parameters:
       - name: id
@@ -310,6 +340,8 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Query'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
     post:
       summary: Prepare a query for a workspace
       description: |-
@@ -337,6 +369,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Query'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/{id}/queries/{query_id}:
     parameters:
       - name: id
@@ -365,6 +399,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Query'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/files/{uuid}:
     parameters:
       - name: uuid
@@ -394,6 +430,8 @@ paths:
               schema:
                 type: string
                 format: binary
+        default:
+          $ref: '#/components/responses/ErrorResponse'
 components:
   schemas:
     NewWorkspace:
@@ -565,6 +603,30 @@ components:
             }
            ]
         }
+  responses:
+    # Error response that implements RFC-7807
+    ErrorResponse:
+      description: Problem details error object.
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            properties:
+              type:
+                description: A URI reference that identifies the problem type.
+                type: string
+              title:
+                description: A short, human-readable summary of the problem type.
+                type: string
+              status:
+                description: The HTTP status code.
+                type: integer
+              detail:
+                description: A human-readable explanation specific to this occurrence of the problem.
+                type: string
+              instance:
+                description: A URI reference that identifies the specific occurrence of the problem.
+                type: string
   securitySchemes:
     basic:
       type: http
