@@ -29,6 +29,17 @@ paths:
                   - token
         default:
           $ref: '#/components/responses/ErrorResponse'
+  /api/auth/logout:
+    post:
+      summary: Logout and invalidate the existing token
+      tags:
+        - authentication
+      operationId: app.api.auth.logout
+      responses:
+        '204':
+          description: Logout successful
+        default:
+          $ref: '#/components/responses/ErrorResponse'
   /api/data/workspaces/:
     get:
       summary: Get all workspaces
