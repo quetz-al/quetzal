@@ -374,26 +374,19 @@ class MetadataQuery(db.Model):
     fk_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
 
     @staticmethod
-    def get_or_create(*args, **kwargs):
-        instance = MetadataQuery(*args, **kwargs)
-        if 'workspace' in kwargs:
-            fk_workspace_id = kwargs['workspace'].id
-        else:
-            fk_workspace_id = kwargs['fk_workspace_id']
-        if 'owner' in kwargs:
-            fk_user_id = kwargs['owner'].id
-        else:
-            fk_user_id = kwargs['fk_user_id']
-        existing = (
+    def get_or_create(dialect, code, workspace, owner):
+        instance = (
             MetadataQuery
             .query
-            .filter_by(dialect=instance.dialect,
-                       code=instance.code,
-                       fk_workspace_id=fk_workspace_id,
-                       fk_user_id=fk_user_id)
+            .filter_by(dialect=dialect,
+                       code=code,
+                       workspace=workspace,
+                       owner=owner)
             .first()
         )
-        return existing or instance
+        if instance is None:
+            instance = MetadataQuery(dialect=dialect, code=code, workspace=workspace, owner=owner)
+        return instance
 
     @staticmethod
     def get_or_404(qid):
