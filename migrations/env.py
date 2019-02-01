@@ -29,9 +29,12 @@ target_metadata = current_app.extensions['migrate'].db.metadata
 
 def include_object(object, name, type_, reflected, compare_to):
     return True
-    # Uncomment/modify for a particular migration:
+
+    # # Uncomment/modify for a particular migration:
     # print(name)
-    # if 'some_model_name' in name:
+    #
+    # # Example: for a migration of only the user models:
+    # if 'user' in name or 'role' in name:
     #     return True
     # return False
 

@@ -20,6 +20,28 @@ from app.api.exceptions import (
 logger = logging.getLogger(__name__)
 
 
+roles_users_table = db.Table('roles_users',
+                             db.Column('fk_user_id', db.Integer(), db.ForeignKey('user.id')),
+                             db.Column('fk_role_id', db.Integer(), db.ForeignKey('role.id')),
+                             UniqueConstraint('fk_user_id', 'fk_role_id'))
+
+
+class Role(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(80), unique=True)
+    description = db.Column(db.String(255))
+
+    def __repr__(self):
+        return f'<Role {self.name} ({self.id})>'
+
+    def __eq__(self, other):
+        if not isinstance(other, Role):
+            return False
+        if other.id is not None:
+            return other.id == self.id
+        return other.name == self.name
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(64), index=True, unique=True)
@@ -27,9 +49,16 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(128))
     token = db.Column(db.String(32), index=True, unique=True)
     token_expiration = db.Column(db.DateTime)
+    active = db.Column(db.Boolean(), default=True, nullable=False)
 
+    roles = db.relationship('Role', secondary=roles_users_table,
+                            backref=db.backref('users', lazy='dynamic'))
     workspaces = db.relationship('Workspace', backref='owner', lazy='dynamic')
     queries = db.relationship('MetadataQuery', backref='owner', lazy='dynamic')
+
+    @property
+    def is_active(self):
+        return self.active
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

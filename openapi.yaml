@@ -561,7 +561,7 @@ components:
       example: |-
         {
           "id": 123,
-          "workspace_id: 456,
+          "workspace_id": 456,
           "dialect": "postgresql",
           "query": "SELECT * FROM base",
           "results": [
@@ -603,11 +603,11 @@ components:
     basic:
       type: http
       scheme: basic
-      x-basicInfoFunc: app.api.auth.check_basic
+      x-basicInfoFunc: app.security.check_basic
     bearer:
       type: http
       scheme: bearer
-      x-bearerInfoFunc: app.api.auth.check_bearer
+      x-bearerInfoFunc: app.security.check_bearer
 security:
   - bearer: []
 tags:

@@ -54,31 +54,15 @@ def create_app(config_name=None):
                           validator_map={'response': CustomResponseValidator})
 
     # Command-line interface tools
-    from app.api.data.commands import init_buckets  # nopep8
-    from app.commands import new_user  # nopep8
-
-    data_cli = AppGroup('data', help='Quetzal data API operations')
-    user_cli = AppGroup('users', help='Quetzal user operations')
-
-    @user_cli.command('create')
-    @click.argument('username')
-    @click.argument('email')
-    @click.password_option()
-    def create_user_command(username, email, password):
-        """ Create a new user """
-        new_user(username, email, password)
-
-    @data_cli.command('init')
-    def data_init_command():
-        """ Initialize data buckets """
-        init_buckets()
-
+    from .cli import data_cli, role_cli, user_cli
     flask_app.cli.add_command(data_cli)
+    flask_app.cli.add_command(role_cli)
     flask_app.cli.add_command(user_cli)
 
     # Flask shell configuration
     from app.models import (
-        Metadata, Family, User, MetadataQuery, QueryDialect, Workspace, WorkspaceState
+        User, Role,
+        Metadata, Family, MetadataQuery, QueryDialect, Workspace, WorkspaceState
     )
 
     @flask_app.shell_context_processor
@@ -88,6 +72,7 @@ def create_app(config_name=None):
             'db': db,
             # Add models here
             'User': User,
+            'Role': Role,
             'Metadata': Metadata,
             'Family': Family,
             'MetadataQuery': MetadataQuery,
