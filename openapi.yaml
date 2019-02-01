@@ -603,11 +603,11 @@ components:
     basic:
       type: http
       scheme: basic
-      x-basicInfoFunc: app.security.check_basic
+      x-basicInfoFunc: app.api.auth.check_basic
     bearer:
       type: http
       scheme: bearer
-      x-bearerInfoFunc: app.security.check_bearer
+      x-bearerInfoFunc: app.api.auth.check_bearer
 security:
   - bearer: []
 tags:

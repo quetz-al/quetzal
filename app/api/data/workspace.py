@@ -6,12 +6,16 @@ from kombu.exceptions import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from app import db
-from app.models import Family, Workspace, WorkspaceState
-from app.api.exceptions import APIException
-from app.helpers.celery import log_task
 from app.api.data.tasks import init_workspace, init_data_bucket, \
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
-from app.api.exceptions import InvalidTransitionException
+from app.api.exceptions import APIException, InvalidTransitionException
+from app.models import Family, Workspace, WorkspaceState
+from app.helpers.celery import log_task
+from app.security import (
+    PublicReadPermission, PublicWritePermission,
+    ReadWorkspacePermission, WriteWorkspacePermission
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +29,7 @@ logger = logging.getLogger(__name__)
 # However, this has not been released yet.
 
 
-def fetch(*, user, token_info=None):  # TODO: this is how to get the user, but is this what we want?
+def fetch(*, user):
     """ List workspaces
 
     Returns
@@ -36,6 +40,12 @@ def fetch(*, user, token_info=None):  # TODO: this is how to get the user, but i
         HTTP response code
 
     """
+
+    if not PublicReadPermission.can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to list workspaces')
+
     # Filtering
     query_args = request.args
     query_set = Workspace.query
@@ -48,12 +58,19 @@ def fetch(*, user, token_info=None):  # TODO: this is how to get the user, but i
         raise NotImplementedError
 
     if 'deleted' in query_args:
-        raise NotImplementedError
+        pass
+    else:
+        query_set = query_set.filter(Workspace._state != WorkspaceState.DELETED)
 
     # TODO: provide an order_by on the query parameters
     query_set = query_set.order_by(Workspace.id.desc())
+    workspace_list = [workspace.to_dict()
+                      for workspace in query_set.all()
+                      # TODO: consider permissions here and how it plays with owner in query_args
+                      #if ReadWorkspacePermission(workspace.id).can()
+                      ]
 
-    return [workspace.to_dict() for workspace in query_set.all()], codes.ok
+    return workspace_list, codes.ok
 
 
 def create(*, body, user, token_info=None):
@@ -67,6 +84,11 @@ def create(*, body, user, token_info=None):
     int
         HTTP response code
     """
+    if not PublicWritePermission.can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to create workspaces')
+
     logger.info('Attempting to create workspace from %s', body)
 
     # Create workspace on the database
@@ -157,10 +179,17 @@ def details(*, wid):
 
     """
     workspace = Workspace.get_or_404(wid)
+
+    # TODO: consider read permission of workspaces
+    # if not ReadWorkspacePermission(wid).can():
+    #     raise APIException(status=codes.forbidden,
+    #                        title='Forbidden',
+    #                        detail='You are not authorized to read this workspace')
+
     return workspace.to_dict(), codes.ok
 
 
-def delete(*, wid):
+def delete(*, user, wid):
     """ Request deletion of a workspace by id
 
     Parameters
@@ -177,6 +206,11 @@ def delete(*, wid):
 
     """
     workspace = Workspace.get_or_404(wid)
+
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to delete this workspace')
 
     # update workspace state, which will fail if it is not a valid transition
     try:
@@ -221,6 +255,11 @@ def commit(*, wid):
     """
     workspace = Workspace.get_or_404(wid)
 
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to commit this workspace')
+
     # update workspace state, which will fail if it is not a valid transition
     try:
         workspace.state = WorkspaceState.COMMITTING
@@ -264,6 +303,11 @@ def scan(*, wid):
     """
     workspace = Workspace.get_or_404(wid)
 
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to scan this workspace')
+
     # update workspace state, which will fail if it is not a valid transition
     try:
         workspace.state = WorkspaceState.SCANNING
@@ -286,19 +330,3 @@ def scan(*, wid):
     log_task(background_task)
 
     return workspace.to_dict(), codes.accepted
-
-
-def query(*, wid, user, token_info=None, **kwargs):
-    workspace = Workspace.get_or_404(wid)
-
-    # TODO: verify workspace state
-
-    logger.info('Querying %s as %s', wid, kwargs)
-
-    schema_name = workspace.pg_schema_name
-    if schema_name is None:
-        raise APIException(status=codes.precondition_failed,
-                           title='Workspace cannot be queried',
-                           detail=f'Cannot query a workspace that has not been scanned')
-
-    return [{'id': 123}, {'id': 456}], codes.ok

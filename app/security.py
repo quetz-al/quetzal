@@ -1,28 +1,46 @@
-from app.models import User
+import logging
+from collections import namedtuple
+from functools import partial
+
+from flask_principal import Permission, RoleNeed
 
 
-def check_basic(username, password, required_scopes=None):
-    user = User.query.filter_by(username=username).first()
-    if user is None or not user.check_password(password):
-        return None
-    return {
-        # I don't know if this is a OAS3 specification or a zalando/connexion
-        # implementation-specific element, but the user must be saved under the
-        # 'sub' key in order to be propagated into the secured functions
-        'sub': user,
-        'scope': '',
-    }
+logger = logging.getLogger(__name__)
 
 
-def check_bearer(token):
-    user = User.check_token(token)
-    if user is None:
-        return None
-    return {
-        'sub': user,
-        'scope': '',
-    }
+WorkspaceNeed = namedtuple('workspace', ['method', 'value'])
+ReadWorkspaceNeed = partial(WorkspaceNeed, 'read')
+WriteWorkspaceNeed = partial(WorkspaceNeed, 'write')
+
+PublicReadPermission = Permission(RoleNeed('public_read'))
+PublicWritePermission = Permission(RoleNeed('public_read'), RoleNeed('public_write'))
 
 
-def load_roles(user):
-    pass
+class ReadWorkspacePermission(Permission):
+    def __init__(self, workspace_id):
+        super().__init__(PublicReadPermission, ReadWorkspaceNeed(workspace_id))
+
+
+class WriteWorkspacePermission(Permission):
+    def __init__(self, workspace_id):
+        super().__init__(PublicWritePermission, WriteWorkspaceNeed(workspace_id))
+
+
+def load_identity(sender, identity):
+    from app.models import User
+    user = User.query.get(identity.id)
+
+    # Inactive users are not authorized to anything
+    if not user.is_active:
+        return identity
+
+    # Add role authorizations
+    for role in user.roles:
+        identity.provides.add(RoleNeed(role.name))
+
+    # Add workspace authorizations
+    for workspace in user.workspaces:
+        identity.provides.add(ReadWorkspaceNeed(workspace.id))
+        identity.provides.add(WriteWorkspaceNeed(workspace.id))
+
+    return identity

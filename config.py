@@ -70,7 +70,7 @@ class Config:
             'parso': {
                 'level': 'WARNING',
             },
-            # ...
+            # Connexion is also very verbose but we want to put it on DEBUG sometimes...
             'connexion': {
                 'level': 'INFO',
             },

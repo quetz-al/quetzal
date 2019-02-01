@@ -1,6 +1,9 @@
+from flask import current_app
+from flask_principal import identity_changed, Identity
 from requests import codes
 
 from app import db
+from app.models import User
 
 
 def get_token(*, user):
@@ -13,3 +16,32 @@ def logout(*, user):
     user.revoke_token()
     db.session.commit()
     return None, codes.no_content
+
+
+def check_basic(username, password, required_scopes=None):
+    user = User.query.filter_by(username=username).first()
+    if user is None or not user.check_password(password):
+        return None
+
+    identity_changed.send(current_app._get_current_object(),
+                          identity=Identity(user.id, 'basic'))
+    return {
+        # I don't know if this is a OAS3 specification or a zalando/connexion
+        # implementation-specific element, but the user must be saved under the
+        # 'sub' key in order to be propagated into the secured functions
+        'sub': user,
+        'scope': '',
+    }
+
+
+def check_bearer(token):
+    user = User.check_token(token)
+    if user is None:
+        return None
+
+    identity_changed.send(current_app._get_current_object(),
+                          identity=Identity(user.id, 'token'))
+    return {
+        'sub': user,
+        'scope': '',
+    }

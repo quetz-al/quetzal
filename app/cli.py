@@ -56,6 +56,16 @@ def user_create(username, email, password):
     click.secho(f'User {user.username} ({user.email}) created')
 
 
+@user_cli.command('list')
+def user_list():
+    if User.query.count() == 0:
+        click.secho('No users exist')
+    else:
+        click.secho('Users:\nID\tUSERNAME\t\tE-MAIL\t\t\tROLES')
+        for user in User.query.all():
+            click.secho(f'{user.id}\t{user.username}\t\t{user.email}\t\t\t{",".join([r.name for r in user.roles])}')
+
+
 @role_cli.command('create')
 @click.argument('name')
 @click.option('--description', prompt='Role description')
@@ -81,6 +91,16 @@ def role_delete(name):
     db.session.commit()
 
     click.secho(f'Role {name} deleted')
+
+
+@role_cli.command('list')
+def role_list():
+    if Role.query.count() == 0:
+        click.secho('No roles exist')
+    else:
+        click.secho('Roles:\nID\tNAME\tDESCRIPTION')
+        for role in Role.query.all():
+            click.secho(f'{role.id}\t{role.name}\t{role.description}')
 
 
 @role_cli.command('add')

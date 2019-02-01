@@ -15,6 +15,7 @@ class ObjectNotFoundException(APIException):
 
     Typically, when a workspace or file does not exist
     """
+    pass
 
 
 class QuetzalException(Exception):

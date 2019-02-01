@@ -1,6 +1,7 @@
 Flask
 werkzeug
 Flask-Login
+Flask-Principal
 connexion[swagger-ui]
 celery
 kombu

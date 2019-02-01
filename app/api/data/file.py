@@ -13,6 +13,9 @@ from app.helpers.google_api import get_object, get_data_bucket
 from app.helpers.files import split_check_path, get_readable_info
 from app.api.exceptions import APIException
 from app.models import Family, Workspace, Metadata
+from app.security import (
+    PublicReadPermission, ReadWorkspacePermission, WriteWorkspacePermission
+)
 
 
 logger = logging.getLogger(__name__)
@@ -20,6 +23,11 @@ logger = logging.getLogger(__name__)
 
 def create(*, wid, file_content, user, token_info=None):
     workspace = Workspace.get_or_404(wid)
+
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to add files to this workspace')
 
     # Creating a file requires new metadata, so the check here is to verify
     # that the workspace status permits changes on metadata
@@ -78,6 +86,11 @@ def update_metadata(*, wid, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
 
     workspace = Workspace.get_or_404(wid)
+
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to modify metadata on this workspace')
 
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
@@ -147,6 +160,11 @@ def set_metadata(*, wid, uuid, body):
     # TODO: maybe change spec to {"metadata": object}
     workspace = Workspace.get_or_404(wid)
 
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to modify metadata on this workspace')
+
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
         raise APIException(status=codes.precondition_failed,
@@ -159,6 +177,12 @@ def set_metadata(*, wid, uuid, body):
 
 def details(*, uuid):
     """Get the contents or metadata of a file that has been committed"""
+
+    if not PublicReadPermission.can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to read metadata')
+
     # Content negotiation
     best = request.accept_mimetypes.best_match(['application/json',
                                                 'application/octet-stream'],
@@ -204,6 +228,11 @@ def details_w(*, wid=None, uuid):
     """Get contents or metadata of a file on a workspace"""
     workspace = Workspace.get_or_404(wid)
 
+    if not ReadWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to read metadata on this workspace')
+
     # Content negotiation
     best = request.accept_mimetypes.best_match(['application/json',
                                                 'application/octet-stream'],
@@ -235,6 +264,11 @@ def details_w(*, wid=None, uuid):
 def fetch(*, wid):
     """Get all the files on a workspace"""
     workspace = Workspace.get_or_404(wid)
+
+    if not ReadWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to read metadata on this workspace')
 
     # Get all the committed base metadata that existed before the creation of
     # the workspace

@@ -8,6 +8,9 @@ import sqlparse
 from app import db
 from app.api.exceptions import APIException
 from app.models import MetadataQuery, QueryDialect, Workspace
+from app.security import (
+    ReadWorkspacePermission, WriteWorkspacePermission
+)
 
 
 logger = logging.getLogger(__name__)
@@ -16,7 +19,13 @@ logger = logging.getLogger(__name__)
 def fetch(*, wid, user, token_info=None):
 
     workspace = Workspace.get_or_404(wid)
-    queries = [q.to_dict() for q  in workspace.queries]
+
+    if not ReadWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to query this workspace')
+
+    queries = [q.to_dict() for q in workspace.queries]
 
     return queries, 200
 
@@ -24,6 +33,12 @@ def fetch(*, wid, user, token_info=None):
 def create(*, wid, body, user, token_info=None):
 
     workspace = Workspace.get_or_404(wid)
+
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to query this workspace')
+
     # TODO: check state
 
     code = sqlparse.format(body['query'], strip_comments=True, reindent=True, keyword_case='upper')
@@ -48,6 +63,11 @@ def create(*, wid, body, user, token_info=None):
 def details(*, wid, qid, user, token_info=None):
 
     workspace = Workspace.get_or_404(wid)
+    if not ReadWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to query this workspace')
+
     query = MetadataQuery.get_or_404(qid)
     if query.workspace != workspace:
         raise APIException(status=codes.not_found,

@@ -1,21 +1,22 @@
 from logging.config import dictConfig
 
-from flask.cli import AppGroup
 from flask_migrate import Migrate
+from flask_principal import Principal, identity_loaded
 from flask_sqlalchemy import SQLAlchemy
-import click
 import connexion
 
 from config import config
 from app.helpers.celery import Celery
 from app.hacks import CustomResponseValidator
 from app.middleware.debug import debug_request, debug_response
+from app.security import load_identity
 
 
-# Common objects usable accross the application
+# Common objects usable across the application
 db = SQLAlchemy()
 migrate = Migrate()
 celery = Celery()
+principal = Principal(use_sessions=False)
 
 
 def create_app(config_name=None):
@@ -52,6 +53,10 @@ def create_app(config_name=None):
     # APIs
     connexion_app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True,
                           validator_map={'response': CustomResponseValidator})
+
+    # Principals
+    principal.init_app(flask_app)
+    identity_loaded.connect_via(flask_app)(load_identity)
 
     # Command-line interface tools
     from .cli import data_cli, role_cli, user_cli
