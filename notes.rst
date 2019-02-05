@@ -17,6 +17,12 @@ To get the code running (needs some conf files though):
     docker-compose exec web flask db upgrade head
     docker-compose exec web flask users create admin youremail@example.com --password secret
 
+Also useful: put the ``local.quetz.al`` hostname in your ``/etc/hosts`` file:
+
+.. code::
+
+    127.0.0.1       localhost local.quetz.al
+
 
 Database
 --------

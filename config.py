@@ -9,6 +9,7 @@ class Config:
     DEBUG = False
     TESTING = False
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'some-secret-key'
+    SERVER_NAME = 'local.quetz.al'
 
     # Logging
     LOG_DIR = os.environ.get('LOG_DIR') or os.path.join(basedir, 'logs')
@@ -138,7 +139,6 @@ class Config:
 class DevelopmentConfig(Config):
     DEBUG = True
     JSON_SORT_KEYS = False
-    SERVER_NAME = 'localhost:5000'
 
 
 class TestConfig(Config):
