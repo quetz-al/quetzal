@@ -115,7 +115,10 @@ class Config:
         'broker_url': 'amqp://guest:guest@' +
                       os.environ.get('RABBITMQ_HOST', 'rabbitmq') +
                       ':5672//',
-        'result_backend': 'rpc://',
+        # Due to an issue on the rpc backend, there is an infinite loop that
+        # blocks the scheduling of tasks. Removing result_backend as we have
+        # no use for it right now.
+        'result_backend': None,  # 'rpc://',
         'include': ['app.api.data.tasks'],
         'broker_transport_options': {
             'max_retries': 3,
