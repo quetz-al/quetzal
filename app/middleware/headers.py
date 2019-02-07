@@ -15,5 +15,4 @@ class HttpHostHeaderMiddleware(object):
         if server:
             logger.debug('Setting HTTP_HOST to %s', server)
             environ['HTTP_HOST'] = server
-        tmp = self.app(environ, start_response)
-        return tmp
+        return self.app(environ, start_response)

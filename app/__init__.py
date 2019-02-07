@@ -9,6 +9,7 @@ from config import config
 from app.helpers.celery import Celery
 from app.hacks import CustomResponseValidator
 from app.middleware.debug import debug_request, debug_response
+from app.middleware.gdpr import log_request
 from app.middleware.headers import HttpHostHeaderMiddleware
 from app.security import load_identity
 
@@ -88,8 +89,13 @@ def create_app(config_name=None):
         }
 
     # Request/response logging
-    flask_app.before_request(debug_request)
-    flask_app.after_request(debug_response)
+    # GDPR logging
+    flask_app.before_request(log_request)
+
+    # Debugging of requests and responses
+    if flask_app.debug:
+        flask_app.before_request(debug_request)
+        flask_app.after_request(debug_response)
 
     # Other middleware
     proxied = HttpHostHeaderMiddleware(flask_app.wsgi_app, server=flask_app.config['SERVER_NAME'])

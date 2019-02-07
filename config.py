@@ -25,6 +25,9 @@ class Config:
                           '[in %(pathname)s:%(lineno)d]',
                 'datefmt': '%Y-%m-%d %H:%M:%S',
             },
+            'GDPR_format': {
+                '()': 'syslog_rfc5424_formatter.RFC5424Formatter',
+            },
             # A formatter for celery tasks that includes task_name and task_id
             'celery_formatter': {
                 '()': 'celery.app.log.TaskFormatter',
@@ -57,15 +60,28 @@ class Config:
                 'maxBytes': 10 * (1 << 20),  # 10 Mb
                 'backupCount': 100,
             },
+            # A separate logging file for GRPD request tracking
+            'GDPR_file': {
+                'level': 'DEBUG',
+                'class': 'logging.handlers.TimedRotatingFileHandler',
+                'formatter': 'GDPR_format',
+                'filename': os.path.join(LOG_DIR, 'GDPR.log'),
+                'when': 'midnight',
+                'utc': True,
+            }
             # TODO: add email handler for errors
         },
         'loggers': {
+            'app.middleware.gdpr': {
+                'level': 'INFO',
+                'handlers': ['GDPR_file'],
+            },
             'app.api.data.tasks': {
                 'level': 'DEBUG',
                 'handlers': ['file_worker']
             },
             'app.middleware.debug': {
-                'level': 'INFO',
+                'level': 'DEBUG',
             },
             # Some Python internal loggers that are too verbose
             'parso': {

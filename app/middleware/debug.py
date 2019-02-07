@@ -3,7 +3,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-_REQUEST_DEBUG_FMT = """[[Request information: [[
+_REQUEST_DEBUG_FMT = """Request information: [[
 Path: %s
 Endpoint: %s
 Environ:
@@ -39,8 +39,6 @@ def debug_request():
     data_str = request.data[:_MAX_DATA_LENGTH_BYTES]
     if len(request.data) > _MAX_DATA_LENGTH_BYTES:
         truncated = '... truncated ...'
-    #data_str = getattr(request, 'direct_passthrough', 'no')
-    #truncated = ''
     if request.files:
         files_str = '\n\t'.join(f'{k!r}: {v!r}' for k, v in request.files.items())
         files_str = f'\nFiles:\n\t{files_str}'
