@@ -11,6 +11,7 @@ from app.api.data.tasks import init_workspace, init_data_bucket, \
 from app.api.exceptions import APIException, InvalidTransitionException
 from app.models import Family, Workspace, WorkspaceState
 from app.helpers.celery import log_task
+from app.helpers.pagination import paginate
 from app.security import (
     PublicReadPermission, PublicWritePermission,
     ReadWorkspacePermission, WriteWorkspacePermission
@@ -63,14 +64,11 @@ def fetch(*, user):
         query_set = query_set.filter(Workspace._state != WorkspaceState.DELETED)
 
     # TODO: provide an order_by on the query parameters
+    # TODO: consider permissions here and how it plays with owner in query_args
     query_set = query_set.order_by(Workspace.id.desc())
-    workspace_list = [workspace.to_dict()
-                      for workspace in query_set.all()
-                      # TODO: consider permissions here and how it plays with owner in query_args
-                      #if ReadWorkspacePermission(workspace.id).can()
-                      ]
 
-    return workspace_list, codes.ok
+    paginated_result = paginate(query_set, serializer=Workspace.to_dict)
+    return paginated_result.response_object(), codes.ok
 
 
 def create(*, body, user, token_info=None):

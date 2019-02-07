@@ -47,6 +47,8 @@ paths:
         - data
       operationId: app.api.data.workspace.fetch
       parameters:
+      - $ref: '#/components/parameters/pageOffset'
+      - $ref: '#/components/parameters/pageSize'
       - name: name
         in: query
         description: Filter workspaces by name
@@ -70,9 +72,18 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Workspace'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+                  page:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+                  pages:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+                  results:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/results'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
@@ -443,8 +454,72 @@ paths:
                 format: binary
         default:
           $ref: '#/components/responses/ErrorResponse'
+
 components:
+  parameters:
+    pageOffset:
+      name: page
+      in: query
+      description: The page of a collection to return.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    pageSize:
+      name: per_page
+      in: query
+      description: Number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100000
+        default: 100
   schemas:
+    PaginationEnvelope:
+      type: object
+      title: Paginated response template type
+      description: >
+        An envelope for responses that need to be paginated. When a collection
+        is accessed through a GET request, the results are sent in an object
+        that informs on the pagination status (page, number of pages, number
+        of results) and the data itself. This type is heavily inspired from
+        linode's PaginationEnvelope.
+      required:
+        - pages
+        - page
+        - results
+        - data
+      properties:
+        pages:
+          type: integer
+          description: Number of pages available in the collection
+          readOnly: true
+        page:
+          type: integer
+          description: Current page number
+          readOnly: true
+        results:
+          type: integer
+          description: Total number of items in the collection
+          readOnly: true
+        data:
+          type: array
+          description: Array of objects with the results of the current page
+          readOnly: true
+          items:
+            type: object
+      example: |-
+        {
+          "pages": 40,
+          "page": 1,
+          "results": 120,
+          "data": [
+            {"id": 1},
+            {"id": 2},
+            {"id": 3}
+          ]
+        }
     Workspace:
       title: Workspace details type
       description: Workspace details
