@@ -67,8 +67,8 @@ def fetch(*, user):
     # TODO: consider permissions here and how it plays with owner in query_args
     query_set = query_set.order_by(Workspace.id.desc())
 
-    paginated_result = paginate(query_set, serializer=Workspace.to_dict)
-    return paginated_result.response_object(), codes.ok
+    pager = paginate(query_set, serializer=Workspace.to_dict)
+    return pager.response_object(), codes.ok
 
 
 def create(*, body, user, token_info=None):

@@ -7,6 +7,7 @@ import sqlparse
 
 from app import db
 from app.api.exceptions import APIException
+from app.helpers.pagination import paginate
 from app.models import MetadataQuery, QueryDialect, Workspace
 from app.security import (
     ReadWorkspacePermission, WriteWorkspacePermission
@@ -25,9 +26,9 @@ def fetch(*, wid, user, token_info=None):
                            title='Forbidden',
                            detail='You are not authorized to query this workspace')
 
-    queries = [q.to_dict() for q in workspace.queries]
+    pager = paginate(workspace.queries, serializer=MetadataQuery.to_dict)
 
-    return queries, 200
+    return pager.response_object(), 200
 
 
 def create(*, wid, body, user, token_info=None):
@@ -96,11 +97,9 @@ def details(*, wid, qid, user, token_info=None):
                                title='Query failed',
                                detail=f'Query could not be executed due to error:\n{ex!s}')
 
-        column_names = [desc[0] for desc in cursor.description]
-        results = []
-        for row in cursor.fetchall():
-            results.append(dict(zip(column_names, row)))
-
-        return query.to_dict(results), codes.ok
+        pager = paginate(cursor)
+        response = query.to_dict()
+        response['results'] = pager.response_object()
+        return response, codes.ok
 
 

@@ -68,7 +68,7 @@ paths:
           type: boolean
       responses:
         '200':
-          description: Workspace list
+          description: Paginated list of workspaces.
           content:
             application/json:
               schema:
@@ -82,8 +82,8 @@ paths:
                     $ref: '#/components/schemas/PaginationEnvelope/properties/page'
                   pages:
                     $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
-                  results:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/results'
+                  total:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
@@ -213,15 +213,27 @@ paths:
       tags:
         - data
       operationId: app.api.data.file.fetch
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
           description: List of workspace files
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  type: object
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  page:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+                  pages:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+                  total:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
@@ -353,15 +365,27 @@ paths:
       tags:
         - data
       operationId: app.api.data.query.fetch
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
           description: List of queries
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Query'
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Query'
+                  page:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+                  pages:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+                  total:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
@@ -414,6 +438,9 @@ paths:
       tags:
         - data
       operationId: app.api.data.query.details
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
           description: Query details and results
@@ -488,7 +515,7 @@ components:
       required:
         - pages
         - page
-        - results
+        - total
         - data
       properties:
         pages:
@@ -499,7 +526,7 @@ components:
           type: integer
           description: Current page number
           readOnly: true
-        results:
+        total:
           type: integer
           description: Total number of items in the collection
           readOnly: true
@@ -629,9 +656,18 @@ components:
           type: string
         results:
           description: Query results
-          type: array
-          items:
-            type: object
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+            page:
+              $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+            pages:
+              $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+            total:
+              $ref: '#/components/schemas/PaginationEnvelope/properties/total'
           readOnly: true
       example: |-
         {

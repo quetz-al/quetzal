@@ -11,6 +11,7 @@ from requests import codes
 from app import db
 from app.helpers.google_api import get_object, get_data_bucket
 from app.helpers.files import split_check_path, get_readable_info
+from app.helpers.pagination import paginate
 from app.api.exceptions import APIException
 from app.models import Family, Workspace, Metadata
 from app.security import (
@@ -302,8 +303,8 @@ def fetch(*, wid):
         .order_by(Metadata.id_file, Metadata.id.desc())
     )
 
-    response = [meta.json for meta in union_query.all()]
-    return response, 200
+    pager = paginate(union_query, serializer=lambda meta: meta.json)
+    return pager.response_object(), 200
 
 
 def _all_metadata(file_id, workspace):
