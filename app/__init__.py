@@ -45,8 +45,8 @@ def create_app(config_name=None):
     # The logging configuration is declared in the config object, because I
     # refuse to have the logging configuration in another file
     # (it's easier to manage)
-    if 'LOGGING' in config_obj and config_obj['LOGGING']:
-        dictConfig(config_obj['LOGGING'])
+    if hasattr(config_obj, 'LOGGING') and config_obj.LOGGING:
+        dictConfig(config_obj.LOGGING)
 
     # Use connexion to create and configure the initial application, but
     # we will use the Flask application to configure the rest
