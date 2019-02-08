@@ -7,6 +7,14 @@ CREATE DATABASE quetzal;
 -- Create unit testing database
 CREATE DATABASE unittests;
 
+-- Revoke all rights
+-- TODO: this is not enough and it is not working for db_ro_user!
+REVOKE ALL ON DATABASE quetzal FROM PUBLIC;
+REVOKE ALL ON DATABASE unittests FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+REVOKE ALL ON SCHEMA pg_catalog FROM PUBLIC;
+REVOKE ALL ON SCHEMA information_schema FROM PUBLIC;
+
 -- Create a user for the application
 CREATE ROLE db_user WITH LOGIN PASSWORD 'db_password';
 GRANT ALL PRIVILEGES ON DATABASE quetzal TO db_user;
