@@ -1,11 +1,39 @@
 ---
 openapi: 3.0.2
+
 info:
-  title: quetzal
-  description: Quetzalcoatl API (formerly known as CloudTS)
+  title: Quetzalcoatl API
   version: 0.3.0
+  description: |
+    # TODO: an extensive documentation in CommonMark
+    TODO
+
+  termsOfService: https://quetz.al/terms  # TODO: activate this URL
+  contact:
+    name: API support
+    url: https://quetz.al/support         # TODO: activate this URL
+    email: support@quetz.al               # TODO: activate this address
+  license:
+    name: BSD-3-Clause
+    url: https://opensource.org/licenses/BSD-3-Clause
+
+servers:
+  - url: https://api.quetz.al/api/v1       # TODO: activate and deploy here
+    description: Public server
+  - url: https://staging.quetz.al/api/v1   # TODO: activate and deploy here
+    description: Staging server
+  - url: https://devel.quetz.al/api/v1     # TODO: activate and deploy here
+    description: Development server
+  - url: https://local.quetz.al/api/v1
+    description: Local development data server
+
+externalDocs:
+  url: https://quetz.al/docs              # TODO: activate this URL. Maybe readthedocs?
+  description: Detailed documentation and source code of Quetzalcoatl.
+
 paths:
-  /api/auth/token:
+  # Authentication endpoints
+  /auth/token:
     post:
       summary: Authenticate and obtain a token
       tags:
@@ -13,7 +41,6 @@ paths:
       operationId: app.api.auth.get_token
       security:
         - basic: []
-        - bearer: []
       responses:
         '200':
           description: Authentication token
@@ -29,7 +56,8 @@ paths:
                   - token
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/auth/logout:
+
+  /auth/logout:
     post:
       summary: Logout and invalidate the existing token
       tags:
@@ -40,7 +68,9 @@ paths:
           description: Logout successful
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/:
+
+  # Data endpoints (workspaces)
+  /data/workspaces/:
     get:
       summary: Get all workspaces
       tags:
@@ -106,7 +136,8 @@ paths:
                 $ref: '#/components/schemas/Workspace'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}:
+
+  /data/workspaces/{wid}:
     parameters:
       - name: wid
         in: path
@@ -144,7 +175,8 @@ paths:
           description: Workspace marked for deletion
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}/commit:
+
+  /data/workspaces/{wid}/commit:
     put:
       summary: Commit a workspace
       description: |-
@@ -170,7 +202,8 @@ paths:
                 $ref: '#/components/schemas/Workspace'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}/scan:
+
+  /data/workspaces/{wid}/scan:
     put:
       summary: Update workspace views
       description: |-
@@ -196,7 +229,8 @@ paths:
                 $ref: '#/components/schemas/Workspace'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}/files/:
+
+  /data/workspaces/{wid}/files/:
     parameters:
       - name: wid
         in: path
@@ -264,7 +298,8 @@ paths:
                 type: object
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}/files/{uuid}:
+
+  /data/workspaces/{wid}/files/{uuid}:
     parameters:
       - name: wid
         in: path
@@ -350,7 +385,8 @@ paths:
                 type: object
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}/queries/:
+
+  /data/workspaces/{wid}/queries/:
     parameters:
       - name: wid
         in: path
@@ -417,7 +453,8 @@ paths:
                 $ref: '#/components/schemas/Query'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/workspaces/{wid}/queries/{qid}:
+
+  /data/workspaces/{wid}/queries/{qid}:
     parameters:
       - name: wid
         in: path
@@ -450,7 +487,9 @@ paths:
                 $ref: '#/components/schemas/Query'
         default:
           $ref: '#/components/responses/ErrorResponse'
-  /api/data/files/{uuid}:
+
+  # Data endpoints (global, committed files)
+  /data/files/{uuid}:
     parameters:
       - name: uuid
         in: path
@@ -719,8 +758,10 @@ components:
       type: http
       scheme: bearer
       x-bearerInfoFunc: app.api.auth.check_bearer
+
 security:
   - bearer: []
+
 tags:
   - name: authentication
     description: Authentication operations
