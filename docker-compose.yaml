@@ -48,6 +48,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_DATABASE: quetzal
+      # KOMBU_LOG_CONNECTION: 1  # Useful to debug kombu bug
     volumes:
       # Setup a volume for development: it allows the web container to have the
       # latest changes so one does not need to build everytime there is a
@@ -62,6 +63,9 @@ services:
     ports:
       # TODO: remove when the nginx service is added
       - "5000:5000"
+    # Maybe needed to attach with docker-compose run --service-ports web command
+    # stdin_open: true
+    # tty: true
 
   worker:
     build:

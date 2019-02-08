@@ -5,9 +5,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def log_request():
+def gdpr_log_request():
     from flask import request
     from app.models import User
+
+    # Quit early if the logging level is not low enough
+    if logger.getEffectiveLevel() > logging.DEBUG:
+        return
+
     log_entry = {
         'headers': {
             key: value
@@ -30,7 +35,7 @@ def log_request():
             auth_type, content = request.headers['Authorization'].split(None, 1)
             if auth_type.lower() == 'basic':
                 username, _ = base64.b64decode(content).decode('latin1').split(':', 1)
-                user = User.query.get(username=username).first()
+                user = User.query.filter_by(username=username).first()
             elif auth_type.lower() == 'bearer':
                 user = User.check_token(content)
 
@@ -49,4 +54,4 @@ def log_request():
     if user is not None:
         log_entry['user'] = user.username
 
-    logger.info('Request: %s', log_entry)
+    logger.debug('Request: %s', log_entry)

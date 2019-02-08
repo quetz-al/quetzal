@@ -15,6 +15,7 @@ sqlparse
 requests
 Click
 syslog-rfc5424-formatter
+apscheduler
 
 # Requirements needed for saving data on GCP
 google-cloud-storage

@@ -60,6 +60,7 @@ for the service account on the GCP.
 - ``storage.buckets.delete``: to delete existing buckets
 - ``storage.objects.list``: to list objects in buckets
 - ``storage.objects.create``: to upload objects in buckets
+- ``storage.objects.delete``: to delete objects in buckets
 
 
 Metadata

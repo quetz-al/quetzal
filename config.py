@@ -1,7 +1,53 @@
+import copy
 import os
+import socket
+import sys
+
 
 # TODO: consider / add dot_env and load_dotenv
 basedir = os.path.abspath(os.path.dirname(__file__))
+try:
+    hostname = socket.gethostname()
+except:
+    hostname = 'unknown'
+
+
+def _ensure_dir_exists(dirname):
+    os.makedirs(dirname, exist_ok=True)
+    return dirname
+
+
+def _remove_handler(log_config, name):
+    # Make a new config
+    new_config = copy.deepcopy(log_config)
+
+    # Remove the handler
+    del new_config['handlers'][name]
+
+    # Remove references to that handler
+    for logger_name in new_config['loggers']:
+        handlers = new_config['loggers'][logger_name].get('handlers', [])
+        if name in handlers:
+            idx = handlers.index(name)
+            new_config['loggers'][logger_name]['handlers'].pop(idx)
+            # Clear when empty
+            if not new_config['loggers'][logger_name]['handlers']:
+                del new_config['loggers'][logger_name]['handlers']
+
+    # Root handlers are in another place of the config
+    root_handlers = new_config['root']['handlers']
+    if name in root_handlers:
+        idx = root_handlers.index(name)
+        new_config['root']['handlers'].pop(idx)
+
+    return new_config
+
+
+_is_celery_worker = (
+    len(sys.argv) > 0 and
+    sys.argv[0].endswith('celery') and
+    'worker' in sys.argv
+)
 
 
 class Config:
@@ -12,7 +58,8 @@ class Config:
     SERVER_NAME = 'local.quetz.al'
 
     # Logging
-    LOG_DIR = os.environ.get('LOG_DIR') or os.path.join(basedir, 'logs')
+    LOG_DIR = _ensure_dir_exists(os.environ.get('LOG_DIR') or
+                                 os.path.join(basedir, 'logs', 'app'))
     LOGGING = {
         'version': 1,
         'formatters': {
@@ -38,7 +85,7 @@ class Config:
         'handlers': {
             # The default logging on console
             'console': {
-                'level': 'DEBUG',  # on info so that the console is rather brief
+                'level': 'INFO',  # on info so that the console is rather brief
                 'class': 'logging.StreamHandler',
                 'formatter': 'default',
             },
@@ -47,7 +94,7 @@ class Config:
                 'level': 'DEBUG',  # on debug so that the file has much more details
                 'class': 'logging.handlers.RotatingFileHandler',
                 'formatter': 'detailed',
-                'filename': os.path.join(LOG_DIR, 'quetzal.log'),
+                'filename': os.path.join(LOG_DIR, f'quetzal-{hostname}.log'),
                 'maxBytes': 10 * (1 << 20),  # 10 Mb
                 'backupCount': 100,
             },
@@ -56,7 +103,7 @@ class Config:
                 'level': 'DEBUG',  # like the file handler but on another file
                 'class': 'logging.handlers.RotatingFileHandler',
                 'formatter': 'celery_formatter',
-                'filename': os.path.join(LOG_DIR, 'worker.log'),
+                'filename': os.path.join(LOG_DIR, f'worker-{hostname}.log'),
                 'maxBytes': 10 * (1 << 20),  # 10 Mb
                 'backupCount': 100,
             },
@@ -65,7 +112,7 @@ class Config:
                 'level': 'DEBUG',
                 'class': 'logging.handlers.TimedRotatingFileHandler',
                 'formatter': 'GDPR_format',
-                'filename': os.path.join(LOG_DIR, 'GDPR.log'),
+                'filename': os.path.join(LOG_DIR, f'GDPR-{hostname}.log'),
                 'when': 'midnight',
                 'utc': True,
             }
@@ -73,7 +120,7 @@ class Config:
         },
         'loggers': {
             'app.middleware.gdpr': {
-                'level': 'INFO',
+                'level': 'DEBUG',  # Keep this on debug
                 'handlers': ['GDPR_file'],
             },
             'app.api.data.tasks': {
@@ -82,6 +129,10 @@ class Config:
             },
             'app.middleware.debug': {
                 'level': 'DEBUG',
+            },
+            # apscheduler is quite verbose
+            'apscheduler': {
+                'level': 'WARNING',
             },
             # Some Python internal loggers that are too verbose
             'parso': {
@@ -129,8 +180,9 @@ class Config:
     # why the Celery configuration is set in this inner dictionary
     CELERY = {
         'broker_url': 'amqp://guest:guest@' +
-                      os.environ.get('RABBITMQ_HOST', 'rabbitmq') +
-                      ':5672//',
+                      os.environ.get('RABBITMQ_HOST', 'rabbitmq') + ':' +
+                      os.environ.get('RABBITMQ_PORT', '5672') +
+                      '//',
         # Due to an issue on the rpc backend, there is an infinite loop that
         # blocks the scheduling of tasks. Removing result_backend as we have
         # no use for it right now.
@@ -153,6 +205,23 @@ class Config:
         os.path.join(basedir, 'conf', 'credentials.json')
     QUETZAL_GCP_DATA_BUCKET = os.environ.get('QUETZAL_GCP_DATA_BUCKET') or \
         'gs://quetzal-dev-data'
+    QUETZAL_GCP_BACKUP_BUCKET = os.environ.get('QUETZAL_GCP_BACKUP_BUCKET') or \
+        'gs://quetzal-dev-backups'
+
+    def __init__(self):
+        # Dynamic properties: configuration elements that must change according
+        # to some information that is only available when Flask is instantiated
+
+        # Logs: do not use the same filename for worker and app. We can only
+        # know this if we detect we are in a celery program or not.
+        if _is_celery_worker:
+            # Remove the file handler
+            self.LOGGING = _remove_handler(self.LOGGING, 'file')
+            # Remove the GDPR handler
+            self.LOGGING = _remove_handler(self.LOGGING, 'GDPR_file')
+        else:
+            # On the non worker, there should not be any file_worker handler
+            self.LOGGING = _remove_handler(self.LOGGING, 'file_worker')
 
 
 class DevelopmentConfig(Config):

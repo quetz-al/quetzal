@@ -1,5 +1,10 @@
+import os
 from logging.config import dictConfig
 
+
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from flask.helpers import get_env
 from flask_migrate import Migrate
 from flask_principal import Principal, identity_loaded
 from flask_sqlalchemy import SQLAlchemy
@@ -9,7 +14,7 @@ from config import config
 from app.helpers.celery import Celery
 from app.hacks import CustomResponseValidator
 from app.middleware.debug import debug_request, debug_response
-from app.middleware.gdpr import log_request
+from app.middleware.gdpr import gdpr_log_request
 from app.middleware.headers import HttpHostHeaderMiddleware
 from app.security import load_identity
 
@@ -19,24 +24,37 @@ db = SQLAlchemy()
 migrate = Migrate()
 celery = Celery()
 principal = Principal(use_sessions=False)
+scheduler = BackgroundScheduler()
+scheduler.start()
 
 
 def create_app(config_name=None):
+    # Obtain the configuration according to the factory parameter or the
+    # FLASK_ENV variable
+    #
+    # Note:
+    # Remark that the constructor is called explicitly because there are some
+    # refinements to the configuration that are not known until the application
+    # is executed
+    config_obj = config.get(config_name or get_env())()
+    if config_obj is None:
+        raise ValueError(f'Unknown configuration "{config_name}"')
+
+    # Configure logging as soon as possible... even before Flask because the
+    # Flask object is created by Connexion, who already logs a lot!
+    # The logging configuration is declared in the config object, because I
+    # refuse to have the logging configuration in another file
+    # (it's easier to manage)
+    if 'LOGGING' in config_obj and config_obj['LOGGING']:
+        dictConfig(config_obj['LOGGING'])
+
     # Use connexion to create and configure the initial application, but
     # we will use the Flask application to configure the rest
     connexion_app = connexion.App(__name__)
     flask_app = connexion_app.app
-    # Update configuration according to the factory parameter or the FLASK_ENV
-    # variable
-    config_obj = config.get(config_name or flask_app.env)
-    if config_obj is None:
-        raise ValueError(f'Unknown configuration "{config_name}"')
-    flask_app.config.from_object(config_obj)
 
-    # Configure logging from the configuration object: I refuse to have the
-    # logging configuration in another file (it's easier to manage)
-    if 'LOGGING' in flask_app.config and flask_app.config['LOGGING']:
-        dictConfig(flask_app.config['LOGGING'])
+    # Update Flask configuration
+    flask_app.config.from_object(config_obj)
 
     # Database
     db.init_app(flask_app)
@@ -46,7 +64,7 @@ def create_app(config_name=None):
     flask_app.config['CELERY_BROKER_URL'] = flask_app.config['CELERY']['broker_url']
     celery.init_app(flask_app)
     # This is needed if flask-celery-helper is used instead of the
-    # custom made Celery object in the app/helpers/celery.py helper script
+    # custom made Celery object in the app/helpers/celery.py helper script:
     # celery.conf.update(flask_app.config['CELERY'])
 
     # Make configured Celery instance attach to Flask
@@ -90,7 +108,7 @@ def create_app(config_name=None):
 
     # Request/response logging
     # GDPR logging
-    flask_app.before_request(log_request)
+    flask_app.before_request(gdpr_log_request)
 
     # Debugging of requests and responses
     if flask_app.debug:
@@ -100,5 +118,29 @@ def create_app(config_name=None):
     # Other middleware
     proxied = HttpHostHeaderMiddleware(flask_app.wsgi_app, server=flask_app.config['SERVER_NAME'])
     flask_app.wsgi_app = proxied
+
+    # Install recurrent jobs (not through celery):
+    #
+    # Note:
+    # We have the specific need to run some background tasks that **must** run
+    # on all instances of the Flask application and celery workers. This is
+    # something that cannot be implemented with celery. This could be
+    # implemented through cron, but needs some local configuration and since
+    # this app runs within Docker, it is discouraged to run more than one
+    # process per Docker container.
+    # For these reasons, we are using apscheduler as a Python replacement of a
+    # cron scheduler.
+    #
+    # The condition below is to avoid repeated scheduling by Flask, specially
+    # when the --no-reload option is not used (like in development mode),
+    # because Flask runs two threads and each one calls this create_app
+    # factory method.
+    if not flask_app.testing and os.environ.get('WERKZEUG_RUN_MAIN') is None:
+        from app.background import hello, backup_logs
+        # Simple job to know what's alive every 10 minutes
+        scheduler.add_job(hello, trigger='interval', seconds=600)
+        # Backup logs at midnight + 5 minutes so that the timed rolling logs do their rollover
+        scheduler.add_job(backup_logs, trigger=CronTrigger(hour=0, minute=5),
+                          args=(flask_app,), misfire_grace_time=3600)
 
     return flask_app

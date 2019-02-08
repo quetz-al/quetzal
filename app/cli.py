@@ -22,8 +22,32 @@ role_cli = AppGroup('role', help='Quetzal role operations')
 @click.option('--location', help='Bucket location. Default: europe-west1',
               default='europe-west1')
 def data_init_command(storage_class, location):
-    """ Initialize data buckets """
+    """ Initialize bucket for data"""
     data_bucket = current_app.config['QUETZAL_GCP_DATA_BUCKET']
+    click.secho(f'Creating bucket {data_bucket}...')
+
+    client = get_client()
+    bucket_name = urlparse(data_bucket).netloc
+    bucket = client.bucket(bucket_name)
+    if bucket.exists():
+        raise click.ClickException(f'Cannot create bucket {bucket_name}: already exists')
+
+    bucket.storage_class = storage_class.upper()
+    bucket.location = location
+    bucket.create()
+
+    click.secho(f'Bucket created {bucket.name} successfully!')
+
+
+@data_cli.command('init-backups')
+@click.option('--storage-class', help='Bucket storage class. Default: regional',
+              type=click.Choice(['regional', 'multi_regional']),
+              default='regional')
+@click.option('--location', help='Bucket location. Default: europe-west1',
+              default='europe-west1')
+def data_init_command(storage_class, location):
+    """ Initialize bucket for backups"""
+    data_bucket = current_app.config['QUETZAL_GCP_BACKUP_BUCKET']
     click.secho(f'Creating bucket {data_bucket}...')
 
     client = get_client()
@@ -44,6 +68,7 @@ def data_init_command(storage_class, location):
 @click.argument('email')
 @click.password_option()
 def user_create(username, email, password):
+    """Create a user"""
     user = User(username=username, email=email)
     user.set_password(password)
 
@@ -58,6 +83,7 @@ def user_create(username, email, password):
 
 @user_cli.command('list')
 def user_list():
+    """List existing users"""
     if User.query.count() == 0:
         click.secho('No users exist')
     else:
@@ -70,6 +96,7 @@ def user_list():
 @click.argument('name')
 @click.option('--description', prompt='Role description')
 def role_create(name, description):
+    """Create a role"""
     role = Role(name=name, description=description)
 
     try:
@@ -84,6 +111,7 @@ def role_create(name, description):
 @role_cli.command('delete')
 @click.argument('name')
 def role_delete(name):
+    """Delete a role"""
     role = Role.query.filter_by(name=name).first()
     if role is None:
         raise click.ClickException(f'Role {name} does not exist')
@@ -95,6 +123,7 @@ def role_delete(name):
 
 @role_cli.command('list')
 def role_list():
+    """List existing roles"""
     if Role.query.count() == 0:
         click.secho('No roles exist')
     else:
@@ -104,30 +133,36 @@ def role_list():
 
 
 @role_cli.command('add')
-@click.argument('username')
-@click.argument('rolename')
+@click.argument('username', required=True)
+@click.argument('rolename', required=True, nargs=-1)
 def role_add_user(username, rolename):
+    """Add role(s) to a user"""
     user = User.query.filter_by(username=username).first()
-    role = Role.query.filter_by(name=rolename).first()
     if user is None:
         raise click.ClickException(f'User {username} does not exist')
-    if role is None:
-        raise click.ClickException(f'Role {rolename} does not exist')
 
-    if role in user.roles:
-        raise click.ClickException(f'User {username} already in role {rolename}')
-    user.roles.append(role)
+    for rn in rolename:
+        role = Role.query.filter_by(name=rn).first()
+        if role is None:
+            raise click.ClickException(f'Role {rn} does not exist')
+
+        if role in user.roles:
+            raise click.ClickException(f'User {username} already in role {rn}')
+        user.roles.append(role)
 
     db.session.add(user)
     db.session.commit()
 
-    click.secho(f'User {user.username} is now part of role {role.name}')
+    click.secho(f'User {user.username} is now part of role'
+                f'{"s" if len(rolename) > 1 else ""} '
+                f'{", ".join(rolename)}')
 
 
 @role_cli.command('remove')
 @click.argument('username')
 @click.argument('rolename')
 def role_delete_user(username, rolename):
+    """Remove a user from a role"""
     user = User.query.filter_by(username=username).first()
     role = Role.query.filter_by(name=rolename).first()
     if user is None:
