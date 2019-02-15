@@ -16,6 +16,7 @@ requests
 Click
 syslog-rfc5424-formatter
 apscheduler
+gunicorn
 
 # Requirements needed for saving data on GCP
 google-cloud-storage

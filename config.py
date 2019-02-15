@@ -85,7 +85,7 @@ class Config:
         'handlers': {
             # The default logging on console
             'console': {
-                'level': 'INFO',  # on info so that the console is rather brief
+                'level': 'DEBUG',  # on info so that the console is rather brief
                 'class': 'logging.StreamHandler',
                 'formatter': 'default',
             },
@@ -93,17 +93,10 @@ class Config:
             'file': {
                 'level': 'DEBUG',  # on debug so that the file has much more details
                 'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'detailed',
-                'filename': os.path.join(LOG_DIR, f'quetzal-{hostname}.log'),
-                'maxBytes': 10 * (1 << 20),  # 10 Mb
-                'backupCount': 100,
-            },
-            # A separate logging file for the celery tasks
-            'file_worker': {
-                'level': 'DEBUG',  # like the file handler but on another file
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'celery_formatter',
-                'filename': os.path.join(LOG_DIR, f'worker-{hostname}.log'),
+                'formatter': 'detailed' if not _is_celery_worker else 'celery_formatter',
+                'filename': os.path.join(LOG_DIR,
+                                         f'worker-{hostname}.log' if _is_celery_worker
+                                         else f'app-{hostname}.log'),
                 'maxBytes': 10 * (1 << 20),  # 10 Mb
                 'backupCount': 100,
             },
@@ -123,10 +116,10 @@ class Config:
                 'level': 'DEBUG',  # Keep this on debug
                 'handlers': ['GDPR_file'],
             },
-            'app.api.data.tasks': {
-                'level': 'DEBUG',
-                'handlers': ['file_worker']
-            },
+            # 'app.api.data.tasks': {
+            #     'level': 'DEBUG',
+            #     'handlers': ['file_worker']
+            # },
             'app.middleware.debug': {
                 'level': 'DEBUG',
             },
@@ -207,6 +200,7 @@ class Config:
         'gs://quetzal-dev-data'
     QUETZAL_GCP_BACKUP_BUCKET = os.environ.get('QUETZAL_GCP_BACKUP_BUCKET') or \
         'gs://quetzal-dev-backups'
+    QUETZAL_BACKGROUND_JOBS = bool(os.environ.get('QUETZAL_BACKGROUND_JOBS', False))
 
     def __init__(self):
         # Dynamic properties: configuration elements that must change according
@@ -216,12 +210,10 @@ class Config:
         # know this if we detect we are in a celery program or not.
         if _is_celery_worker:
             # Remove the file handler
-            self.LOGGING = _remove_handler(self.LOGGING, 'file')
+            # self.LOGGING = _remove_handler(self.LOGGING, 'file')
             # Remove the GDPR handler
             self.LOGGING = _remove_handler(self.LOGGING, 'GDPR_file')
-        else:
-            # On the non worker, there should not be any file_worker handler
-            self.LOGGING = _remove_handler(self.LOGGING, 'file_worker')
+            self.LOGGING['handlers']['file']
 
 
 class DevelopmentConfig(Config):

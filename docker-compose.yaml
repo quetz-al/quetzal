@@ -39,7 +39,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
-    entrypoint: flask run --host 0.0.0.0 --port 5000 --no-reload
+    #entrypoint: flask run --host 0.0.0.0 --port 5000 --no-reload
     #/entrypoint-server.sh
     environment:
       FLASK_ENV: development
@@ -48,6 +48,8 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_DATABASE: quetzal
+      USE_GUNICORN: 1
+      QUETZAL_BACKGROUND_JOBS: 1
       # KOMBU_LOG_CONNECTION: 1  # Useful to debug kombu bug
     volumes:
       # Setup a volume for development: it allows the web container to have the
@@ -79,6 +81,7 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_DATABASE: quetzal
+      QUETZAL_BACKGROUND_JOBS: 1
     volumes:
       # Setup a volume for development: it allows the web container to have the
       # latest changes so one does not need to build everytime there is a
