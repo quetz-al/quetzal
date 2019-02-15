@@ -129,7 +129,7 @@ paths:
         required: true
       responses:
         '201':
-          description: Workspace created successfully
+          description: Details of the new workspace.
           content:
             application/json:
               schema:
@@ -445,8 +445,8 @@ paths:
               $ref: '#/components/schemas/Query'
         required: true
       responses:
-        '301':
-          description: Workspace metadata
+        '303':
+          description: Query results.
           content:
             application/json:
               schema:

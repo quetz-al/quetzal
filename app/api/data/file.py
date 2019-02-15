@@ -22,8 +22,13 @@ from app.security import (
 logger = logging.getLogger(__name__)
 
 
-def create(*, wid, file_content, user, token_info=None):
+def create(*, wid, file_content=None, user, token_info=None):
     workspace = Workspace.get_or_404(wid)
+
+    if file_content is None:
+        raise APIException(status=codes.bad_request,
+                           title='Missing file content',
+                           detail='Cannot create a file without file_content')
 
     if not WriteWorkspacePermission(wid).can():
         raise APIException(status=codes.forbidden,

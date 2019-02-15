@@ -135,7 +135,10 @@ def create_app(config_name=None):
     # when the --no-reload option is not used (like in development mode),
     # because Flask runs two threads and each one calls this create_app
     # factory method.
-    if not flask_app.testing and os.environ.get('WERKZEUG_RUN_MAIN') is None:
+    if (flask_app.config['QUETZAL_BACKGROUND_JOBS'] and
+            not flask_app.testing and
+            os.environ.get('WERKZEUG_RUN_MAIN') is None):
+
         from app.background import hello, backup_logs
         # Simple job to know what's alive every 10 minutes
         scheduler.add_job(hello, trigger='interval', seconds=600)

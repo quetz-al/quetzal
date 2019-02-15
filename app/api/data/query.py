@@ -58,7 +58,7 @@ def create(*, wid, body, user, token_info=None):
                             wid=workspace.id, qid=query.id)
     }
 
-    return query.to_dict(), codes.moved_permanently, response_headers
+    return query.to_dict(), codes.see_other, response_headers
 
 
 def details(*, wid, qid, user, token_info=None):

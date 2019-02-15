@@ -9,7 +9,7 @@ from app import db
 from app.api.data.tasks import init_workspace, init_data_bucket, \
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
 from app.api.exceptions import APIException, InvalidTransitionException
-from app.models import Family, Workspace, WorkspaceState
+from app.models import Family, User, Workspace, WorkspaceState
 from app.helpers.celery import log_task
 from app.helpers.pagination import paginate
 from app.security import (
@@ -56,12 +56,19 @@ def fetch(*, user):
         query_set = query_set.filter_by(name=name)
 
     if 'owner' in query_args:
-        raise NotImplementedError
+        query_set = query_set.join(User).filter(User.username == query_args['owner'])
 
-    if 'deleted' in query_args:
+    if 'deleted' in query_args and query_args['deleted']:
+        # query_set already has the deleted workspaces
         pass
     else:
+        # by default, don't list the deleted workspaces
         query_set = query_set.filter(Workspace._state != WorkspaceState.DELETED)
+
+    if query_args and query_set.count() == 0:
+        raise APIException(status=codes.not_found,
+                           title='Not found',
+                           detail='No workspace match the selection')
 
     # TODO: provide an order_by on the query parameters
     # TODO: consider permissions here and how it plays with owner in query_args
@@ -90,8 +97,10 @@ def create(*, body, user, token_info=None):
     logger.info('Attempting to create workspace from %s', body)
 
     # Create workspace on the database
+    name = body['name']
+    username = user.username
     workspace = Workspace(
-        name=body['name'],
+        name=name,
         description=body['description'],
         temporary=body.get('temporary', False),
         owner=user,
@@ -108,7 +117,7 @@ def create(*, body, user, token_info=None):
         logger.debug('Workspace creation error details:', exc_info=exc)
         raise APIException(status=codes.bad_request,
                            title='Invalid workspace name',
-                           detail='Workspace name already exists for user')
+                           detail=f'A workspace named "{name}" already exists for user "{username}"')
 
     # Create temporary families that will be correctly initialized later.
     # By default, the base family must be present. If not present, set it to

@@ -77,12 +77,14 @@ class User(UserMixin, db.Model):
 
     def revoke_token(self):
         self.token_expiration = datetime.utcnow() - timedelta(seconds=1)
+        db.session.add(self)
 
     @staticmethod
     def check_token(token):
         user = User.query.filter_by(token=token).first()
         if user is None or user.token_expiration < datetime.utcnow():
             return None
+        logger.debug('Token still valid for %d seconds', (user.token_expiration - datetime.utcnow()).total_seconds())
         return user
 
     def __repr__(self):

@@ -190,17 +190,18 @@ def delete_workspace(wid):
     if workspace.state != WorkspaceState.DELETING:
         raise WorkerException('Workspace was not on the expected state')
 
-    # Do the deletion task
-    # TODO: manage exceptions/errors
-    client = get_client()
-    bucket = get_bucket(workspace.data_url, client=client)
+    # Delete the data bucket and its contents
+    if workspace.data_url is not None:
+        # TODO: manage exceptions/errors
+        client = get_client()
+        bucket = get_bucket(workspace.data_url, client=client)
 
-    # Delete all blobs first
-    blobs = list(bucket.list_blobs())
-    bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
+        # Delete all blobs first
+        blobs = list(bucket.list_blobs())
+        bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
 
-    # Delete the bucket
-    bucket.delete()
+        # Delete the bucket
+        bucket.delete()
 
     # Drop schema used for queries
     if workspace.pg_schema_name is not None:
@@ -208,6 +209,7 @@ def delete_workspace(wid):
 
     # Update the database model
     workspace.state = WorkspaceState.DELETED
+    workspace.data_url = None
     db.session.add(workspace)
     db.session.commit()
 
