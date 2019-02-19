@@ -85,7 +85,7 @@ class Config:
         'handlers': {
             # The default logging on console
             'console': {
-                'level': 'DEBUG',  # on info so that the console is rather brief
+                'level': 'INFO',  # on info so that the console is rather brief
                 'class': 'logging.StreamHandler',
                 'formatter': 'default',
             },
@@ -121,7 +121,7 @@ class Config:
             #     'handlers': ['file_worker']
             # },
             'app.middleware.debug': {
-                'level': 'DEBUG',
+                'level': 'INFO',
             },
             # apscheduler is quite verbose
             'apscheduler': {

@@ -8,6 +8,7 @@ services:
       - "443:443"
     links:
       - web
+      - redoc
 
   db:
     build:
@@ -93,6 +94,16 @@ services:
     depends_on:
       - db
       - rabbitmq
+
+  redoc:
+    image: redocly/redoc
+    environment:
+      PAGE_TITLE: 'Quetzalcoatl API documentation'
+      # PAGE_FAVICON: ...
+      SPEC_URL: openapi.yaml
+      PORT: 8000
+    volumes:
+      - ./openapi.yaml:/usr/share/nginx/html/openapi.yaml:ro
 
   unittests:
     build:
