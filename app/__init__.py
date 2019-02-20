@@ -148,6 +148,6 @@ def create_app(config_name=None):
         scheduler.add_job(hello, trigger='interval', seconds=600)
         # Backup logs at midnight + 5 minutes so that the timed rolling logs do their rollover
         scheduler.add_job(backup_logs, trigger=CronTrigger(hour=0, minute=5),
-                          args=(flask_app,), misfire_grace_time=3600)
+                          args=(flask_app,), misfire_grace_time=3600*6)
 
     return flask_app
