@@ -3,10 +3,11 @@ openapi: 3.0.2
 
 info:
   title: Quetzalcoatl API
-  version: 0.3.0
+  version: 0.1.0
   description: |
-    # TODO: an extensive documentation in CommonMark
-    TODO
+    Quetzalcoatl: an API to manage data files and their associated metadata.
+
+    TODO: extensive documentation in common markdown
 
   termsOfService: https://quetz.al/terms  # TODO: activate this URL
   contact:
@@ -35,7 +36,10 @@ paths:
   # Authentication endpoints
   /auth/token:
     post:
-      summary: Authenticate and obtain a token
+      summary: Login.
+      description: |-
+        Authenticate with simple HTTP authentication and obtain a bearer token.
+        This bearer token can be used on the other endpoints of the API.
       tags:
         - authentication
       operationId: app.api.auth.get_token
@@ -43,26 +47,23 @@ paths:
         - basic: []
       responses:
         '200':
-          description: Authentication token
+          description: 'Authentication succeeded.'
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    description: Token for bearer authentication
-                    type: string
-                required:
-                  - token
+                $ref: '#/components/schemas/Token'
         default:
           $ref: '#/components/responses/ErrorResponse'
 
   /auth/logout:
     post:
-      summary: Logout and invalidate the existing token
+      summary: Logout.
+      description: |-
+        Logout by invalidating the existing token.
       tags:
         - authentication
       operationId: app.api.auth.logout
+      x-pepe: hello
       responses:
         '204':
           description: Logout successful
@@ -72,7 +73,10 @@ paths:
   # Data endpoints (workspaces)
   /data/workspaces/:
     get:
-      summary: Get all workspaces
+      summary: List workspaces.
+      description: |-
+       List workspace details. Optionally, filter workspaces according to
+       their name, owner or whether they have been deleted.
       tags:
         - data
       operationId: app.api.data.workspace.fetch
@@ -102,22 +106,15 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Workspace'
-                  page:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
-                  pages:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
-                  total:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+                $ref: '#/components/schemas/PaginatedWorkspaces'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
-      summary: Create a new workspace
+      summary: Create workspace.
+      description: |-
+        Create a workspace, which initializes the basic resources and
+        information associated with it, and then schedules some background
+        tasks to initialize Cloud resources.
       tags:
         - data
       operationId: app.api.data.workspace.create
@@ -146,8 +143,9 @@ paths:
         schema:
           type: integer
     get:
-      summary: Workspace details
-      description: Fetchs all details of a workspace
+      summary: Workspace details.
+      description: |-
+        Obtain all information of a workspace.
       tags:
         - data
       operationId: app.api.data.workspace.details
@@ -161,12 +159,17 @@ paths:
         default:
           $ref: '#/components/responses/ErrorResponse'
     delete:
-      summary: Request deletion of a workspace
+      summary: Delete workspace.
       description: |-
         Marks a workspace for deletion.
-        Workspaces cannot be immediately deleted, due to complex resource management.
-        The status of the workspace can be requested on this same path, using a GET
-        instead of a DELETE.
+        Workspaces cannot be immediately deleted, due to complex resource
+        management. Moreover, workspaces are not completely deleted in order to
+        keep a history of workspaces and possibly to add some resurrect
+        functionality. Instead, all of their resources are freed and its
+        status is marked as DELETED.
+
+        The current status of the workspace can be requested on this same path,
+        using a GET instead of a DELETE.
       tags:
         - data
       operationId: app.api.data.workspace.delete
@@ -178,11 +181,11 @@ paths:
 
   /data/workspaces/{wid}/commit:
     put:
-      summary: Commit a workspace
+      summary: Commit workspace.
       description: |-
         Requests a workspace commit. That is, all metadata added or modified
-        in this workspace will be committed to the global workspace, becoming
-        available to all users. Metadata versions will be incremented.
+        in this workspace will be moved to the global, public workspace,
+        becoming available to all users. Metadata versions will be incremented.
       tags:
         - data
       operationId: app.api.data.workspace.commit
@@ -205,11 +208,11 @@ paths:
 
   /data/workspaces/{wid}/scan:
     put:
-      summary: Update workspace views
+      summary: Update views.
       description: |-
-        Requests the update of the views of a workspace. All the internal databases
-        used for the query operation will be updated to contain the latest modifications
-        of the metadata.
+        Requests the update of the views of a workspace. All the internal
+        databases used for the query operation will be updated to contain the
+        latest modifications of the metadata.
       tags:
         - data
       operationId: app.api.data.workspace.scan
@@ -239,7 +242,7 @@ paths:
         schema:
           type: integer
     get:
-      summary: List workspace files
+      summary: List files.
       description: |-
         Fetchs all the files that have been added in this workspace. Files
         whose metadata has been modified in this workspace will also be
@@ -252,29 +255,18 @@ paths:
         - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: List of workspace files
+          description: Paginated list of files in this workspace.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      type: object
-                  page:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
-                  pages:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
-                  total:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+                $ref: '#/components/schemas/PaginatedFiles'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
-      summary: Add a new file
+      summary: Upload file.
       description: |-
-        Upload a new file by sending its contents. The file will not have any
-        additional metadata associated to it.
+        Upload a new file to a workspace by sending its contents.
+        The file will not have any additional metadata associated to it.
       tags:
         - data
       operationId: app.api.data.file.create
@@ -295,7 +287,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/BaseMetadata'
         default:
           $ref: '#/components/responses/ErrorResponse'
 
@@ -315,7 +307,7 @@ paths:
           type: string
           format: uuid
     get:
-      summary: Fetch file metadata or contents
+      summary: Fetch file.
       description: |-
         Serves the file contents or its metadata, according to the accepted
         content response header. When the metadata is requested, this returns
@@ -330,7 +322,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/UnstructuredMetadata'
             application/octet-stream:
               schema:
                 type: string
@@ -338,7 +330,7 @@ paths:
         default:
           $ref: '#/components/responses/ErrorResponse'
     patch:
-      summary: Modify file metadata
+      summary: Modify metadata.
       description: |-
         Change the file metadata by updating it. Updating metadata changes
         key/value pairs, adding a new key/value pair if does not exist and
@@ -352,18 +344,18 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/UnstructuredMetadata'
       responses:
         '200':
           description: Metadata successfully updated
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/UnstructuredMetadata'
         default:
           $ref: '#/components/responses/ErrorResponse'
     put:
-      summary: Rewrite file metadata
+      summary: Rewrite metadata.
       description: |-
         Change the file metadata entirely. In contrast to the PATCH method to
         on this endpoint, this method sets the new metadata and discards any
@@ -375,14 +367,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
+              $ref: '#/components/schemas/UnstructuredMetadata'
       responses:
         '200':
           description: Metadata successfully saved
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/UnstructuredMetadata'
         default:
           $ref: '#/components/responses/ErrorResponse'
 
@@ -395,7 +387,7 @@ paths:
         schema:
           type: integer
     get:
-      summary: List all queries of a workspace
+      summary: List queries.
       description: |-
         List all the queries that are associated with a workspace.
       tags:
@@ -406,28 +398,23 @@ paths:
         - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: List of queries
+          description: Paginated list of queries
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  data:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Query'
-                  page:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
-                  pages:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
-                  total:
-                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+                $ref: '#/components/schemas/PaginatedQueries'
         default:
           $ref: '#/components/responses/ErrorResponse'
     post:
-      summary: Prepare a query for a workspace
+      summary: Prepare a query.
       description: |-
-        Description
+        Queries in Quetzal are saved as a resource associated to a workspace.
+        This endpoint creates one and responds with a _see other_ status
+        referencing the query details endpoint.
+
+        Since the query details contains the query results as a
+        paginated list, this endpoint also accepts the normal pagination
+        parameters.
       tags:
         - data
       operationId: app.api.data.query.create
@@ -438,6 +425,8 @@ paths:
           required: true
           schema:
             type: integer
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
       requestBody:
         content:
           application/json:
@@ -469,9 +458,10 @@ paths:
         schema:
           type: integer
     get:
-      summary: Get details on query
+      summary: Query details.
       description: |-
-        Description.
+        The details of a query, which contains the query itself and a paginated
+        list of its results.
       tags:
         - data
       operationId: app.api.data.query.details
@@ -499,10 +489,11 @@ paths:
           type: string
           format: uuid
     get:
-      summary: Fetch file metadata or contents
+      summary: Fetch file.
       description: |-
-        Serves the file contents or its metadata, according to the accepted
-        content response header. In the case of metadata, this endpoint returns
+        This endpoint can be used to fetch the file contents or its metadata.
+        The type of response, data or metadata, depends on the `Accept`
+        request header. In the case of metadata, this endpoint returns
         the most recent metadata that has been committed.
       tags:
         - data
@@ -513,7 +504,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: '#/components/schemas/UnstructuredMetadata'
             application/octet-stream:
               schema:
                 type: string
@@ -541,11 +532,57 @@ components:
         minimum: 1
         maximum: 100000
         default: 100
+
   schemas:
+    Error:
+      type: object
+      description: |-
+        Error object.
+
+        An error object used on throughout the Quetzal API to describe errors
+        and its details following the problem description object defined in
+        [RFC-7807](https://tools.ietf.org/html/rfc7807).
+      properties:
+        type:
+          description: A URI reference that identifies the problem type.
+          type: string
+        title:
+          description: A short, human-readable summary of the problem type.
+          type: string
+        status:
+          description: The HTTP status code.
+          type: integer
+        detail:
+          description: A human-readable explanation specific to this occurrence of the problem.
+          type: string
+        instance:
+          description: A URI reference that identifies the specific occurrence of the problem.
+          type: string
+      example: |-
+        {
+          "type": "https://quetz.al/problems/bad-request",
+          "status": 400,
+          "title": "Bad request.",
+          "detail": "Incorrect query on metadata.",
+          "instance": "/data/workspaces/1234"
+        }
+    Token:
+      type: object
+      description: |-
+        Authentication token.
+
+        Object for a successful basic authentication, containing a token for
+        subsequent operations requiring a bearer token authentication.
+      properties:
+        token:
+          description: Token for bearer authentication.
+          type: string
+      required:
+        - token
     PaginationEnvelope:
       type: object
       title: Paginated response template type
-      description: >
+      description: |-
         An envelope for responses that need to be paginated. When a collection
         is accessed through a GET request, the results are sent in an object
         that informs on the pagination status (page, number of pages, number
@@ -555,7 +592,7 @@ components:
         - pages
         - page
         - total
-        - data
+        - results
       properties:
         pages:
           type: integer
@@ -569,7 +606,7 @@ components:
           type: integer
           description: Total number of items in the collection
           readOnly: true
-        data:
+        results:
           type: array
           description: Array of objects with the results of the current page
           readOnly: true
@@ -579,8 +616,8 @@ components:
         {
           "pages": 40,
           "page": 1,
-          "results": 120,
-          "data": [
+          "total": 120,
+          "results": [
             {"id": 1},
             {"id": 2},
             {"id": 3}
@@ -646,8 +683,8 @@ components:
       example: |-
         {
             "id": 1,
-            "status": "ready",
-            "creation_date": "'2019-28-02T12:23:55",
+            "status": "READY",
+            "creation_date": "'2019-02-28T09:37:05.618034+00:00",
             "owner": "username",
             "data_url": "gs://some_bucket_name"
             "name": "my_workspace",
@@ -658,21 +695,155 @@ components:
             },
             "temporary": false
         }
-    File:
-      title: File details type
-      description: File details
+    PaginatedWorkspaces:
+      title: Paginated list of workspaces.
+      description: |-
+        A paginated list of workspaces, using the PaginationEnvelope template.
       type: object
+      required:
+        - results
+        - page
+        - pages
+        - total
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workspace'
+        page:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+        pages:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+        total:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+      example: |-
+        {
+          "page": 1,
+          "pages": 10,
+          "total": 20,
+          "results": [
+            {
+                "id": 1,
+                "status": "READY",
+                "creation_date": "'2019-02-28T12:42:01.618034+00:00",
+                "owner": "username",
+                "data_url": "gs://some_bucket_name"
+                "name": "my_workspace",
+                "description": "Details on what this workspace is for",
+                "families": {
+                    "base": 100,
+                    "other": 14
+                },
+                "temporary": false
+            },
+            {
+                "id": 2,
+                "status": "INITIALIZING",
+                "creation_date": "'2019-03-02T23:01:39.323562+00:00",
+                "owner": "username",
+                "data_url": "gs://another_bucket_name"
+                "name": "my_other_workspace",
+                "description": "Details on what this workspace is for",
+                "families": {
+                    "base": 1,
+                    "fruits": 4
+                },
+                "temporary": false
+            }
+          ]
+        }
+
+    BaseMetadata:
+      title: Minimal metadata of a file.
+      description: |-
+        All files in Quetzal have metadata and this metadata can have whatever
+        structure the user requires. However, there is a minimal set of
+        metadata entries, under the "base" family. Quetzal API operations that
+        list files use this type to describe their results.
+      type: object
+      required:
+        - id
+        - url
+        - path
+        - filename
+        - checksum
+        - size
+        - date
       properties:
         id:
-          description: File ID
+          description: File identifier.
           type: string
           format: uuid
-        metadata:
-          description: File metadata
-          type: object
+        url:
+          description: File URL on Quetzal's data bucket.
+          type: string
+          format: url
+        path:
+          description: Path of the file.
+          type: string
+        filename:
+          description: File name. This does not include its path.
+          type: string
+        checksum:
+          description: MD5 checksum of the file in hexadecimal string.
+          type: string
+        size:
+          description: File size in bytes.
+          type: integer
+          minimum: 0
+        date:
+          description: Date when this file was uploaded to Quetzal.
+          type: string
+          # Note format: date-time is not used yet (Needs server implementation)
+      example: |-
+        {
+             "id": "311b4303-bd04-447e-ba71-377545ffa27a",
+             "url": "gs://quetzal-dev-data/311b4303-bd04-447e-ba71-377545ffa27a",
+             "date": "2019-02-08 15:55:35.236049+00:00",
+             "path": "study/p_001",
+             "size": 1048576,
+             "checksum": "f15bc88f4e5cea9b3c578591fd3e74fb",
+             "filename": "my_file.bin"
+        }
+
+    UnstructuredMetadata:
+      description: |-
+        Metadata of a file without a specific structure.
+
+        All files in Quetzal have metadata and this metadata can have whatever
+        structure the user requires. This schema is an object without any
+        requirements.
+      type: object
+
+    PaginatedFiles:
+      title: Paginated list of files.
+      description: |-
+        A paginated list of files, using the PaginationEnvelope template.
+        Only the base metadata of the file is included in the results.
+      type: object
+      required:
+        - results
+        - page
+        - pages
+        - total
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BaseMetadata'
+        page:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+        pages:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+        total:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+
     Query:
       title: Metadata query type
-      description: A query applied to the views provided by a workspace.
+      description: |-
+        A query applied to the views provided by a workspace. In addition of
+        the query details elements, this object is also an extension to the
+        pagination envelope object
       required:
         - dialect
         - query
@@ -694,26 +865,26 @@ components:
           description: Query in code as needed by the dialect
           type: string
         results:
-          description: Query results
-          type: object
-          properties:
-            data:
-              type: array
-              items:
-                type: object
-            page:
-              $ref: '#/components/schemas/PaginationEnvelope/properties/page'
-            pages:
-              $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
-            total:
-              $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+          type: array
+          items:
+            $ref: '#/components/schemas/UnstructuredMetadata'
           readOnly: true
+        page:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+        pages:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+        total:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+
       example: |-
         {
           "id": 123,
           "workspace_id": 456,
           "dialect": "postgresql",
           "query": "SELECT * FROM base",
+          "page": 1,
+          "pages": 10,
+          "total": 20,
           "results": [
             {
               "id": "00000000-0000-4000-8000-000000000000",
@@ -725,30 +896,39 @@ components:
             }
            ]
         }
+
+    PaginatedQueries:
+      title: Paginated list of queries.
+      description: |-
+        A paginated list of queries, using the PaginationEnvelope template.
+        The results of the queries should not be included, these are only shown
+        on the query details endpoint.
+      type: object
+      required:
+        - results
+        - page
+        - pages
+        - total
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Query'
+        page:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+        pages:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+        total:
+          $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+
   responses:
-    # Error response that implements RFC-7807
     ErrorResponse:
-      description: Problem details error object.
+      description: Problem details as a RFC-7807 problem description object.
       content:
         application/problem+json:
           schema:
-            type: object
-            properties:
-              type:
-                description: A URI reference that identifies the problem type.
-                type: string
-              title:
-                description: A short, human-readable summary of the problem type.
-                type: string
-              status:
-                description: The HTTP status code.
-                type: integer
-              detail:
-                description: A human-readable explanation specific to this occurrence of the problem.
-                type: string
-              instance:
-                description: A URI reference that identifies the specific occurrence of the problem.
-                type: string
+            $ref: '#/components/schemas/Error'
+
   securitySchemes:
     basic:
       type: http
