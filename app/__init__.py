@@ -74,6 +74,10 @@ def create_app(config_name=None):
     connexion_app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True,
                           validator_map={'response': CustomResponseValidator})
 
+    # Other extensions
+    from .redoc import bp as redoc_bp
+    flask_app.register_blueprint(redoc_bp)
+
     # Principals
     principal.init_app(flask_app)
     identity_loaded.connect_via(flask_app)(load_identity)
