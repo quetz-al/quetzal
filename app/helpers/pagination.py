@@ -28,7 +28,7 @@ class CustomPagination(Pagination):
             'page': self.page,
             'pages': self.pages,
             'total': self.total,
-            'data': [self.serializer(i) for i in self.items],
+            'results': [self.serializer(i) for i in self.items],
         }
 
     def prev(self, error_out=False):

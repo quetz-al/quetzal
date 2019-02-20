@@ -42,18 +42,15 @@ paths:
         This bearer token can be used on the other endpoints of the API.
       tags:
         - authentication
-      operationId: app.api.auth.get_token
+      operationId: auth.get_token
+      x-openapi-router-controller: app.api.router
       security:
         - basic: []
       responses:
         '200':
-          description: 'Authentication succeeded.'
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Token'
+          $ref: '#/components/responses/AuthenticationSuccess'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /auth/logout:
     post:
@@ -62,13 +59,13 @@ paths:
         Logout by invalidating the existing token.
       tags:
         - authentication
-      operationId: app.api.auth.logout
-      x-pepe: hello
+      operationId: auth.logout
+      x-openapi-router-controller: app.api.router
       responses:
         '204':
           description: Logout successful
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   # Data endpoints (workspaces)
   /data/workspaces/:
@@ -79,7 +76,8 @@ paths:
        their name, owner or whether they have been deleted.
       tags:
         - data
-      operationId: app.api.data.workspace.fetch
+      operationId: workspace.fetch
+      x-openapi-router-controller: app.api.router
       parameters:
       - $ref: '#/components/parameters/pageOffset'
       - $ref: '#/components/parameters/pageSize'
@@ -102,13 +100,9 @@ paths:
           type: boolean
       responses:
         '200':
-          description: Paginated list of workspaces.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedWorkspaces'
+          $ref: '#/components/responses/PaginatedWorkspaces'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
     post:
       summary: Create workspace.
       description: |-
@@ -117,7 +111,8 @@ paths:
         tasks to initialize Cloud resources.
       tags:
         - data
-      operationId: app.api.data.workspace.create
+      operationId: workspace.create
+      x-openapi-router-controller: app.api.router
       requestBody:
         content:
           application/json:
@@ -126,13 +121,9 @@ paths:
         required: true
       responses:
         '201':
-          description: Details of the new workspace.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Workspace'
+          $ref: '#/components/responses/WorkspaceDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}:
     parameters:
@@ -148,16 +139,13 @@ paths:
         Obtain all information of a workspace.
       tags:
         - data
-      operationId: app.api.data.workspace.details
+      operationId: workspace.details
+      x-openapi-router-controller: app.api.router
       responses:
         '200':
-          description: Workspace details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Workspace'
+          $ref: '#/components/responses/WorkspaceDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
     delete:
       summary: Delete workspace.
       description: |-
@@ -172,12 +160,13 @@ paths:
         using a GET instead of a DELETE.
       tags:
         - data
-      operationId: app.api.data.workspace.delete
+      operationId: workspace.delete
+      x-openapi-router-controller: app.api.router
       responses:
         '202':
           description: Workspace marked for deletion
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}/commit:
     put:
@@ -188,7 +177,8 @@ paths:
         becoming available to all users. Metadata versions will be incremented.
       tags:
         - data
-      operationId: app.api.data.workspace.commit
+      operationId: workspace.commit
+      x-openapi-router-controller: app.api.router
       parameters:
         - name: wid
           in: path
@@ -198,13 +188,9 @@ paths:
             type: integer
       responses:
         '202':
-          description: Successfully requested a workspace commit operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Workspace'
+          $ref: '#/components/responses/WorkspaceDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}/scan:
     put:
@@ -215,7 +201,8 @@ paths:
         latest modifications of the metadata.
       tags:
         - data
-      operationId: app.api.data.workspace.scan
+      operationId: workspace.scan
+      x-openapi-router-controller: app.api.router
       parameters:
         - name: wid
           in: path
@@ -225,13 +212,9 @@ paths:
             type: integer
       responses:
         '202':
-          description: Successfully requested a workspace scan operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Workspace'
+          $ref: '#/components/responses/WorkspaceDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}/files/:
     parameters:
@@ -249,19 +232,16 @@ paths:
         included.
       tags:
         - data
-      operationId: app.api.data.file.fetch
+      operationId: workspace_file.fetch
+      x-openapi-router-controller: app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: Paginated list of files in this workspace.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedFiles'
+          $ref: '#/components/responses/PaginatedFiles'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
     post:
       summary: Upload file.
       description: |-
@@ -269,7 +249,8 @@ paths:
         The file will not have any additional metadata associated to it.
       tags:
         - data
-      operationId: app.api.data.file.create
+      operationId: workspace_file.create
+      x-openapi-router-controller: app.api.router
       requestBody:
         content:
           # There are some limitations of the wsgi server and connexion that
@@ -283,13 +264,9 @@ paths:
                   format: binary
       responses:
         '201':
-          description: File uploaded successfully
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BaseMetadata'
+          $ref: '#/components/responses/FileDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}/files/{uuid}:
     parameters:
@@ -315,20 +292,13 @@ paths:
         introduced in this workspace.
       tags:
         - data
-      operationId: app.api.data.file.details_w
+      operationId: workspace_file.details
+      x-openapi-router-controller: app.api.router
       responses:
         '200':
-          description: File contents or metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnstructuredMetadata'
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+          '$ref': '#/components/responses/FileContentsOrMetadata'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
     patch:
       summary: Modify metadata.
       description: |-
@@ -339,7 +309,8 @@ paths:
         PUT method on this endpoint.
       tags:
         - data
-      operationId: app.api.data.file.update_metadata
+      operationId: workspace_file.update_metadata
+      x-openapi-router-controller: app.api.router
       requestBody:
         content:
           application/json:
@@ -347,13 +318,9 @@ paths:
               $ref: '#/components/schemas/UnstructuredMetadata'
       responses:
         '200':
-          description: Metadata successfully updated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnstructuredMetadata'
+          $ref: '#/components/responses/FileDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
     put:
       summary: Rewrite metadata.
       description: |-
@@ -362,7 +329,8 @@ paths:
         previous metadata that was defined before.
       tags:
         - data
-      operationId: app.api.data.file.set_metadata
+      operationId: workspace_file.set_metadata
+      x-openapi-router-controller: app.api.router
       requestBody:
         content:
           application/json:
@@ -370,13 +338,9 @@ paths:
               $ref: '#/components/schemas/UnstructuredMetadata'
       responses:
         '200':
-          description: Metadata successfully saved
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnstructuredMetadata'
+          $ref: '#/components/responses/FileDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}/queries/:
     parameters:
@@ -392,19 +356,16 @@ paths:
         List all the queries that are associated with a workspace.
       tags:
         - data
-      operationId: app.api.data.query.fetch
+      operationId: workspace_query.fetch
+      x-openapi-router-controller: app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: Paginated list of queries
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PaginatedQueries'
+          $ref: '#/components/responses/PaginatedQueries'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
     post:
       summary: Prepare a query.
       description: |-
@@ -417,7 +378,8 @@ paths:
         parameters.
       tags:
         - data
-      operationId: app.api.data.query.create
+      operationId: workspace_query.create
+      x-openapi-router-controller: app.api.router
       parameters:
         - name: wid
           in: path
@@ -435,13 +397,9 @@ paths:
         required: true
       responses:
         '303':
-          description: Query results.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Query'
+          $ref: '#/components/responses/QueryDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   /data/workspaces/{wid}/queries/{qid}:
     parameters:
@@ -464,19 +422,16 @@ paths:
         list of its results.
       tags:
         - data
-      operationId: app.api.data.query.details
+      operationId: workspace_query.details
+      x-openapi-router-controller: app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
       responses:
         '200':
-          description: Query details and results
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Query'
+          $ref: '#/components/responses/QueryDetails'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
   # Data endpoints (global, committed files)
   /data/files/{uuid}:
@@ -497,20 +452,13 @@ paths:
         the most recent metadata that has been committed.
       tags:
         - data
-      operationId: app.api.data.file.details
+      operationId: public.file_details
+      x-openapi-router-controller: app.api.router
       responses:
         '200':
-          description: File contents or metadata
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UnstructuredMetadata'
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
+          $ref: '#/components/responses/FileContentsOrMetadata'
         default:
-          $ref: '#/components/responses/ErrorResponse'
+          $ref: '#/components/responses/Error'
 
 components:
   parameters:
@@ -563,8 +511,8 @@ components:
           "type": "https://quetz.al/problems/bad-request",
           "status": 400,
           "title": "Bad request.",
-          "detail": "Incorrect query on metadata.",
-          "instance": "/data/workspaces/1234"
+          "detail": "Some details on the error.",
+          "instance": "/path/id"
         }
     Token:
       type: object
@@ -581,8 +529,9 @@ components:
         - token
     PaginationEnvelope:
       type: object
-      title: Paginated response template type
       description: |-
+        Paginated response template type.
+
         An envelope for responses that need to be paginated. When a collection
         is accessed through a GET request, the results are sent in an object
         that informs on the pagination status (page, number of pages, number
@@ -624,8 +573,7 @@ components:
           ]
         }
     Workspace:
-      title: Workspace details type
-      description: Workspace details
+      description: Workspace details type.
       required:
         - name
         - description
@@ -696,7 +644,6 @@ components:
             "temporary": false
         }
     PaginatedWorkspaces:
-      title: Paginated list of workspaces.
       description: |-
         A paginated list of workspaces, using the PaginationEnvelope template.
       type: object
@@ -754,8 +701,9 @@ components:
         }
 
     BaseMetadata:
-      title: Minimal metadata of a file.
       description: |-
+        Minimal metadata of a file.
+
         All files in Quetzal have metadata and this metadata can have whatever
         structure the user requires. However, there is a minimal set of
         metadata entries, under the "base" family. Quetzal API operations that
@@ -816,7 +764,6 @@ components:
       type: object
 
     PaginatedFiles:
-      title: Paginated list of files.
       description: |-
         A paginated list of files, using the PaginationEnvelope template.
         Only the base metadata of the file is included in the results.
@@ -839,7 +786,6 @@ components:
           $ref: '#/components/schemas/PaginationEnvelope/properties/total'
 
     Query:
-      title: Metadata query type
       description: |-
         A query applied to the views provided by a workspace. In addition of
         the query details elements, this object is also an extension to the
@@ -898,7 +844,6 @@ components:
         }
 
     PaginatedQueries:
-      title: Paginated list of queries.
       description: |-
         A paginated list of queries, using the PaginationEnvelope template.
         The results of the queries should not be included, these are only shown
@@ -922,12 +867,64 @@ components:
           $ref: '#/components/schemas/PaginationEnvelope/properties/total'
 
   responses:
-    ErrorResponse:
+    Error:
       description: Problem details as a RFC-7807 problem description object.
       content:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/Error'
+    AuthenticationSuccess:
+      description: Authentication succeeded.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Token'
+    PaginatedWorkspaces:
+      description: Paginated list of workspaces.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaginatedWorkspaces'
+    WorkspaceDetails:
+      description: Details of a workspace.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Workspace'
+    PaginatedFiles:
+      description: Paginated list of files.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaginatedFiles'
+    FileDetails:
+      description: File details.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BaseMetadata'
+    FileContentsOrMetadata:
+      description: File contents or metadata.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/UnstructuredMetadata'
+        application/octet-stream:
+          schema:
+            type: string
+            format: binary
+    PaginatedQueries:
+      description: Paginated list of queries
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PaginatedQueries'
+    QueryDetails:
+      description: Query details, including its results.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Query'
 
   securitySchemes:
     basic:
