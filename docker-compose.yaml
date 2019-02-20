@@ -50,6 +50,7 @@ services:
       DB_DATABASE: quetzal
       USE_GUNICORN: 1
       QUETZAL_BACKGROUND_JOBS: 1
+      QUETZAL_ADMIN_MAIL: quetzal.api@gmail.com
       # KOMBU_LOG_CONNECTION: 1  # Useful to debug kombu bug
     volumes:
       # Setup a volume for development: it allows the web container to have the
