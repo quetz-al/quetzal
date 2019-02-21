@@ -65,11 +65,6 @@ def fetch(*, user):
         # by default, don't list the deleted workspaces
         query_set = query_set.filter(Workspace._state != WorkspaceState.DELETED)
 
-    if query_args and query_set.count() == 0:
-        raise APIException(status=codes.not_found,
-                           title='Not found',
-                           detail='No workspace match the selection')
-
     # TODO: provide an order_by on the query parameters
     # TODO: consider permissions here and how it plays with owner in query_args
     query_set = query_set.order_by(Workspace.id.desc())
