@@ -2,7 +2,7 @@ Flask
 werkzeug
 Flask-Login
 Flask-Principal
-connexion[swagger-ui]
+connexion
 celery
 kombu
 Flask-Celery-Helper

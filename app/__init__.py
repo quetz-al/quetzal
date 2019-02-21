@@ -50,7 +50,7 @@ def create_app(config_name=None):
 
     # Use connexion to create and configure the initial application, but
     # we will use the Flask application to configure the rest
-    connexion_app = connexion.App(__name__)
+    connexion_app = connexion.App(__name__, options={"swagger_ui": False})
     flask_app = connexion_app.app
 
     # Update Flask configuration
