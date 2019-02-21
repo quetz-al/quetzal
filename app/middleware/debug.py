@@ -29,10 +29,16 @@ _MAX_DATA_LENGTH_BYTES = 256
 
 def debug_request():
     # Quit early if the logging level is not low enough
-    if logger.getEffectiveLevel() > logging.DEBUG:
+    if logger.getEffectiveLevel() > logging.INFO:
         return
 
     from flask import request
+    logger.info('%s %s : working...', request.method, request.url)
+
+    # Quit early if the logging level is not low enough
+    if logger.getEffectiveLevel() > logging.DEBUG:
+        return
+
     headers_str = '\n\t'.join(f'{k!r}: {v!r}' for k, v in request.headers)
     environ_str = '\n\t'.join(f'{k!r}: {v!r}' for k, v in request.environ.items())
     truncated = ''
@@ -49,6 +55,13 @@ def debug_request():
 
 
 def debug_response(response):
+    # Quit early if the logging level is not low enough
+    if logger.getEffectiveLevel() > logging.INFO:
+        return
+
+    from flask import request
+    logger.info('%s %s : Response %s', request.method, request.url, response.status)
+
     # Quit early if the logging level is not low enough
     if logger.getEffectiveLevel() > logging.DEBUG:
         return response

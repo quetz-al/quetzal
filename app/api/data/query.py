@@ -1,5 +1,6 @@
 import logging
 
+from connexion import request
 from flask import current_app, url_for
 from requests import codes
 from psycopg2 import ProgrammingError
@@ -53,9 +54,15 @@ def create(*, wid, body, user, token_info=None):
     db.session.add(query)
     db.session.commit()
 
+    query_args = request.args
+    url_for_kws = {}
+    if 'per_page' in query_args:
+        url_for_kws['per_page'] = query_args['per_page']
+    if 'page' in query_args:
+        url_for_kws['page'] = query_args['page']
     response_headers = {
-        'Location': url_for('.app_api_data_query_details',
-                            wid=workspace.id, qid=query.id)
+        'Location': url_for('/api/v1.app_api_router_workspace_query_details',
+                            wid=workspace.id, qid=query.id, **url_for_kws)
     }
 
     return query.to_dict(), codes.see_other, response_headers
@@ -98,8 +105,7 @@ def details(*, wid, qid, user, token_info=None):
                                detail=f'Query could not be executed due to error:\n{ex!s}')
 
         pager = paginate(cursor)
-        response = query.to_dict()
-        response['results'] = pager.response_object()
+        response = query.to_dict(pager.response_object())
         return response, codes.ok
 
 

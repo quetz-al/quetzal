@@ -85,12 +85,10 @@ def create(*, wid, file_content=None, user, token_info=None):
     db.session.add(meta)
     db.session.commit()
 
-    return meta.to_dict(), codes.created
+    return meta.json, codes.created
 
 
 def update_metadata(*, wid, uuid, body):
-    # TODO: maybe change spec to {"metadata": object}
-
     workspace = Workspace.get_or_404(wid)
 
     if not WriteWorkspacePermission(wid).can():
@@ -111,7 +109,7 @@ def update_metadata(*, wid, uuid, body):
     #   the "path" entry
     # * The "id" entry cannot be changed for any family
     # * The family must have been declared on the creation of the workspace
-    for name, content in body.items():
+    for name, content in body['metadata'].items():
         # Verification: base metadata
         if name == 'base':
             if content.keys() - {'path', 'filename'}:
@@ -159,7 +157,7 @@ def update_metadata(*, wid, uuid, body):
     # Save changes
     db.session.commit()
 
-    return meta, codes.ok
+    return {"id": uuid, "metadata": meta}, codes.ok
 
 
 def set_metadata(*, wid, uuid, body):

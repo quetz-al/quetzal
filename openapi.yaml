@@ -5,14 +5,51 @@ info:
   title: Quetzalcoatl API
   version: 0.1.0
   description: |
-    Quetzalcoatl: an API to manage data files and their associated metadata.
+    Quetzal (short for Quetzalcoatl): an API to manage data files and their
+    associated metadata.
 
-    TODO: extensive documentation in common markdown
+    # General documentation
+
+    ...
+
+    ## Concepts
+
+    * File
+    * Metadata
+      Versioning too
+    * Families
+    * Workspace
+      Description, workspace states, data_url, etc.
+    * Workspace views
+    * Queries
+
+    # Errors
+
+    Quetzal uses standard HTTP error codes to indicate success or failure of its
+    operations. The body of the response follows
+    [RFC-7807](https://tools.ietf.org/html/rfc7807) to provide details on an
+    error. For example:
+
+    ```
+    {
+      "type": "https://quetz.al/problems/some-name",
+      "title": "Bad request.",
+      "status": 400,
+      "detail": "Incorrect foo due to missing bar.",
+      "instance": "/some_path/some_id"
+    }
+    ```
+
+    # Versioning
+
+    API version | Changes
+    ------------|---------
+    0.1.0       | [API changes](https://quetz.al/docs/changelog#v0-1-0)
 
   termsOfService: https://quetz.al/terms  # TODO: activate this URL
   contact:
     name: API support
-    url: https://quetz.al/support         # TODO: activate this URL
+    url: https://quetz.al                 # TODO: activate this URL
     email: support@quetz.al               # TODO: activate this address
   license:
     name: BSD-3-Clause
@@ -76,6 +113,8 @@ paths:
        their name, owner or whether they have been deleted.
       tags:
         - data
+        - public
+        - workspace
       operationId: workspace.fetch
       x-openapi-router-controller: app.api.router
       parameters:
@@ -111,6 +150,7 @@ paths:
         tasks to initialize Cloud resources.
       tags:
         - data
+        - public
       operationId: workspace.create
       x-openapi-router-controller: app.api.router
       requestBody:
@@ -139,6 +179,7 @@ paths:
         Obtain all information of a workspace.
       tags:
         - data
+        - workspace
       operationId: workspace.details
       x-openapi-router-controller: app.api.router
       responses:
@@ -177,6 +218,7 @@ paths:
         becoming available to all users. Metadata versions will be incremented.
       tags:
         - data
+        - workspace
       operationId: workspace.commit
       x-openapi-router-controller: app.api.router
       parameters:
@@ -201,6 +243,7 @@ paths:
         latest modifications of the metadata.
       tags:
         - data
+        - workspace
       operationId: workspace.scan
       x-openapi-router-controller: app.api.router
       parameters:
@@ -232,6 +275,7 @@ paths:
         included.
       tags:
         - data
+        - workspace
       operationId: workspace_file.fetch
       x-openapi-router-controller: app.api.router
       parameters:
@@ -249,6 +293,7 @@ paths:
         The file will not have any additional metadata associated to it.
       tags:
         - data
+        - workspace
       operationId: workspace_file.create
       x-openapi-router-controller: app.api.router
       requestBody:
@@ -292,11 +337,12 @@ paths:
         introduced in this workspace.
       tags:
         - data
+        - workspace
       operationId: workspace_file.details
       x-openapi-router-controller: app.api.router
       responses:
         '200':
-          '$ref': '#/components/responses/FileContentsOrMetadata'
+          $ref: '#/components/responses/FileContentsOrMetadata'
         default:
           $ref: '#/components/responses/Error'
     patch:
@@ -309,16 +355,17 @@ paths:
         PUT method on this endpoint.
       tags:
         - data
+        - workspace
       operationId: workspace_file.update_metadata
       x-openapi-router-controller: app.api.router
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UnstructuredMetadata'
+              $ref: '#/components/schemas/MetadataByFamily'
       responses:
         '200':
-          $ref: '#/components/responses/FileDetails'
+          $ref: '#/components/responses/FileMetadata'
         default:
           $ref: '#/components/responses/Error'
     put:
@@ -329,16 +376,17 @@ paths:
         previous metadata that was defined before.
       tags:
         - data
+        - workspace
       operationId: workspace_file.set_metadata
       x-openapi-router-controller: app.api.router
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UnstructuredMetadata'
+              $ref: '#/components/schemas/MetadataByFamily'
       responses:
         '200':
-          $ref: '#/components/responses/FileDetails'
+          $ref: '#/components/responses/FileMetadata'
         default:
           $ref: '#/components/responses/Error'
 
@@ -354,8 +402,12 @@ paths:
       summary: List queries.
       description: |-
         List all the queries that are associated with a workspace.
+        Note that each query listed here is shown _without_ its results, for
+        brevity.
       tags:
         - data
+        - workspace
+        - query
       operationId: workspace_query.fetch
       x-openapi-router-controller: app.api.router
       parameters:
@@ -378,6 +430,8 @@ paths:
         parameters.
       tags:
         - data
+        - workspace
+        - query
       operationId: workspace_query.create
       x-openapi-router-controller: app.api.router
       parameters:
@@ -396,6 +450,8 @@ paths:
               $ref: '#/components/schemas/Query'
         required: true
       responses:
+        '201':
+          $ref: '#/components/responses/QueryDetails'
         '303':
           $ref: '#/components/responses/QueryDetails'
         default:
@@ -422,6 +478,8 @@ paths:
         list of its results.
       tags:
         - data
+        - workspace
+        - query
       operationId: workspace_query.details
       x-openapi-router-controller: app.api.router
       parameters:
@@ -452,6 +510,7 @@ paths:
         the most recent metadata that has been committed.
       tags:
         - data
+        - public
       operationId: public.file_details
       x-openapi-router-controller: app.api.router
       responses:
@@ -494,26 +553,23 @@ components:
         type:
           description: A URI reference that identifies the problem type.
           type: string
+          example: https://quetz.al/problems/some-name
         title:
           description: A short, human-readable summary of the problem type.
           type: string
+          example: Bad request.
         status:
           description: The HTTP status code.
           type: integer
+          example: 400
         detail:
           description: A human-readable explanation specific to this occurrence of the problem.
           type: string
+          example: Incorrect foo due to missing bar.
         instance:
           description: A URI reference that identifies the specific occurrence of the problem.
           type: string
-      example: |-
-        {
-          "type": "https://quetz.al/problems/bad-request",
-          "status": 400,
-          "title": "Bad request.",
-          "detail": "Some details on the error.",
-          "instance": "/path/id"
-        }
+          example: /some_path/some_id
     Token:
       type: object
       description: |-
@@ -525,6 +581,7 @@ components:
         token:
           description: Token for bearer authentication.
           type: string
+          example: wmBXR7vNj8tO+vSCdlqfJSJNvNAtyXr7
       required:
         - token
     PaginationEnvelope:
@@ -543,35 +600,31 @@ components:
         - total
         - results
       properties:
-        pages:
-          type: integer
-          description: Number of pages available in the collection
-          readOnly: true
         page:
           type: integer
           description: Current page number
           readOnly: true
+          example: 1
+        pages:
+          type: integer
+          description: Number of pages available in the collection
+          readOnly: true
+          example: 3
         total:
           type: integer
           description: Total number of items in the collection
           readOnly: true
+          example: 3
         results:
           type: array
           description: Array of objects with the results of the current page
           readOnly: true
           items:
             type: object
-      example: |-
-        {
-          "pages": 40,
-          "page": 1,
-          "total": 120,
-          "results": [
-            {"id": 1},
-            {"id": 2},
-            {"id": 3}
-          ]
-        }
+          example:
+            - id: 1
+            - id: 2
+            - id: 3
     Workspace:
       description: Workspace details type.
       required:
@@ -584,6 +637,7 @@ components:
           description: Workspace ID
           type: integer
           readOnly: true
+          example: 1
         status:
           description: Workspace status
           enum:
@@ -597,108 +651,67 @@ components:
             - CONFLICT
             - DELETED
           readOnly: true
+          example: READY
         creation_date:
           format: date-time
           description: Date when the workspace was created
           type: string
           readOnly: true
+          example: 2019-02-28T09:37:05.618034+00:00
         owner:
           description: User who owns this workpace
           type: string
           readOnly: true
+          example: username
         data_url:
           description: URL of a remote storage location for files used in this workspace
           type: string
           readOnly: true
           nullable: true
+          example: gs://some_bucket_name
         name:
           description: Name of the workspace
           type: string
+          example: my_workspace
         description:
           description: Descriptive text of the purpose of this workspace
           type: string
+          example: Details on the purpose of this workspace.
         families:
           description: |-
             Families and corresponding versions used in this workspace.
             This property is a object whose keys are family names and values are
             integers.
           type: object
+          example:
+            base: 30
+            other: 24
         temporary:
           description: |-
             Whether this workspace is temporary or not. Temporary workspaces
             are automatically deleted after some time.
           type: boolean
-      example: |-
-        {
-            "id": 1,
-            "status": "READY",
-            "creation_date": "'2019-02-28T09:37:05.618034+00:00",
-            "owner": "username",
-            "data_url": "gs://some_bucket_name"
-            "name": "my_workspace",
-            "description": "Details on what this workspace is for",
-            "families": {
-                "base": 100,
-                "other": 14
-            },
-            "temporary": false
-        }
+          example: false
     PaginatedWorkspaces:
       description: |-
         A paginated list of workspaces, using the PaginationEnvelope template.
       type: object
       required:
-        - results
         - page
         - pages
         - total
+        - results
       properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Workspace'
         page:
           $ref: '#/components/schemas/PaginationEnvelope/properties/page'
         pages:
           $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
         total:
           $ref: '#/components/schemas/PaginationEnvelope/properties/total'
-      example: |-
-        {
-          "page": 1,
-          "pages": 10,
-          "total": 20,
-          "results": [
-            {
-                "id": 1,
-                "status": "READY",
-                "creation_date": "'2019-02-28T12:42:01.618034+00:00",
-                "owner": "username",
-                "data_url": "gs://some_bucket_name"
-                "name": "my_workspace",
-                "description": "Details on what this workspace is for",
-                "families": {
-                    "base": 100,
-                    "other": 14
-                },
-                "temporary": false
-            },
-            {
-                "id": 2,
-                "status": "INITIALIZING",
-                "creation_date": "'2019-03-02T23:01:39.323562+00:00",
-                "owner": "username",
-                "data_url": "gs://another_bucket_name"
-                "name": "my_other_workspace",
-                "description": "Details on what this workspace is for",
-                "families": {
-                    "base": 1,
-                    "fruits": 4
-                },
-                "temporary": false
-            }
-          ]
-        }
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workspace'
 
     BaseMetadata:
       description: |-
@@ -722,37 +735,33 @@ components:
           description: File identifier.
           type: string
           format: uuid
+          example: d06861a5-a14c-449c-bc9a-8f547186286a
         url:
           description: File URL on Quetzal's data bucket.
           type: string
           format: url
+          example: gs://data-bucket/d06861a5-a14c-449c-bc9a-8f547186286a
         path:
           description: Path of the file.
           type: string
+          example: study/sub_001
         filename:
           description: File name. This does not include its path.
           type: string
+          example: ecg_data.bin
         checksum:
           description: MD5 checksum of the file in hexadecimal string.
           type: string
+          example: f15bc88f4e5cea9b3c578591fd3e74fb
         size:
           description: File size in bytes.
           type: integer
           minimum: 0
-        date:
+          example: 1024
+        date: # Note format: date-time is not used yet (Needs server implementation)
           description: Date when this file was uploaded to Quetzal.
           type: string
-          # Note format: date-time is not used yet (Needs server implementation)
-      example: |-
-        {
-             "id": "311b4303-bd04-447e-ba71-377545ffa27a",
-             "url": "gs://quetzal-dev-data/311b4303-bd04-447e-ba71-377545ffa27a",
-             "date": "2019-02-08 15:55:35.236049+00:00",
-             "path": "study/p_001",
-             "size": 1048576,
-             "checksum": "f15bc88f4e5cea9b3c578591fd3e74fb",
-             "filename": "my_file.bin"
-        }
+          example: 2019-02-08 15:55:35.236049+00:00
 
     UnstructuredMetadata:
       description: |-
@@ -762,6 +771,40 @@ components:
         structure the user requires. This schema is an object without any
         requirements.
       type: object
+      example:
+        id: 311b4303-bd04-447e-ba71-377545ffa27a
+        foo: var
+        number: 1.23
+        arr: [1, 2, 3]
+        obj:
+          key: value
+
+    MetadataByFamily:
+      description: |-
+        Input type for metadata modifications.
+      type: object
+      required:
+        - id
+        - metadata
+      properties:
+        id:
+          description: File identifier.
+          type: string
+          format: uuid
+          example: d06861a5-a14c-449c-bc9a-8f547186286a
+          readOnly: true
+        metadata:
+          type: object
+          description: |-
+            Metadata organized by dictionaries where the key is the family name
+            and the contents is a dictionary with key:value pairs.
+          example:
+            base:
+              id: 311b4303-bd04-447e-ba71-377545ffa27a
+              path: study/session/subject
+            other:
+              foo: bar
+              number: 1.2
 
     PaginatedFiles:
       description: |-
@@ -769,21 +812,21 @@ components:
         Only the base metadata of the file is included in the results.
       type: object
       required:
-        - results
         - page
         - pages
         - total
+        - results
       properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/BaseMetadata'
         page:
           $ref: '#/components/schemas/PaginationEnvelope/properties/page'
         pages:
           $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
         total:
           $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/BaseMetadata'
 
     Query:
       description: |-
@@ -791,6 +834,7 @@ components:
         the query details elements, this object is also an extension to the
         pagination envelope object
       required:
+        - id
         - dialect
         - query
       type: object
@@ -799,49 +843,61 @@ components:
           description: Query identifier
           type: integer
           readOnly: true
+          example: 123
         workspace_id:
           description: Workspace identifier where the query operates
           type: integer
           readOnly: true
+          example: 1
         dialect:
           description: Dialect of query
           enum:
             - postgresql
+          example: postgresql
         query:
           description: Query in code as needed by the dialect
           type: string
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/UnstructuredMetadata'
-          readOnly: true
+          example: SELECT * FROM base
         page:
           $ref: '#/components/schemas/PaginationEnvelope/properties/page'
         pages:
           $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
         total:
           $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/UnstructuredMetadata'
+          readOnly: true
 
-      example: |-
-        {
-          "id": 123,
-          "workspace_id": 456,
-          "dialect": "postgresql",
-          "query": "SELECT * FROM base",
-          "page": 1,
-          "pages": 10,
-          "total": 20,
-          "results": [
-            {
-              "id": "00000000-0000-4000-8000-000000000000",
-              "key": "value"
-            },
-            {
-              "id": "00000000-0000-4000-8000-000000000001",
-              "key": "other_value"
-            }
-           ]
-        }
+    QueryNoResults:
+      description: |-
+        An object like the Query object, but without its results.
+      required:
+        - id
+        - dialect
+        - query
+      type: object
+      properties:
+        id:
+          description: Query identifier
+          type: integer
+          readOnly: true
+          example: 123
+        workspace_id:
+          description: Workspace identifier where the query operates
+          type: integer
+          readOnly: true
+          example: 1
+        dialect:
+          description: Dialect of query
+          enum:
+            - postgresql
+          example: postgresql
+        query:
+          description: Query in code as needed by the dialect
+          type: string
+          example: SELECT * FROM base
 
     PaginatedQueries:
       description: |-
@@ -850,21 +906,21 @@ components:
         on the query details endpoint.
       type: object
       required:
-        - results
         - page
         - pages
         - total
+        - results
       properties:
-        results:
-          type: array
-          items:
-            $ref: '#/components/schemas/Query'
         page:
           $ref: '#/components/schemas/PaginationEnvelope/properties/page'
         pages:
           $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
         total:
           $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryNoResults'
 
   responses:
     Error:
@@ -903,12 +959,18 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/BaseMetadata'
+    FileMetadata:
+      description: File details with all its metadata.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MetadataByFamily'
     FileContentsOrMetadata:
       description: File contents or metadata.
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/UnstructuredMetadata'
+            $ref: '#/components/schemas/MetadataByFamily'
         application/octet-stream:
           schema:
             type: string
@@ -930,10 +992,12 @@ components:
     basic:
       type: http
       scheme: basic
+      description: Basic HTTP authentication. Used only to retrieve a token.
       x-basicInfoFunc: app.api.auth.check_basic
     bearer:
       type: http
       scheme: bearer
+      description: Access token authorization. Used for all API operations.
       x-bearerInfoFunc: app.api.auth.check_bearer
 
 security:
@@ -941,6 +1005,22 @@ security:
 
 tags:
   - name: authentication
-    description: Authentication operations
+    description: Authentication operations.
   - name: data
-    description: Data operations
+    description: Data operations.
+  - name: workspace
+    description: Operations on resources associated with a workspace.
+  - name: public
+    description: Operations on public resources.
+  - name: query
+    description: Metadata query operations.
+
+x-tagGroups:
+  - name: Authentication API
+    tags:
+      - authentication
+  - name: Data API
+    tags:
+      - public
+      - workspace
+      - query

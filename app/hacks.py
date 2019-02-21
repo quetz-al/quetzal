@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 class CustomResponseValidator(ResponseValidator):
 
     def validate_response_with_request(self, request, data, status_code, headers, url):
-        details_op = self.operation.operation_id in ('app.api.data.file.details',
-                                                     'app.api.data.file.details_w')
+        logger.warning(self.operation.operation_id)
+        details_op = self.operation.operation_id in ('app.api.router.workspace_file.details',
+                                                     'app.api.router.public.file_details')
         accept_octet_header = (request.headers.get('accept', '') == 'application/octet-stream')
         if details_op and accept_octet_header:
             logging.debug('Circumventing validation for octet-stream')

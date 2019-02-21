@@ -437,7 +437,7 @@ class MetadataQuery(db.Model):
             'query': self.code,
         }
         if results is not None:
-            _dict['results'] = results
+            _dict.update(results)
         return _dict
 
     def __repr__(self):
