@@ -4,18 +4,18 @@
 
 set -e  # Stop when a command fails
 
-# echo "Initializing buckets..."
-# flask data init
-# flask data init-backups
+echo "Initializing buckets..."
+flask data init
+flask data init-backups
 
-# echo "Initializing database..."
-# flask db upgrade head
+echo "Initializing database..."
+flask db upgrade head
 
-# echo "Initializing roles..."
-# flask role create public_read \
-#     --description "Users that can perform read operations"
-# flask role create public_write \
-#     --description "Users that can perform write operations (create workspaces, upload files, ...)"
+echo "Initializing roles..."
+flask role create public_read \
+    --description "Users that can perform read operations"
+flask role create public_write \
+    --description "Users that can perform write operations (create workspaces, upload files, ...)"
 
 # Create admin user
 if [ -z ${QUETZAL_ADMIN_MAIL} ]
