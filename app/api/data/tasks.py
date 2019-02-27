@@ -166,10 +166,17 @@ def init_data_bucket(wid):
     # TODO: manage exceptions/errors
     # TODO: manage location and storage class through configuration or workspace options
     bucket_name = f'quetzal-ws-{workspace.id}-{workspace.owner.username}-{workspace.name}'
-    client = get_client()
-    bucket = client.bucket(bucket_name)
-    bucket.storage_class = 'REGIONAL'
-    bucket.create(client=client, location='europe-west1')
+    try:
+        client = get_client()
+        bucket = client.bucket(bucket_name)
+        bucket.storage_class = 'REGIONAL'
+        bucket.create(client=client, location='europe-west1')
+    except Exception as ex:
+        # Update database model to set as invalid
+        workspace.state = WorkspaceState.INVALID
+        db.session.add(workspace)
+        db.session.commit()
+        raise
 
     # Update the database model
     workspace.state = WorkspaceState.READY
