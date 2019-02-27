@@ -8,7 +8,7 @@ info:
     Quetzal (short for Quetzalcoatl): an API to manage data files and their
     associated metadata.
 
-    # General documentation
+    # Overview
 
     ...
 
@@ -22,6 +22,10 @@ info:
       Description, workspace states, data_url, etc.
     * Workspace views
     * Queries
+
+    # Authentication
+
+    Authentication details
 
     # Errors
 
@@ -45,6 +49,8 @@ info:
     API version | Changes
     ------------|---------
     0.1.0       | [API changes](https://quetz.al/docs/changelog#v0-1-0)
+
+    # API reference
 
   termsOfService: https://quetz.al/terms  # TODO: activate this URL
   contact:
@@ -169,7 +175,7 @@ paths:
     parameters:
       - name: wid
         in: path
-        description: Workspace identifier
+        description: Workspace identifier.
         required: true
         schema:
           type: integer
@@ -224,7 +230,7 @@ paths:
       parameters:
         - name: wid
           in: path
-          description: Workspace identifier
+          description: Workspace identifier.
           required: true
           schema:
             type: integer
@@ -249,7 +255,7 @@ paths:
       parameters:
         - name: wid
           in: path
-          description: Workspace identifier
+          description: Workspace identifier.
           required: true
           schema:
             type: integer
@@ -263,16 +269,19 @@ paths:
     parameters:
       - name: wid
         in: path
-        description: Workspace identifier
+        description: Workspace identifier.
         required: true
         schema:
           type: integer
+
     get:
       summary: List files.
       description: |-
-        Fetchs all the files that have been added in this workspace. Files
+        Fetches all the files that have been added in this workspace. Files
         whose metadata has been modified in this workspace will also be
         included.
+
+        The file details included in the response only show their base metadata.
       tags:
         - data
         - workspace
@@ -281,6 +290,7 @@ paths:
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/fileFilter'
       responses:
         '200':
           $ref: '#/components/responses/PaginatedFiles'
@@ -302,11 +312,7 @@ paths:
           # do not let us have a correct complex multipart
           multipart/form-data:
             schema:
-              type: object
-              properties:
-                file_content:
-                  type: string
-                  format: binary
+              '$ref': '#/components/schemas/FileContents'
       responses:
         '201':
           $ref: '#/components/responses/FileDetails'
@@ -317,7 +323,7 @@ paths:
     parameters:
       - name: wid
         in: path
-        description: Workspace identifier
+        description: Workspace identifier.
         required: true
         schema:
           type: integer
@@ -394,7 +400,7 @@ paths:
     parameters:
       - name: wid
         in: path
-        description: Workspace identifier
+        description: Workspace identifier.
         required: true
         schema:
           type: integer
@@ -422,7 +428,7 @@ paths:
       summary: Prepare a query.
       description: |-
         Queries in Quetzal are saved as a resource associated to a workspace.
-        This endpoint creates one and responds with a _see other_ status
+        This endpoint creates one and responds with a *see other* status
         referencing the query details endpoint.
 
         Since the query details contains the query results as a
@@ -437,7 +443,7 @@ paths:
       parameters:
         - name: wid
           in: path
-          description: Workspace identifier
+          description: Workspace identifier.
           required: true
           schema:
             type: integer
@@ -461,7 +467,7 @@ paths:
     parameters:
       - name: wid
         in: path
-        description: Workspace identifier
+        description: Workspace identifier.
         required: true
         schema:
           type: integer
@@ -492,6 +498,28 @@ paths:
           $ref: '#/components/responses/Error'
 
   # Data endpoints (global, committed files)
+  /data/files/:
+    get:
+      summary: List public files.
+      description: |-
+        Fetches all the files that have been committed.
+
+        The file details included in the response only show their base metadata.
+      tags:
+        - data
+        - public
+      operationId: public.file_fetch
+      x-openapi-router-controller: app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+        - $ref: '#/components/parameters/fileFilter'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedFiles'
+        default:
+          $ref: '#/components/responses/Error'
+
   /data/files/{uuid}:
     parameters:
       - name: uuid
@@ -502,7 +530,7 @@ paths:
           type: string
           format: uuid
     get:
-      summary: Fetch file.
+      summary: Fetch public file.
       description: |-
         This endpoint can be used to fetch the file contents or its metadata.
         The type of response, data or metadata, depends on the `Accept`
@@ -539,6 +567,17 @@ components:
         minimum: 1
         maximum: 100000
         default: 100
+    fileFilter:
+      name: filters
+      in: query
+      description: |-
+        Filters on the workspace files, separated by commas.
+        These filters are applied only the base metadata family.
+        This can be used to get a file by name, path, size or checksum.
+      schema:
+        type: string
+      example:
+        filename=foo.png,path=images,size=12314
 
   schemas:
     Error:
@@ -805,6 +844,47 @@ components:
             other:
               foo: bar
               number: 1.2
+
+    FileContents:
+      description: |-
+        Contents of a file to upload to a workspace.
+
+        **Note**: Ideally, we want to add the metadata of the file on this
+        schema, so that uploading a file contains its metadata and there is no
+        need to do a second request to set the metadata. Unfortunately, there
+        are two problems that impede this:
+
+        1. Limitations on werkzueg, flask, connexion and most http clients that
+          do not handle correctly different content-types in a
+          multipart/form-data request.
+        2. Limitations on connexion that do not handle form parameter validation
+          correctly.
+      type: object
+      properties:
+        content:
+          type: string
+          description: File contents in binary.
+          format: binary
+#        metadata:
+#          type: string  # Object is not supported by connexion at the moment
+#          description: |-
+#            File metadata to set when uploading this file.
+#
+#            Due to a limitation on werkzeug, connexion and most http clients,
+#            different content-types in a multipart/form-data request is rarely
+#            implemented. For this reason, the metadata here is specified as a
+#            string, but it is intended to be the string representation of a
+#            JSON object.
+#
+#            Metadata should be a dictionary where keys are family names and
+#            values are a dictionary.
+#          example: >
+#            {
+#              "family_name": {
+#                "foo": "bar",
+#                "number": 1.2
+#              }
+#            }
 
     PaginatedFiles:
       description: |-

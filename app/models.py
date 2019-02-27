@@ -26,6 +26,17 @@ roles_users_table = db.Table('roles_users',
                              UniqueConstraint('fk_user_id', 'fk_role_id'))
 
 
+@enum.unique
+class BaseMetadataKeys(enum.Enum):
+    ID = 'id'
+    FILENAME = 'filename'
+    PATH = 'path'
+    SIZE = 'size'
+    CHECKSUM = 'checksum'
+    DATE = 'date'
+    URL = 'url'
+
+
 class Role(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String(80), unique=True)

@@ -65,7 +65,7 @@ class WorkspaceFilesRouter:
     """
     create = _data.file.create
     details = _data.file.details_w
-    fetch = _data.file.fetch
+    fetch = _data.file.fetch_w
     set_metadata = _data.file.set_metadata
     update_metadata = _data.file.update_metadata
 
@@ -96,6 +96,7 @@ class PublicRouter:
     Where ``func`` is a member of this class.
     """
     file_details = _data.file.details
+    file_fetch = _data.file.fetch
 
 
 # Synonyms needed for easier/more-readable operationIds

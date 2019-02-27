@@ -13,7 +13,7 @@ from app.helpers.google_api import get_object, get_data_bucket
 from app.helpers.files import split_check_path, get_readable_info
 from app.helpers.pagination import paginate
 from app.api.exceptions import APIException
-from app.models import Family, Workspace, Metadata
+from app.models import BaseMetadataKeys, Family, Workspace, Metadata
 from app.security import (
     PublicReadPermission, ReadWorkspacePermission, WriteWorkspacePermission
 )
@@ -22,13 +22,13 @@ from app.security import (
 logger = logging.getLogger(__name__)
 
 
-def create(*, wid, file_content=None, user, token_info=None):
+def create(*, wid, content=None, user, token_info=None):
     workspace = Workspace.get_or_404(wid)
 
-    if file_content is None:
+    if content is None:
         raise APIException(status=codes.bad_request,
                            title='Missing file content',
-                           detail='Cannot create a file without file_content')
+                           detail='Cannot create a file without contents')
 
     if not WriteWorkspacePermission(wid).can():
         raise APIException(status=codes.forbidden,
@@ -62,8 +62,8 @@ def create(*, wid, file_content=None, user, token_info=None):
 
     #  Create metadata object
     meta = Metadata(id_file=uuid4(), family=base_family)
-    md5, size = get_readable_info(file_content)
-    path, filename = split_check_path(file_content.filename)
+    md5, size = get_readable_info(content)
+    path, filename = split_check_path(content.filename)
     meta.json = {
         'id': str(meta.id_file),
         'filename': filename,
@@ -75,11 +75,8 @@ def create(*, wid, file_content=None, user, token_info=None):
     }
     db.session.add(meta)
 
-    # TODO: write a wrapper to the file object in order to send the file and get the md5 and size
-    # (everything at the same time instead of doing a two-pass read)
-
     # Send file to bucket
-    meta.json['url'] = _upload_file(str(meta.id_file), file_content)
+    meta.json['url'] = _upload_file(str(meta.id_file), content)
 
     # Save model
     db.session.add(meta)
@@ -265,7 +262,56 @@ def details_w(*, wid=None, uuid):
                        detail=f'Cannot serve content of type {request.accept_mimetypes}')
 
 
-def fetch(*, wid):
+def fetch(*args, **kwargs):
+    """Get all the files that have been committed."""
+    if not PublicReadPermission.can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to list public files.')
+
+    # Get all the committed base metadata that existed before the creation of
+    # the workspace
+    previous_meta = (
+        Metadata
+        .query
+        .join(Family)
+        .filter(Family.name == 'base',
+                # Check that the family's workspace is None: this means is committed
+                Family.fk_workspace_id.is_(None))
+    )
+
+    # Now take the results but drop repeated entries by file_id,
+    # which is possible through a DISTINCT ON combined with an ORDER BY
+    union_query = (
+        previous_meta
+        .distinct(Metadata.id_file)
+        .order_by(Metadata.id_file, Metadata.id.desc())
+    )
+
+    # Finally, apply filters
+    if 'filters' in request.args:
+        filters = request.args['filters'].split(',')
+        for f in filters:
+            try:
+                key, value = f.split('=', 1)
+            except ValueError:
+                raise APIException(status=codes.bad_request,
+                                   title='Bad request',
+                                   detail='Invalid format for filters.')
+            try:
+                # Verify that key is a valid value in the enum
+                BaseMetadataKeys(key)
+            except ValueError:
+                raise APIException(status=codes.bad_request,
+                                   title='Bad request',
+                                   detail=f'"{key}" is not a valid filter key.')
+            union_query = union_query.filter(Metadata.json[key].astext == value)
+
+    pager = paginate(union_query, serializer=lambda meta: meta.json)
+    return pager.response_object(), 200
+
+
+def fetch_w(*, wid):
     """Get all the files on a workspace"""
     workspace = Workspace.get_or_404(wid)
 
@@ -305,6 +351,25 @@ def fetch(*, wid):
         .distinct(Metadata.id_file)
         .order_by(Metadata.id_file, Metadata.id.desc())
     )
+
+    # Finally, apply filters
+    if 'filters' in request.args:
+        filters = request.args['filters'].split(',')
+        for f in filters:
+            try:
+                key, value = f.split('=', 1)
+            except ValueError:
+                raise APIException(status=codes.bad_request,
+                                   title='Bad request',
+                                   detail='Invalid format for filters.')
+            try:
+                # Verify that key is a valid value in the enum
+                BaseMetadataKeys(key)
+            except ValueError:
+                raise APIException(status=codes.bad_request,
+                                   title='Bad request',
+                                   detail=f'"{key}" is not a valid filter key.')
+            union_query = union_query.filter(Metadata.json[key].astext == value)
 
     pager = paginate(union_query, serializer=lambda meta: meta.json)
     return pager.response_object(), 200
