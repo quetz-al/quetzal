@@ -1,0 +1,769 @@
+---
+openapi: 3.0.2
+
+info:
+  title: Quetzalcoatl API
+  version: 0.3.0
+  description: |
+    # TODO: an extensive documentation in CommonMark
+    TODO
+
+  termsOfService: https://quetz.al/terms  # TODO: activate this URL
+  contact:
+    name: API support
+    url: https://quetz.al/support         # TODO: activate this URL
+    email: support@quetz.al               # TODO: activate this address
+  license:
+    name: BSD-3-Clause
+    url: https://opensource.org/licenses/BSD-3-Clause
+
+servers:
+  - url: https://api.quetz.al/api/v1       # TODO: activate and deploy here
+    description: Public server
+  - url: https://staging.quetz.al/api/v1   # TODO: activate and deploy here
+    description: Staging server
+  - url: https://devel.quetz.al/api/v1     # TODO: activate and deploy here
+    description: Development server
+  - url: https://local.quetz.al/api/v1
+    description: Local development data server
+
+externalDocs:
+  url: https://quetz.al/docs              # TODO: activate this URL. Maybe readthedocs?
+  description: Detailed documentation and source code of Quetzalcoatl.
+
+paths:
+  # Authentication endpoints
+  /auth/token:
+    post:
+      summary: Authenticate and obtain a token
+      tags:
+        - authentication
+      operationId: app.api.auth.get_token
+      security:
+        - basic: []
+      responses:
+        '200':
+          description: Authentication token
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    description: Token for bearer authentication
+                    type: string
+                required:
+                  - token
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /auth/logout:
+    post:
+      summary: Logout and invalidate the existing token
+      tags:
+        - authentication
+      operationId: app.api.auth.logout
+      responses:
+        '204':
+          description: Logout successful
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  # Data endpoints (workspaces)
+  /data/workspaces/:
+    get:
+      summary: Get all workspaces
+      tags:
+        - data
+      operationId: app.api.data.workspace.fetch
+      parameters:
+      - $ref: '#/components/parameters/pageOffset'
+      - $ref: '#/components/parameters/pageSize'
+      - name: name
+        in: query
+        description: Filter workspaces by name
+        required: false
+        schema:
+          type: string
+      - name: owner
+        in: query
+        description: Filter workspaces by owner
+        required: false
+        schema:
+          type: string
+      - name: deleted
+        in: query
+        description: Include deleted workspaces
+        schema:
+          type: boolean
+      responses:
+        '200':
+          description: Paginated list of workspaces.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Workspace'
+                  page:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+                  pages:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+                  total:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      summary: Create a new workspace
+      tags:
+        - data
+      operationId: app.api.data.workspace.create
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Workspace'
+        required: true
+      responses:
+        '201':
+          description: Workspace created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}:
+    parameters:
+      - name: wid
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Workspace details
+      description: Fetchs all details of a workspace
+      tags:
+        - data
+      operationId: app.api.data.workspace.details
+      responses:
+        '200':
+          description: Workspace details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    delete:
+      summary: Request deletion of a workspace
+      description: |-
+        Marks a workspace for deletion.
+        Workspaces cannot be immediately deleted, due to complex resource management.
+        The status of the workspace can be requested on this same path, using a GET
+        instead of a DELETE.
+      tags:
+        - data
+      operationId: app.api.data.workspace.delete
+      responses:
+        '202':
+          description: Workspace marked for deletion
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}/commit:
+    put:
+      summary: Commit a workspace
+      description: |-
+        Requests a workspace commit. That is, all metadata added or modified
+        in this workspace will be committed to the global workspace, becoming
+        available to all users. Metadata versions will be incremented.
+      tags:
+        - data
+      operationId: app.api.data.workspace.commit
+      parameters:
+        - name: wid
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
+      responses:
+        '202':
+          description: Successfully requested a workspace commit operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}/scan:
+    put:
+      summary: Update workspace views
+      description: |-
+        Requests the update of the views of a workspace. All the internal databases
+        used for the query operation will be updated to contain the latest modifications
+        of the metadata.
+      tags:
+        - data
+      operationId: app.api.data.workspace.scan
+      parameters:
+        - name: wid
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
+      responses:
+        '202':
+          description: Successfully requested a workspace scan operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workspace'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}/files/:
+    parameters:
+      - name: wid
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: List workspace files
+      description: |-
+        Fetchs all the files that have been added in this workspace. Files
+        whose metadata has been modified in this workspace will also be
+        included.
+      tags:
+        - data
+      operationId: app.api.data.file.fetch
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: List of workspace files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  page:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+                  pages:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+                  total:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      summary: Add a new file
+      description: |-
+        Upload a new file by sending its contents. The file will not have any
+        additional metadata associated to it.
+      tags:
+        - data
+      operationId: app.api.data.file.create
+      requestBody:
+        content:
+          # There are some limitations of the wsgi server and connexion that
+          # do not let us have a correct complex multipart
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file_content:
+                  type: string
+                  format: binary
+      responses:
+        '201':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}/files/{uuid}:
+    parameters:
+      - name: wid
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+      - name: uuid
+        in: path
+        description: File identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Fetch file metadata or contents
+      description: |-
+        Serves the file contents or its metadata, according to the accepted
+        content response header. When the metadata is requested, this returns
+        the updated version with the modifications that may have been
+        introduced in this workspace.
+      tags:
+        - data
+      operationId: app.api.data.file.details_w
+      responses:
+        '200':
+          description: File contents or metadata
+          content:
+            application/json:
+              schema:
+                type: object
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    patch:
+      summary: Modify file metadata
+      description: |-
+        Change the file metadata by updating it. Updating metadata changes
+        key/value pairs, adding a new key/value pair if does not exist and
+        changing the value if the key already exists. However, it cannot delete
+        a key/value that already exists. To delete metadata, refer to the
+        PUT method on this endpoint.
+      tags:
+        - data
+      operationId: app.api.data.file.update_metadata
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Metadata successfully updated
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    put:
+      summary: Rewrite file metadata
+      description: |-
+        Change the file metadata entirely. In contrast to the PATCH method to
+        on this endpoint, this method sets the new metadata and discards any
+        previous metadata that was defined before.
+      tags:
+        - data
+      operationId: app.api.data.file.set_metadata
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Metadata successfully saved
+          content:
+            application/json:
+              schema:
+                type: object
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}/queries/:
+    parameters:
+      - name: wid
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: List all queries of a workspace
+      description: |-
+        List all the queries that are associated with a workspace.
+      tags:
+        - data
+      operationId: app.api.data.query.fetch
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: List of queries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Query'
+                  page:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+                  pages:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+                  total:
+                    $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+    post:
+      summary: Prepare a query for a workspace
+      description: |-
+        Description
+      tags:
+        - data
+      operationId: app.api.data.query.create
+      parameters:
+        - name: wid
+          in: path
+          description: Workspace identifier
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Query'
+        required: true
+      responses:
+        '301':
+          description: Workspace metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  /data/workspaces/{wid}/queries/{qid}:
+    parameters:
+      - name: wid
+        in: path
+        description: Workspace identifier
+        required: true
+        schema:
+          type: integer
+      - name: qid
+        in: path
+        description: Query identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Get details on query
+      description: |-
+        Description.
+      tags:
+        - data
+      operationId: app.api.data.query.details
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          description: Query details and results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Query'
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+  # Data endpoints (global, committed files)
+  /data/files/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        description: File identifier
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Fetch file metadata or contents
+      description: |-
+        Serves the file contents or its metadata, according to the accepted
+        content response header. In the case of metadata, this endpoint returns
+        the most recent metadata that has been committed.
+      tags:
+        - data
+      operationId: app.api.data.file.details
+      responses:
+        '200':
+          description: File contents or metadata
+          content:
+            application/json:
+              schema:
+                type: object
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        default:
+          $ref: '#/components/responses/ErrorResponse'
+
+components:
+  parameters:
+    pageOffset:
+      name: page
+      in: query
+      description: The page of a collection to return.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    pageSize:
+      name: per_page
+      in: query
+      description: Number of items to return per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100000
+        default: 100
+  schemas:
+    PaginationEnvelope:
+      type: object
+      title: Paginated response template type
+      description: >
+        An envelope for responses that need to be paginated. When a collection
+        is accessed through a GET request, the results are sent in an object
+        that informs on the pagination status (page, number of pages, number
+        of results) and the data itself. This type is heavily inspired from
+        linode's PaginationEnvelope.
+      required:
+        - pages
+        - page
+        - total
+        - data
+      properties:
+        pages:
+          type: integer
+          description: Number of pages available in the collection
+          readOnly: true
+        page:
+          type: integer
+          description: Current page number
+          readOnly: true
+        total:
+          type: integer
+          description: Total number of items in the collection
+          readOnly: true
+        data:
+          type: array
+          description: Array of objects with the results of the current page
+          readOnly: true
+          items:
+            type: object
+      example: |-
+        {
+          "pages": 40,
+          "page": 1,
+          "results": 120,
+          "data": [
+            {"id": 1},
+            {"id": 2},
+            {"id": 3}
+          ]
+        }
+    Workspace:
+      title: Workspace details type
+      description: Workspace details
+      required:
+        - name
+        - description
+        - families
+      type: object
+      properties:
+        id:
+          description: Workspace ID
+          type: integer
+          readOnly: true
+        status:
+          description: Workspace status
+          enum:
+            - INITIALIZING
+            - READY
+            - SCANNING
+            - UPDATING
+            - COMMITTING
+            - DELETING
+            - INVALID
+            - CONFLICT
+            - DELETED
+          readOnly: true
+        creation_date:
+          format: date-time
+          description: Date when the workspace was created
+          type: string
+          readOnly: true
+        owner:
+          description: User who owns this workpace
+          type: string
+          readOnly: true
+        data_url:
+          description: URL of a remote storage location for files used in this workspace
+          type: string
+          readOnly: true
+          nullable: true
+        name:
+          description: Name of the workspace
+          type: string
+        description:
+          description: Descriptive text of the purpose of this workspace
+          type: string
+        families:
+          description: |-
+            Families and corresponding versions used in this workspace.
+            This property is a object whose keys are family names and values are
+            integers.
+          type: object
+        temporary:
+          description: |-
+            Whether this workspace is temporary or not. Temporary workspaces
+            are automatically deleted after some time.
+          type: boolean
+      example: |-
+        {
+            "id": 1,
+            "status": "ready",
+            "creation_date": "'2019-28-02T12:23:55",
+            "owner": "username",
+            "data_url": "gs://some_bucket_name"
+            "name": "my_workspace",
+            "description": "Details on what this workspace is for",
+            "families": {
+                "base": 100,
+                "other": 14
+            },
+            "temporary": false
+        }
+    File:
+      title: File details type
+      description: File details
+      type: object
+      properties:
+        id:
+          description: File ID
+          type: string
+          format: uuid
+        metadata:
+          description: File metadata
+          type: object
+    Query:
+      title: Metadata query type
+      description: A query applied to the views provided by a workspace.
+      required:
+        - dialect
+        - query
+      type: object
+      properties:
+        id:
+          description: Query identifier
+          type: integer
+          readOnly: true
+        workspace_id:
+          description: Workspace identifier where the query operates
+          type: integer
+          readOnly: true
+        dialect:
+          description: Dialect of query
+          enum:
+            - postgresql
+        query:
+          description: Query in code as needed by the dialect
+          type: string
+        results:
+          description: Query results
+          type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+            page:
+              $ref: '#/components/schemas/PaginationEnvelope/properties/page'
+            pages:
+              $ref: '#/components/schemas/PaginationEnvelope/properties/pages'
+            total:
+              $ref: '#/components/schemas/PaginationEnvelope/properties/total'
+          readOnly: true
+      example: |-
+        {
+          "id": 123,
+          "workspace_id": 456,
+          "dialect": "postgresql",
+          "query": "SELECT * FROM base",
+          "results": [
+            {
+              "id": "00000000-0000-4000-8000-000000000000",
+              "key": "value"
+            },
+            {
+              "id": "00000000-0000-4000-8000-000000000001",
+              "key": "other_value"
+            }
+           ]
+        }
+  responses:
+    # Error response that implements RFC-7807
+    ErrorResponse:
+      description: Problem details error object.
+      content:
+        application/problem+json:
+          schema:
+            type: object
+            properties:
+              type:
+                description: A URI reference that identifies the problem type.
+                type: string
+              title:
+                description: A short, human-readable summary of the problem type.
+                type: string
+              status:
+                description: The HTTP status code.
+                type: integer
+              detail:
+                description: A human-readable explanation specific to this occurrence of the problem.
+                type: string
+              instance:
+                description: A URI reference that identifies the specific occurrence of the problem.
+                type: string
+  securitySchemes:
+    basic:
+      type: http
+      scheme: basic
+      x-basicInfoFunc: app.api.auth.check_basic
+    bearer:
+      type: http
+      scheme: bearer
+      x-bearerInfoFunc: app.api.auth.check_bearer
+
+security:
+  - bearer: []
+
+tags:
+  - name: authentication
+    description: Authentication operations
+  - name: data
+    description: Data operations
