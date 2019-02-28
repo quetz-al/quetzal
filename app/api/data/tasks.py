@@ -262,7 +262,7 @@ def scan_workspace(wid):
         # TODO consider this, for the moment, everything is a string
         types_schema = {}
         if family.name == 'base':  # TODO refactor base schema to an external variable
-            types_schema['size'] = types.Integer
+            types_schema['size'] = types.BigInteger
             types_schema['date'] = types.DateTime(timezone=True)
 
         # 2.2 Create table
