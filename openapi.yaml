@@ -50,6 +50,11 @@ info:
     ------------|---------
     0.1.0       | [API changes](https://quetz.al/docs/changelog#v0-1-0)
 
+    # TODO
+
+    * Add file delete mechanism.
+    * Add workspace update through a PUT.
+
     # API reference
 
   termsOfService: https://quetz.al/terms  # TODO: activate this URL
