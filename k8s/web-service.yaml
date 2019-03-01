@@ -1,0 +1,14 @@
+# Documentation of these yaml, their schema and what everything means is
+# available on https://kubernetes.io/docs/reference/
+apiVersion: v1
+kind: Service
+metadata:
+  # Unique key for the service instance
+  name: web
+spec:
+  ports:
+    - name: flask
+      port: 5000
+      targetPort: 5000
+  selector:
+    name: web-pods

@@ -1,0 +1,58 @@
+# Documentation of these yaml, their schema and what everything means is
+# available on https://kubernetes.io/docs/reference/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db-deployment
+  labels:
+    name: db-pods
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: db-pods
+  template:
+    metadata:
+      labels:
+        name: db-pods
+    spec:
+      containers:
+        - name: db
+          image: gcr.io/dojeda-sandbox/quetzal/db:0.1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5432
+          resources:
+            requests:
+              cpu: 500m
+          volumeMounts:
+            - mountPath: /srv/data
+              name: db-data-volume
+          env:
+            # for the database contents, as documented in the postgres:latest
+            # Dockerfile configuration in hub.docker.com, it is recommended to
+            # change the PGDATA to a subdirectory. I tried not using a
+            # subdirectory before (/var/lib/postgresql/data or
+            # /var/lib/postgresql/data/pgdata). The first case doesn't work
+            # because there is a volume in the Dockerfile which creates a silent
+            # conflict and then the persistent data is lost. The second case
+            # doesn't work because postgres complains that this is a mount
+            # point.
+            - name: PGDATA
+              value: /srv/data/pgdata
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: dev-db-secrets
+                  key: username
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dev-db-secrets
+                  key: password
+      restartPolicy: Always
+      volumes:
+        - name: db-data-volume
+          gcePersistentDisk:
+            pdName: quetzal-dev-db-volume
+            fsType: ext4

@@ -1,0 +1,17 @@
+# Documentation of these yaml, their schema and what everything means is
+# available on https://kubernetes.io/docs/reference/
+apiVersion: v1
+kind: Service
+metadata:
+  # Unique key for the service instance
+  name: rabbitmq
+spec:
+  ports:
+    - name: rabbitmq
+      port: 5672
+      targetPort: 5672
+    - name: rabbitmq-management
+      port: 15672
+      targetPort: 15672
+  selector:
+    name: rabbitmq-pods

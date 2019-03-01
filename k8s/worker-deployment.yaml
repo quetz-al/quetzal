@@ -1,0 +1,71 @@
+# Documentation of these yaml, their schema and what everything means is
+# available on https://kubernetes.io/docs/reference/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker-deployment
+  labels:
+    name: worker-pods
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: worker-pods
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        name: worker-pods
+    spec:
+      containers:
+        - name: worker
+          image: gcr.io/dojeda-sandbox/quetzal/app:0.1.0
+          imagePullPolicy: Always
+          command:
+            - /entrypoint-worker.sh
+          resources: {}
+          volumeMounts:
+            - mountPath: /code/conf
+              name: app-secret-files-volume
+          env:
+            - name: SERVER_NAME
+              value: devel.quetz.al
+            - name: FLASK_ENV
+              value: production
+            - name: QUETZAL_ADMIN_MAIL
+              value: quetzal.api@gmail.com
+            - name: QUETZAL_GCP_DATA_BUCKET
+              value: gs://quetzal-dev-data
+            - name: QUETZAL_GCP_BACKUP_BUCKET
+              value: gs://quetzal-dev-backups
+            - name: DB_HOST
+              value: db
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_DATABASE
+              value: quetzal
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: dev-app-secrets
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dev-app-secrets
+                  key: DB_PASSWORD
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: dev-app-secrets
+                  key: SECRET_KEY
+            - name: RABBITMQ_HOST
+              value: rabbitmq
+            - name: RABBITMQ_PORT
+              value: "5672"
+      restartPolicy: Always
+      volumes:
+        - name: app-secret-files-volume
+          secret:
+            secretName: dev-app-secrets

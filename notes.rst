@@ -173,3 +173,22 @@ Others
     does a specific verification and conversion for the case of creating files.
     This is the most feasible solution, but it may open the door to weird
     unknown bugs or security problems. Perhaps we can explore this later.
+
+Deployment on GCP
+-----------------
+
+Needs docker login on the Google Container Registry (GCR). As explained in the
+`GCR documentation <https://cloud.google.com/container-registry/docs/advanced-authentication>`_,
+the following command is needed to configure Docker to push to GCR::
+
+    gcloud auth configure-docker
+
+Create the images with::
+
+    flask deploy create-images --registry gcr.io/PROJECT_ID
+
+where ``PROJECT_ID`` is the GCP project id.
+
+Also needs `kubectl`::
+
+    gcloud components install kubectl

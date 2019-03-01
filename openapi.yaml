@@ -69,9 +69,7 @@ info:
 servers:
   - url: https://api.quetz.al/api/v1       # TODO: activate and deploy here
     description: Public server
-  - url: https://staging.quetz.al/api/v1   # TODO: activate and deploy here
-    description: Staging server
-  - url: https://devel.quetz.al/api/v1     # TODO: activate and deploy here
+  - url: https://devel.quetz.al/api/v1
     description: Development server
   - url: https://local.quetz.al/api/v1
     description: Local development data server

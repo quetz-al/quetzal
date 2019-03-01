@@ -1,0 +1,34 @@
+# Documentation of these yaml, their schema and what everything means is
+# available on https://kubernetes.io/docs/reference/
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+  labels:
+    name: nginx-pods
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: nginx-pods
+  template:
+    metadata:
+      labels:
+        name: nginx-pods
+    spec:
+      containers:
+        - name: nginx
+          image: gcr.io/dojeda-sandbox/quetzal/nginx:0.1.0
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          resources: {}
+          volumeMounts:
+            - mountPath: /etc/nginx/ssl
+              name: nginx-secret-files-volume
+      restartPolicy: Always
+      volumes:
+        - name: nginx-secret-files-volume
+          secret:
+            secretName: dev-nginx-secrets
