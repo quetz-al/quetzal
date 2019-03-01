@@ -3,6 +3,8 @@ services:
   nginx:
     build:
       context: ./docker/nginx
+    volumes:
+      - ./conf/ssl:/etc/nginx/ssl:ro
     ports:
       - "80:80"
       - "443:443"

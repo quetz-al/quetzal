@@ -55,7 +55,7 @@ class Config:
     DEBUG = False
     TESTING = False
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'some-secret-key'
-    SERVER_NAME = 'local.quetz.al'
+    SERVER_NAME = os.environ.get('SERVER_NAME') or 'local.quetz.al'
 
     # Logging
     LOG_DIR = _ensure_dir_exists(os.environ.get('LOG_DIR') or

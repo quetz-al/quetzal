@@ -20,3 +20,6 @@ gunicorn
 
 # Requirements needed for saving data on GCP
 google-cloud-storage
+
+# Requirements needed for deployment
+docker
