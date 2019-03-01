@@ -213,12 +213,23 @@ class Config:
             # self.LOGGING = _remove_handler(self.LOGGING, 'file')
             # Remove the GDPR handler
             self.LOGGING = _remove_handler(self.LOGGING, 'GDPR_file')
-            self.LOGGING['handlers']['file']
 
 
 class DevelopmentConfig(Config):
+    """ Configuration for regular development.
+
+    Use for a docker-compose development enviroment.
+    """
     DEBUG = True
     JSON_SORT_KEYS = False
+
+
+class StagingConfig(Config):
+    """ Configuration for a staging server.
+
+    Use for servers deployed to GCP, an environment that resembles production.
+
+    """
 
 
 class TestConfig(Config):
@@ -312,6 +323,7 @@ config = {
     'development': DevelopmentConfig,
     'tests': TestConfig,
     'local-tests': LocalTestConfig,
+    'staging': StagingConfig,
     'production': ProductionConfig,
-    'default': Config,
+    'default': DevelopmentConfig,
 }

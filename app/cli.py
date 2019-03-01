@@ -11,11 +11,18 @@ from app import db
 from app.helpers.google_api import get_client
 from app.models import User, Role
 
+data_cli = AppGroup('data', help='Data API operations.')
+user_cli = AppGroup('user', help='User operations.')
+role_cli = AppGroup('role', help='Role operations.')
+deploy_cli = AppGroup('deploy', help='Deployment operations.')
+utils_cli = AppGroup('utils', help='Miscelaneous operations.')
+quetzal_cli = AppGroup('quetzal', help='Quetzal operations.')
 
-data_cli = AppGroup('data', help='Quetzal data API operations.')
-user_cli = AppGroup('user', help='Quetzal user operations.')
-role_cli = AppGroup('role', help='Quetzal role operations.')
-deploy_cli = AppGroup('deploy', help='Quetzal deployment operations.')
+quetzal_cli.add_command(data_cli)
+quetzal_cli.add_command(user_cli)
+quetzal_cli.add_command(role_cli)
+quetzal_cli.add_command(deploy_cli)
+quetzal_cli.add_command(utils_cli)
 
 
 @data_cli.command('init')
@@ -243,10 +250,51 @@ def _build_image(client, **kwargs):
     return image
 
 
-@deploy_cli.command('generate-secret-key')
-@click.argument('num_bytes', type=click.INT, default=16)
+@utils_cli.command('generate-secret-key')
+@click.argument('num_bytes', metavar='SIZE', type=click.INT, default=16)
 def generate_secret_key(num_bytes):
-    """Generate and print a random string."""
+    """Generate and print a random string of SIZE bytes."""
     rnd = secrets.token_urlsafe(num_bytes)
     click.secho(rnd)
 
+
+@utils_cli.command()
+def nuke():
+    """Erase the database. Use with care."""
+    width, _ = click.get_terminal_size()
+    env = current_app.env
+    if env == 'production':
+        bad = 'A REALLY BAD IDEA'
+    elif env == 'development':
+        bad = 'probably ok'
+    else:
+        bad = 'maybe a bad idea'
+    click.secho('*'*width, fg='yellow')
+    click.secho('This command will *DELETE* the database, losing *ALL* '
+                'metadata, workspaces, users, roles.\n'
+                'Please confirm THREE '
+                'times by answering the following questions.', fg='yellow')
+    click.secho('*'*width, fg='yellow')
+    click.confirm('Are you sure?', abort=True, default=False)
+
+    click.secho('*' * width, fg='red')
+    click.secho('This is your second warning.\n'
+                'All files in the bucket storage will be lost as well. '
+                'If you are not sure, abort now.',
+                fg='red')
+    click.secho('*' * width, fg='red')
+    click.confirm('Are you sure?', abort=True, default=False)
+
+    click.secho('*' * width, bg='red', fg='white', blink=True)
+    click.secho(f'This is your last chance. EVERYTHING will be lost.\n'
+                f'The only reason you should be doing this is because you '
+                f'are resetting a development server.\n'
+                f'Your current FLASK_ENV is "{env}" so continuing is {bad}.\n'
+                f'I am going to ask differently...',
+                bg='red', fg='white', blink=True)
+    click.secho('*' * width, bg='red', fg='white', blink=True)
+    abort = click.confirm('Do you want to abort?', abort=False, default=True)
+    if abort:
+        raise click.Abort()
+
+    click.secho('Not implemented yet, phew!', fg='blue')

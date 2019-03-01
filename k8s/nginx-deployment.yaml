@@ -31,4 +31,4 @@ spec:
       volumes:
         - name: nginx-secret-files-volume
           secret:
-            secretName: dev-nginx-secrets
+            secretName: stage-nginx-secrets

@@ -83,11 +83,8 @@ def create_app(config_name=None):
     identity_loaded.connect_via(flask_app)(load_identity)
 
     # Command-line interface tools
-    from .cli import data_cli, deploy_cli, role_cli, user_cli
-    flask_app.cli.add_command(data_cli)
-    flask_app.cli.add_command(role_cli)
-    flask_app.cli.add_command(user_cli)
-    flask_app.cli.add_command(deploy_cli)
+    from .cli import quetzal_cli
+    flask_app.cli.add_command(quetzal_cli)
 
     # Flask shell configuration
     from app.models import (

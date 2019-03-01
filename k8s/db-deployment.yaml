@@ -43,16 +43,16 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: dev-db-secrets
+                  name: stage-db-secrets
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: dev-db-secrets
+                  name: stage-db-secrets
                   key: password
       restartPolicy: Always
       volumes:
         - name: db-data-volume
           gcePersistentDisk:
-            pdName: quetzal-dev-db-volume
+            pdName: quetzal-stage-db-volume
             fsType: ext4

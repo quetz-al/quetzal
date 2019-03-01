@@ -30,9 +30,9 @@ spec:
               name: app-secret-files-volume
           env:
             - name: SERVER_NAME
-              value: devel.quetz.al
+              value: staging.quetz.al
             - name: FLASK_ENV
-              value: production
+              value: staging
             - name: QUETZAL_BACKGROUND_JOBS
               value: "1"
             - name: USE_GUNICORN
@@ -40,9 +40,9 @@ spec:
             - name: QUETZAL_ADMIN_MAIL
               value: quetzal.api@gmail.com
             - name: QUETZAL_GCP_DATA_BUCKET
-              value: gs://quetzal-dev-data
+              value: gs://quetzal-stage-data
             - name: QUETZAL_GCP_BACKUP_BUCKET
-              value: gs://quetzal-dev-backups
+              value: gs://quetzal-stage-backups
             - name: DB_HOST
               value: db
             - name: DB_PORT
@@ -52,12 +52,12 @@ spec:
             - name: DB_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: dev-app-secrets
+                  name: stage-app-secrets
                   key: DB_USERNAME
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: dev-app-secrets
+                  name: stage-app-secrets
                   key: DB_PASSWORD
             - name: RABBITMQ_HOST
               value: rabbitmq
@@ -66,10 +66,10 @@ spec:
             - name: SECRET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: dev-app-secrets
+                  name: stage-app-secrets
                   key: SECRET_KEY
       restartPolicy: Always
       volumes:
         - name: app-secret-files-volume
           secret:
-            secretName: dev-app-secrets
+            secretName: stage-app-secrets
