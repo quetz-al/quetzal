@@ -186,7 +186,7 @@ def init_data_bucket(wid):
 
 
 @celery.task()
-def delete_workspace(wid):
+def delete_workspace(wid, force=False):
     logger.info('Deleting workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
@@ -194,7 +194,7 @@ def delete_workspace(wid):
     if workspace is None:
         raise WorkerException('Workspace was not found')
 
-    if workspace.state != WorkspaceState.DELETING:
+    if workspace.state != WorkspaceState.DELETING and not force:
         raise WorkerException('Workspace was not on the expected state')
 
     # Delete the data bucket and its contents
@@ -215,7 +215,10 @@ def delete_workspace(wid):
         db.session.execute(DropSchemaIfExists(workspace.pg_schema_name, cascade=True))
 
     # Update the database model
-    workspace.state = WorkspaceState.DELETED
+    if not force:
+        workspace.state = WorkspaceState.DELETED
+    else:
+        workspace._state = WorkspaceState.DELETED
     workspace.data_url = None
     db.session.add(workspace)
     db.session.commit()
