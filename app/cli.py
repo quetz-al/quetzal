@@ -1,3 +1,4 @@
+import inspect
 import pathlib
 import secrets
 from urllib.parse import urlparse
@@ -259,7 +260,8 @@ def generate_secret_key(num_bytes):
 
 
 @utils_cli.command()
-def nuke():
+@click.option('--keep-users', is_flag=True, help='Do not delete users.')
+def nuke(keep_users):
     """Erase the database. Use with care."""
     width, _ = click.get_terminal_size()
     env = current_app.env
@@ -283,18 +285,56 @@ def nuke():
                 'If you are not sure, abort now.',
                 fg='red')
     click.secho('*' * width, fg='red')
-    click.confirm('Are you sure?', abort=True, default=False)
+    click.confirm('Do you really want to erase all?', abort=True, default=False)
 
     click.secho('*' * width, bg='red', fg='white', blink=True)
     click.secho(f'This is your last chance. EVERYTHING will be lost.\n'
                 f'The only reason you should be doing this is because you '
                 f'are resetting a development server.\n'
                 f'Your current FLASK_ENV is "{env}" so continuing is {bad}.\n'
-                f'I am going to ask differently...',
+                f'This is the final confirmation...',
                 bg='red', fg='white', blink=True)
     click.secho('*' * width, bg='red', fg='white', blink=True)
     abort = click.confirm('Do you want to abort?', abort=False, default=True)
     if abort:
         raise click.Abort()
 
-    click.secho('Not implemented yet, phew!', fg='blue')
+    import app
+    from app import db
+    from app.api.data.tasks import delete_workspace
+    blacklist = []
+    if keep_users:
+        blacklist.append(app.models.User)
+        blacklist.append(app.models.Role)
+
+    # Delete all files in all workspaces
+    workspaces_with_data = app.models.Workspace.query.filter(
+        app.models.Workspace._state != app.models.WorkspaceState.DELETED,
+        app.models.Workspace.data_url.isnot(None),
+    )
+    click.echo(f'Erasing {workspaces_with_data.count()} workspaces...')
+    for workspace in workspaces_with_data.all():
+        try:
+            delete_workspace(workspace.id, force=True)
+        except Exception as ex:
+            click.secho(f'Could not delete workspace {workspace.id}: '
+                        f'{type(ex).__name__}: {ex}')
+            continue
+
+    classes = inspect.getmembers(app.models, inspect.isclass)
+
+    with db.session.no_autoflush:
+        # Disabling autoflush because intermediate deletes would violate some
+        # not null constraints.
+        for name, cls in classes:
+            if issubclass(cls, db.Model) and cls not in blacklist:
+                instances = cls.query
+                click.echo(f'Erasing all {instances.count()} '
+                           f'entries of {cls.__name__}...')
+                for i in instances.all():
+                    db.session.delete(i)
+
+        db.session.commit()
+
+    click.secho('Database entries removed.', color='blue')
+
