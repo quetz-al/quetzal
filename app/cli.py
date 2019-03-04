@@ -308,7 +308,7 @@ def nuke(keep_users):
         blacklist.append(app.models.Role)
 
     # Delete all files in all workspaces
-    workspaces_with_data = app.models.Workspace.query.filter(
+    workspaces_with_data = db.session.query(app.models.Workspace).filter(
         app.models.Workspace._state != app.models.WorkspaceState.DELETED,
         app.models.Workspace.data_url.isnot(None),
     )
@@ -328,7 +328,7 @@ def nuke(keep_users):
         # not null constraints.
         for name, cls in classes:
             if issubclass(cls, db.Model) and cls not in blacklist:
-                instances = cls.query
+                instances = db.session.query(cls)
                 click.echo(f'Erasing all {instances.count()} '
                            f'entries of {cls.__name__}...')
                 for i in instances.all():
