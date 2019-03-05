@@ -19,6 +19,9 @@ from app.middleware.headers import HttpHostHeaderMiddleware
 from app.security import load_identity
 
 
+__version__ = '0.1.0'
+
+
 # Common objects usable across the application
 db = SQLAlchemy()
 migrate = Migrate()
