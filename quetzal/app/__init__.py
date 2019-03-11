@@ -80,6 +80,8 @@ def create_app(config_name=None):
     # Other extensions
     from .redoc import bp as redoc_bp
     flask_app.register_blueprint(redoc_bp)
+    from .routes import static_bp
+    flask_app.register_blueprint(static_bp)
 
     # Principals
     principal.init_app(flask_app)
