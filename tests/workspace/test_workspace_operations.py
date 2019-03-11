@@ -7,9 +7,9 @@ import pytest
 from kombu.exceptions import OperationalError
 from sqlalchemy import func
 
-from app.api.exceptions import APIException, ObjectNotFoundException
-from app.api.data.workspace import create, fetch, details, delete
-from app.models import Workspace, WorkspaceState
+from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
+from quetzal.app.api.data.workspace import create, fetch, details, delete
+from quetzal.app.models import Workspace, WorkspaceState
 
 
 def test_create_workspace_success(user, db_session, mocker):
@@ -72,7 +72,7 @@ def test_create_workspace_handles_queue_fail(user, db_session, mocker, caplog):
 
     # caplog.at_level:
     # capture the logger.error log message emitted when the queue fails
-    with caplog.at_level(logging.CRITICAL, logger='app.api.data.workspace'):
+    with caplog.at_level(logging.CRITICAL, logger='quetzal.app.api.data.workspace'):
         with pytest.raises(APIException) as exc_info:
             create(body=request, user=user)
 

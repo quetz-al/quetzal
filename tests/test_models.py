@@ -1,4 +1,4 @@
-from app.models import Family, Metadata, User, Workspace
+from quetzal.app.models import Family, Metadata, User, Workspace
 
 
 def test_registry(db):

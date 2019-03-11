@@ -8,13 +8,13 @@ from uuid import uuid4
 from flask import request, send_file
 from requests import codes
 
-from app import db
-from app.helpers.google_api import get_object, get_data_bucket
-from app.helpers.files import split_check_path, get_readable_info
-from app.helpers.pagination import paginate
-from app.api.exceptions import APIException
-from app.models import BaseMetadataKeys, Family, Workspace, Metadata
-from app.security import (
+from quetzal.app import db
+from quetzal.app.helpers.google_api import get_object, get_data_bucket
+from quetzal.app.helpers.files import split_check_path, get_readable_info
+from quetzal.app.helpers.pagination import paginate
+from quetzal.app.api.exceptions import APIException
+from quetzal.app.models import BaseMetadataKeys, Family, Workspace, Metadata
+from quetzal.app.security import (
     PublicReadPermission, ReadWorkspacePermission, WriteWorkspacePermission
 )
 

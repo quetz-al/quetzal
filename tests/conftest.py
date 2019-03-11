@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 from sqlalchemy import func
 
-from app.models import Family, Metadata, Workspace, WorkspaceState
+from quetzal.app.models import Family, Metadata, Workspace, WorkspaceState
 
 
 @pytest.fixture(scope='function')
@@ -120,9 +120,9 @@ def upload_file(make_file, user):
     _user = user
 
     def _upload_file(workspace, user=None, url=None, date=None, **kwargs):
-        from app.api.data.file import create
-        with mock.patch('app.api.data.file._upload_file', return_value=url or ''), \
-             mock.patch('app.api.data.file._now', return_value=date or str(datetime.datetime.now(datetime.timezone.utc))):
+        from quetzal.app.api.data.file import create
+        with mock.patch('quetzal.app.api.data.file._upload_file', return_value=url or ''), \
+             mock.patch('quetzal.app.api.data.file._now', return_value=date or str(datetime.datetime.now(datetime.timezone.utc))):
             response, _ = create(wid=workspace.id, content=make_file(**kwargs), user=user or _user)
             return response['id']
 

@@ -112,15 +112,15 @@ class Config:
             # TODO: add email handler for errors
         },
         'loggers': {
-            'app.middleware.gdpr': {
+            'quetzal.app.middleware.gdpr': {
                 'level': 'DEBUG',  # Keep this on debug
                 'handlers': ['GDPR_file'],
             },
-            # 'app.api.data.tasks': {
+            # 'quetzal.app.api.data.tasks': {
             #     'level': 'DEBUG',
             #     'handlers': ['file_worker']
             # },
-            'app.middleware.debug': {
+            'quetzal.app.middleware.debug': {
                 'level': 'INFO',
             },
             # apscheduler is quite verbose
@@ -133,7 +133,7 @@ class Config:
             },
             # Connexion is also very verbose but we want to put it on DEBUG sometimes...
             'connexion': {
-                'level': 'INFO',
+                'level': 'DEBUG',
             },
             'openapi_spec_validator': {
                 'level': 'INFO',
@@ -180,7 +180,7 @@ class Config:
         # blocks the scheduling of tasks. Removing result_backend as we have
         # no use for it right now.
         'result_backend': None,  # 'rpc://',
-        'include': ['app.api.data.tasks'],
+        'include': ['quetzal.app.api.data.tasks'],
         'broker_transport_options': {
             'max_retries': 3,
             'interval_start': 0,
@@ -301,7 +301,7 @@ class LocalTestConfig(TestConfig):
     # Celery configuration on eager mode
     CELERY = {
         'broker_url': 'memory',
-        'include': ['app.api.data.tasks'],
+        'include': ['quetzal.app.api.data.tasks'],
         'broker_transport_options': {
             'max_retries': 3,
             'interval_start': 0,

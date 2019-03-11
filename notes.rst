@@ -131,7 +131,7 @@ Others
         additional metadata associated to it.
       tags:
         - data
-      operationId: app.api.data.file.create
+      operationId: quetzal.app.api.data.file.create
       requestBody:
         content:
           multipart/form-data: # Media type

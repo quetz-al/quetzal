@@ -3,11 +3,11 @@ from sqlalchemy import func, types
 from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.dialects.postgresql import UUID
 
-from app import celery, db
-from app.models import Workspace, WorkspaceState, Metadata, Family
-from app.api.exceptions import WorkerException
-from app.helpers.google_api import get_client, get_bucket
-from app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
+from quetzal.app import celery, db
+from quetzal.app.api.exceptions import WorkerException
+from quetzal.app.helpers.google_api import get_client, get_bucket
+from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
+from quetzal.app.models import Workspace, WorkspaceState, Metadata, Family
 
 
 logger = logging.getLogger(__name__)

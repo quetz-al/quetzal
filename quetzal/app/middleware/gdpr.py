@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 def gdpr_log_request():
     from flask import request
-    from app.models import User
+    from quetzal.app.models import User
 
     # Quit early if the logging level is not low enough
     if logger.getEffectiveLevel() > logging.DEBUG:

@@ -4,7 +4,8 @@ import click
 from flask import current_app
 from flask.cli import AppGroup
 
-from app.helpers.google_api import get_client
+from quetzal.app.helpers.google_api import get_client
+
 
 data_cli = AppGroup('data', help='Data API operations.')
 

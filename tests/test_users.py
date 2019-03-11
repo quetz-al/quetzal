@@ -1,5 +1,5 @@
-from app.models import User
-from app.cli import user_create
+from quetzal.app.models import User
+from quetzal.app.cli.users import user_create
 
 
 def test_new_user(db, db_session):

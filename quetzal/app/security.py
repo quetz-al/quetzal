@@ -27,7 +27,7 @@ class WriteWorkspacePermission(Permission):
 
 
 def load_identity(sender, identity):
-    from app.models import User
+    from quetzal.app.models import User
     user = User.query.get(identity.id)
 
     # Inactive users are not authorized to anything

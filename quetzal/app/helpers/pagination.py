@@ -4,7 +4,7 @@ from psycopg2 import ProgrammingError
 from psycopg2.extensions import cursor
 from requests import codes
 
-from app.api.exceptions import APIException
+from quetzal.app.api.exceptions import APIException
 
 
 class CustomPagination(Pagination):

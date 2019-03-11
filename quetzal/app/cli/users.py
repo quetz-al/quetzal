@@ -2,8 +2,8 @@ import click
 from flask.cli import AppGroup
 from sqlalchemy.exc import IntegrityError
 
-from app import db
-from app.models import User, Role
+from quetzal.app import db
+from quetzal.app.models import User, Role
 
 user_cli = AppGroup('user', help='User operations.')
 role_cli = AppGroup('role', help='Role operations.')

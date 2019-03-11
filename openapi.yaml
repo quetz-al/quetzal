@@ -8,6 +8,14 @@ info:
     Quetzal (short for Quetzalcoatl): an API to manage data files and their
     associated metadata.
 
+    Quetzal is an application that uses Cloud storage providers and
+    non-structured databases to  help researchers organize their data and
+    metadata files. Its main feature is to provide a remote, virtually infinite,
+    storage location for researchers' data, while providing an API to
+    encapsulate data/metadata operations. In other words, researchers and teams
+    can work large amounts of data that would be too large for local analyses,
+    using Quetzal to simplify the complexity of Cloud resource management.
+    
     # Overview
 
     ...
@@ -89,7 +97,7 @@ paths:
       tags:
         - authentication
       operationId: auth.get_token
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       security:
         - basic: []
       responses:
@@ -106,7 +114,7 @@ paths:
       tags:
         - authentication
       operationId: auth.logout
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       responses:
         '204':
           description: Logout successful
@@ -125,7 +133,7 @@ paths:
         - public
         - workspace
       operationId: workspace.fetch
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
       - $ref: '#/components/parameters/pageOffset'
       - $ref: '#/components/parameters/pageSize'
@@ -161,7 +169,7 @@ paths:
         - data
         - public
       operationId: workspace.create
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       requestBody:
         content:
           application/json:
@@ -190,7 +198,7 @@ paths:
         - data
         - workspace
       operationId: workspace.details
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       responses:
         '200':
           $ref: '#/components/responses/WorkspaceDetails'
@@ -211,7 +219,7 @@ paths:
       tags:
         - data
       operationId: workspace.delete
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       responses:
         '202':
           description: Workspace marked for deletion
@@ -229,7 +237,7 @@ paths:
         - data
         - workspace
       operationId: workspace.commit
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - name: wid
           in: path
@@ -254,7 +262,7 @@ paths:
         - data
         - workspace
       operationId: workspace.scan
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - name: wid
           in: path
@@ -289,7 +297,7 @@ paths:
         - data
         - workspace
       operationId: workspace_file.fetch
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
@@ -308,7 +316,7 @@ paths:
         - data
         - workspace
       operationId: workspace_file.create
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       requestBody:
         content:
           # There are some limitations of the wsgi server and connexion that
@@ -348,7 +356,7 @@ paths:
         - data
         - workspace
       operationId: workspace_file.details
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       responses:
         '200':
           $ref: '#/components/responses/FileContentsOrMetadata'
@@ -366,7 +374,7 @@ paths:
         - data
         - workspace
       operationId: workspace_file.update_metadata
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       requestBody:
         content:
           application/json:
@@ -387,7 +395,7 @@ paths:
         - data
         - workspace
       operationId: workspace_file.set_metadata
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       requestBody:
         content:
           application/json:
@@ -418,7 +426,7 @@ paths:
         - workspace
         - query
       operationId: workspace_query.fetch
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
@@ -442,7 +450,7 @@ paths:
         - workspace
         - query
       operationId: workspace_query.create
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - name: wid
           in: path
@@ -490,7 +498,7 @@ paths:
         - workspace
         - query
       operationId: workspace_query.details
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
@@ -512,7 +520,7 @@ paths:
         - data
         - public
       operationId: public.file_fetch
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       parameters:
         - $ref: '#/components/parameters/pageOffset'
         - $ref: '#/components/parameters/pageSize'
@@ -543,7 +551,7 @@ paths:
         - data
         - public
       operationId: public.file_details
-      x-openapi-router-controller: app.api.router
+      x-openapi-router-controller: quetzal.app.api.router
       responses:
         '200':
           $ref: '#/components/responses/FileContentsOrMetadata'
@@ -1076,12 +1084,12 @@ components:
       type: http
       scheme: basic
       description: Basic HTTP authentication. Used only to retrieve a token.
-      x-basicInfoFunc: app.api.auth.check_basic
+      x-basicInfoFunc: quetzal.app.api.auth.check_basic
     bearer:
       type: http
       scheme: bearer
       description: Access token authorization. Used for all API operations.
-      x-bearerInfoFunc: app.api.auth.check_bearer
+      x-bearerInfoFunc: quetzal.app.api.auth.check_bearer
 
 security:
   - bearer: []

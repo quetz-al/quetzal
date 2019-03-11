@@ -6,11 +6,11 @@ from requests import codes
 from psycopg2 import ProgrammingError
 import sqlparse
 
-from app import db
-from app.api.exceptions import APIException
-from app.helpers.pagination import paginate
-from app.models import MetadataQuery, QueryDialect, Workspace
-from app.security import (
+from quetzal.app import db
+from quetzal.app.api.exceptions import APIException
+from quetzal.app.helpers.pagination import paginate
+from quetzal.app.models import MetadataQuery, QueryDialect, Workspace
+from quetzal.app.security import (
     ReadWorkspacePermission, WriteWorkspacePermission
 )
 

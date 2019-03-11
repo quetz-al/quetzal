@@ -17,7 +17,7 @@ RUN pip install -r requirements.txt && \
 
 # Add application source code
 COPY config.py wsgi.py openapi.yaml init.sh ./
-COPY app ./app
+COPY quetzal ./quetzal
 COPY migrations ./migrations
 
 # Add entrypoints
