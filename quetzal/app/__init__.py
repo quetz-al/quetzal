@@ -19,7 +19,10 @@ from .middleware.headers import HttpHostHeaderMiddleware
 from .security import load_identity
 
 
-__version__ = '0.1.0'
+# Version with versioneer
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
 
 
 # Common objects usable across the application
