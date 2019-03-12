@@ -417,10 +417,9 @@ def _upload_file_gcp(name, content):
 
 def _upload_file_local(name, content):
     data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
-    target_file = data_dir / name
-    with target_file.open('wb') as f:
-        f.write(content)
-    return f'file://{target_file.resolve()}'
+    filename = str((data_dir / name).resolve())
+    content.save(filename)
+    return f'file://{filename}'
 
 
 def _download_file(url):
