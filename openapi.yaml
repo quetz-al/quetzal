@@ -2,7 +2,7 @@
 openapi: 3.0.2
 
 info:
-  title: Quetzalcoatl API
+  title: Quetzal API
   version: "{{ version }}"
   description: |
     Quetzal (short for Quetzalcoatl): an API to manage data files and their

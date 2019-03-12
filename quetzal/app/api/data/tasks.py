@@ -1,4 +1,7 @@
 import logging
+import pathlib
+
+from flask import current_app
 from sqlalchemy import func, types
 from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.dialects.postgresql import UUID
@@ -152,7 +155,8 @@ def init_workspace(wid):
 
 @celery.task()
 def init_data_bucket(wid):
-    logger.info('Initializing bucket of workspace %s...', wid)
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    logger.info('Initializing bucket of workspace %s on backend %s...', wid, storage_backend)
 
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(wid)
@@ -166,11 +170,14 @@ def init_data_bucket(wid):
     # TODO: manage exceptions/errors
     # TODO: manage location and storage class through configuration or workspace options
     bucket_name = f'quetzal-ws-{workspace.id}-{workspace.owner.username}-{workspace.name}'
+
     try:
-        client = get_client()
-        bucket = client.bucket(bucket_name)
-        bucket.storage_class = 'REGIONAL'
-        bucket.create(client=client, location='europe-west1')
+        if storage_backend == 'GCP':
+            data_url = _init_gcp_data_bucket(bucket_name)
+        elif storage_backend == 'file':
+            data_url = _init_local_data_bucket(bucket_name)
+        else:
+            raise WorkerException(f'Unknown storage backend {storage_backend}.')
     except Exception as ex:
         # Update database model to set as invalid
         workspace.state = WorkspaceState.INVALID
@@ -180,9 +187,26 @@ def init_data_bucket(wid):
 
     # Update the database model
     workspace.state = WorkspaceState.READY
-    workspace.data_url = f'gs://{bucket_name}'
+    workspace.data_url = data_url
     db.session.add(workspace)
     db.session.commit()
+
+
+def _init_gcp_data_bucket(bucket_name):
+    # TODO: manage exceptions/errors
+    # TODO: manage location and storage class through configuration or workspace options
+    client = get_client()
+    bucket = client.bucket(bucket_name)
+    bucket.storage_class = 'REGIONAL'
+    bucket.create(client=client, location='europe-west1')
+    return f'gs://{bucket_name}'
+
+
+def _init_local_data_bucket(bucket_name):
+    basedir = current_app.config['QUETZAL_FILE_USER_DATA_DIR']
+    path = pathlib.Path(basedir) / bucket_name
+    path.mkdir(mode=0o755, parents=True, exist_ok=False)
+    return f'file://{path.resolve()}'
 
 
 @celery.task()
