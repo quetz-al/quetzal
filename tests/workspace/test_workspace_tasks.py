@@ -5,12 +5,12 @@ from celery.exceptions import Retry
 from google.cloud.storage import Client
 from sqlalchemy import func
 
-from app.models import Family, Workspace, WorkspaceState
-from app.api.data.workspace import create
-from app.api.data.tasks import (
+from quetzal.app.models import Family, Workspace, WorkspaceState
+from quetzal.app.api.data.workspace import create
+from quetzal.app.api.data.tasks import (
     wait_for_workspace, init_workspace, init_data_bucket, delete_workspace
 )
-from app.api.exceptions import WorkerException
+from quetzal.app.api.exceptions import WorkerException
 
 
 def test_create_workspace_backend_tasks(app, user, db_session, mocker):
@@ -159,7 +159,7 @@ def test_init_data_bucket_success(db, db_session, make_workspace, mocker):
     # See test_init_data_bucket_correct_api for comments on these mocks
     mocker.patch('google.auth.default',
                  return_value=(None, 'mock-project'))
-    mocker.patch('app.api.data.tasks.get_client',
+    mocker.patch('quetzal.app.api.data.tasks.get_client',
                  return_value=Client(project='mock-project'))
     mocker.patch('google.cloud._http.JSONConnection.api_request')
 
@@ -182,10 +182,10 @@ def test_init_data_bucket_correct_api(db, db_session, make_workspace, mocker):
     # - the api_request call that will do the final http request
     google_auth_mock = mocker.patch('google.auth.default',
                                     return_value=(None, 'mock-project'))
-    # Note that here, mocking 'app.api.data.helpers.get_client' will not work
-    # because it is imported in 'app.api.data.tasks'.
+    # Note that here, mocking 'quetzal.app.api.data.helpers.get_client' will not work
+    # because it is imported in 'quetzal.app.api.data.tasks'.
     # See https://docs.python.org/3/library/unittest.mock.html#where-to-patch
-    get_client_mock = mocker.patch('app.api.data.tasks.get_client',
+    get_client_mock = mocker.patch('quetzal.app.api.data.tasks.get_client',
                                    return_value=Client(project='mock-project'))
     request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
 
@@ -231,7 +231,7 @@ def test_delete_workspace_task_success(db_session, make_workspace, mocker):
     # See test_init_data_bucket_correct_api for comments on these mocks
     mocker.patch('google.auth.default',
                  return_value=(None, 'mock-project'))
-    mocker.patch('app.api.data.tasks.get_client',
+    mocker.patch('quetzal.app.api.data.tasks.get_client',
                  return_value=Client(project='mock-project'))
     request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
     request_mock.return_value = {}
@@ -248,7 +248,7 @@ def test_delete_workspace_task_correct_api(db_session, make_workspace, mocker):
     # See test_init_data_bucket_correct_api for comments on these mocks
     mocker.patch('google.auth.default',
                  return_value=(None, 'mock-project'))
-    mocker.patch('app.api.data.tasks.get_client',
+    mocker.patch('quetzal.app.api.data.tasks.get_client',
                  return_value=Client(project='mock-project'))
     request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request')
     request_mock.side_effect = [

@@ -8,15 +8,15 @@ import pytest
 from google.auth.credentials import AnonymousCredentials
 from google.cloud.storage import Client
 
-from app.api.data.file import create, details, details_w
-from app.api.exceptions import APIException, ObjectNotFoundException
-from app.models import Metadata, WorkspaceState
+from quetzal.app.api.data.file import create, details, details_w
+from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
+from quetzal.app.models import Metadata, WorkspaceState
 
 
 def test_create_file_success(db, db_session, user, make_workspace, file_id, make_file, mocker):
     """File create on success conditions"""
-    mocker.patch('app.api.data.file._upload_file', return_value='gs://some_url')
-    mocker.patch('app.api.data.file.uuid4', return_value=file_id)
+    mocker.patch('quetzal.app.api.data.file._upload_file', return_value='gs://some_url')
+    mocker.patch('quetzal.app.api.data.file.uuid4', return_value=file_id)
 
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
@@ -46,7 +46,7 @@ def test_create_file_missing_base(db, db_session, make_workspace, make_file, use
     content = make_file()
     # caplog.at_level:
     # capture the logger.error log message emitted when the queue fails
-    with caplog.at_level(logging.CRITICAL, logger='app.api.data.workspace'):
+    with caplog.at_level(logging.CRITICAL, logger='quetzal.app.api.data.workspace'):
         with pytest.raises(APIException):
             create(wid=workspace.id, content=content, user=user)
 
@@ -55,12 +55,12 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
     """Creating a file creates the correct metadata"""
     mocker.patch('google.auth.default',
                  return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('app.api.data.helpers.get_client',
+    mocker.patch('quetzal.app.api.data.helpers.get_client',
                  return_value=Client(project='mock-project'))
     mocker.patch('google.cloud._http.JSONConnection.api_request',
                  return_value={})
-    mocker.patch('app.api.data.file.uuid4', return_value=file_id)
-    mocker.patch('app.api.data.file._now', return_value='2019-02-03 16:30:11.350719+00:00')
+    mocker.patch('quetzal.app.api.data.file.uuid4', return_value=file_id)
+    mocker.patch('quetzal.app.api.data.file._now', return_value='2019-02-03 16:30:11.350719+00:00')
     request_mock = mocker.patch('google.auth.transport.requests.AuthorizedSession.request')
 
     # A mock function to control external request. Here, there should be a call
@@ -102,11 +102,11 @@ def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, m
     """Creating a file sends a correct GCP API to create an object"""
     mocker.patch('google.auth.default',
                  return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('app.api.data.helpers.get_client',
+    mocker.patch('quetzal.app.api.data.helpers.get_client',
                  return_value=Client(project='mock-project'))
     mocker.patch('google.cloud._http.JSONConnection.api_request',
                  return_value={})
-    mocker.patch('app.api.data.file.uuid4', return_value=file_id)
+    mocker.patch('quetzal.app.api.data.file.uuid4', return_value=file_id)
     request_mock = mocker.patch('google.auth.transport.requests.AuthorizedSession.request')
 
     # A mock function to control external request. Here, there should be a call
@@ -182,7 +182,7 @@ def test_download_file_content_in_workspace(app, db_session, make_workspace, upl
     # assumes the workspace is correctly initialized: it must have a base family
     workspace = make_workspace(families={'base': 0})
     known_content = b'some content bytes'
-    mocker.patch('app.api.data.file._download_file', return_value=io.BytesIO(known_content))
+    mocker.patch('quetzal.app.api.data.file._download_file', return_value=io.BytesIO(known_content))
     file_id = upload_file(workspace=workspace, content=known_content)
 
     headers = {'accept': 'application/octet-stream'}
@@ -213,7 +213,7 @@ def test_download_file_content_in_global(app, db_session, committed_file, mocker
     """Retrieve file contents of a file uploaded and committed"""
     file_id = committed_file['id']
     file_contents = committed_file['content']
-    mocker.patch('app.api.data.file._download_file', return_value=io.BytesIO(file_contents))
+    mocker.patch('quetzal.app.api.data.file._download_file', return_value=io.BytesIO(file_contents))
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
@@ -242,7 +242,7 @@ def test_download_file_content_correct_api(app, db_session, make_workspace, uplo
     result_type = namedtuple('request', ['status_code', 'headers', 'json'])
     mocker.patch('google.auth.default',
                  return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('app.api.data.helpers.get_client',
+    mocker.patch('quetzal.app.api.data.helpers.get_client',
                  return_value=Client(project='mock-project'))
     request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request',
                                 side_effect=result_type(200, {'location': 'something'}, lambda: {}))

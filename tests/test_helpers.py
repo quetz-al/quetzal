@@ -1,6 +1,6 @@
 import io
 
-from app.helpers.files import get_readable_info
+from quetzal.app.helpers.files import get_readable_info
 
 
 def test_readable_info():

@@ -2,7 +2,7 @@ import pytest
 
 from sqlalchemy.exc import IntegrityError
 
-from app.models import Workspace
+from quetzal.app.models import Workspace
 
 
 def test_duplicate_workspace_db(db, make_workspace, db_session, user):

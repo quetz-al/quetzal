@@ -5,3 +5,4 @@
 
 # Files that will be converted to native line endings (depends on OS)
 *.py text
+quetzal/_version.py export-subst

@@ -1,13 +1,14 @@
 """
 Background tasks
 """
+
 import base64
 import binascii
 import logging
 import pathlib
 
-from app.helpers.google_api import get_bucket
-from app.helpers.files import get_readable_info
+from .helpers.google_api import get_bucket
+from .helpers.files import get_readable_info
 
 
 logger = logging.getLogger(__name__)

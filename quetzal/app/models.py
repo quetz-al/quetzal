@@ -11,8 +11,8 @@ from sqlalchemy.sql import func
 from sqlalchemy.schema import Index, UniqueConstraint, CheckConstraint
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app import db
-from app.api.exceptions import (
+from quetzal.app import db
+from quetzal.app.api.exceptions import (
     InvalidTransitionException, ObjectNotFoundException, QuetzalException
 )
 

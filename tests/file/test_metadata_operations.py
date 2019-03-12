@@ -1,9 +1,9 @@
 import pytest
 import warnings
 
-from app.api.data.file import update_metadata
-from app.api.exceptions import APIException, ObjectNotFoundException
-from app.models import Family, Metadata, WorkspaceState
+from quetzal.app.api.data.file import update_metadata
+from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
+from quetzal.app.models import Family, Metadata, WorkspaceState
 
 
 def test_update_metadata_success(db_session, make_workspace, upload_file):

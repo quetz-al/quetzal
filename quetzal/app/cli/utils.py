@@ -5,9 +5,9 @@ import click
 from flask import current_app
 from flask.cli import AppGroup, with_appcontext
 
-import app.models
-from app import db
-from app.api.data.tasks import delete_workspace
+import quetzal.app.models
+from quetzal.app import db
+from quetzal.app.api.data.tasks import delete_workspace
 
 utils_cli = AppGroup('utils', help='Miscelaneous operations.')
 
@@ -63,13 +63,13 @@ def nuke(keep_users):
 
     blacklist = []
     if keep_users:
-        blacklist.append(app.models.User)
-        blacklist.append(app.models.Role)
+        blacklist.append(quetzal.app.models.User)
+        blacklist.append(quetzal.app.models.Role)
 
     # Delete all files in all workspaces
-    workspaces_with_data = db.session.query(app.models.Workspace).filter(
-        app.models.Workspace._state != app.models.WorkspaceState.DELETED,
-        app.models.Workspace.data_url.isnot(None),
+    workspaces_with_data = db.session.query(quetzal.app.models.Workspace).filter(
+        quetzal.app.models.Workspace._state != quetzal.app.models.WorkspaceState.DELETED,
+        quetzal.app.models.Workspace.data_url.isnot(None),
     )
     click.echo(f'Erasing {workspaces_with_data.count()} workspaces...')
     for workspace in workspaces_with_data.all():
@@ -80,7 +80,7 @@ def nuke(keep_users):
                         f'{type(ex).__name__}: {ex}')
             continue
 
-    classes = inspect.getmembers(app.models, inspect.isclass)
+    classes = inspect.getmembers(quetzal.app.models, inspect.isclass)
 
     with db.session.no_autoflush:
         # Disabling autoflush because intermediate deletes would violate some

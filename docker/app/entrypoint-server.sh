@@ -8,6 +8,6 @@ else
     echo "Serving with gunicorn"
     gunicorn \
         --bind 0.0.0.0:5000 \
-        --timeout 300 \
+        --timeout 3600 \
         wsgi:app
 fi

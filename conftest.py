@@ -7,9 +7,9 @@ import unittest.mock
 
 import pytest
 
-from app import create_app
-from app import db as _db
-from app.models import User
+from quetzal.app import create_app
+from quetzal.app import db as _db
+from quetzal.app.models import User
 
 
 logger = logging.getLogger(__name__)

@@ -11,15 +11,18 @@ from flask_sqlalchemy import SQLAlchemy
 import connexion
 
 from config import config
-from app.helpers.celery import Celery
-from app.hacks import CustomResponseValidator
-from app.middleware.debug import debug_request, debug_response
-from app.middleware.gdpr import gdpr_log_request
-from app.middleware.headers import HttpHostHeaderMiddleware
-from app.security import load_identity
+from .helpers.celery import Celery
+from .hacks import CustomResponseValidator
+from .middleware.debug import debug_request, debug_response
+from .middleware.gdpr import gdpr_log_request
+from .middleware.headers import HttpHostHeaderMiddleware
+from .security import load_identity
 
 
-__version__ = '0.1.0'
+# Version with versioneer
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions
 
 
 # Common objects usable across the application
@@ -74,12 +77,17 @@ def create_app(config_name=None):
     flask_app.celery = celery
 
     # APIs
-    connexion_app.add_api('../openapi.yaml', strict_validation=True, validate_responses=True,
+    from . import __version__
+    connexion_app.add_api('../../openapi.yaml',
+                          arguments={'version': __version__},
+                          strict_validation=True, validate_responses=True,
                           validator_map={'response': CustomResponseValidator})
 
     # Other extensions
     from .redoc import bp as redoc_bp
     flask_app.register_blueprint(redoc_bp)
+    from .routes import static_bp
+    flask_app.register_blueprint(static_bp)
 
     # Principals
     principal.init_app(flask_app)
@@ -90,7 +98,7 @@ def create_app(config_name=None):
     flask_app.cli.add_command(quetzal_cli)
 
     # Flask shell configuration
-    from app.models import (
+    from .models import (
         User, Role,
         Metadata, Family, MetadataQuery, QueryDialect, Workspace, WorkspaceState
     )
@@ -144,7 +152,7 @@ def create_app(config_name=None):
             not flask_app.testing and
             os.environ.get('WERKZEUG_RUN_MAIN') is None):
 
-        from app.background import hello, backup_logs
+        from quetzal.app.background import hello, backup_logs
         # Simple job to know what's alive every 10 minutes
         scheduler.add_job(hello, trigger='interval', seconds=600)
         # Backup logs at midnight + 5 minutes so that the timed rolling logs do their rollover

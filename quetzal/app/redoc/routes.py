@@ -1,6 +1,6 @@
 from flask import render_template, url_for
 
-from app.redoc import bp
+from quetzal.app.redoc import bp
 
 
 @bp.route('/redoc', methods=['GET'])

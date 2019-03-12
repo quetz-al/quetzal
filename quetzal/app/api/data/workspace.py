@@ -5,16 +5,16 @@ from connexion import request
 from kombu.exceptions import OperationalError
 from sqlalchemy.exc import IntegrityError
 
-from app import db
-from app.api.data.tasks import init_workspace, init_data_bucket, \
+from quetzal.app import db
+from quetzal.app.api.data.tasks import init_workspace, init_data_bucket, \
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
-from app.api.exceptions import APIException, InvalidTransitionException
-from app.models import Family, User, Workspace, WorkspaceState
-from app.helpers.celery import log_task
-from app.helpers.pagination import paginate
-from app.security import (
+from quetzal.app.api.exceptions import APIException, InvalidTransitionException
+from quetzal.app.models import Family, User, Workspace, WorkspaceState
+from quetzal.app.helpers.celery import log_task
+from quetzal.app.helpers.pagination import paginate
+from quetzal.app.security import (
     PublicReadPermission, PublicWritePermission,
-    ReadWorkspacePermission, WriteWorkspacePermission
+    WriteWorkspacePermission
 )
 
 

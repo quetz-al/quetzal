@@ -2,8 +2,8 @@ from flask import current_app
 from flask_principal import identity_changed, Identity
 from requests import codes
 
-from app import db
-from app.models import User
+from quetzal.app import db
+from quetzal.app.models import User
 
 
 def get_token(*, user):
