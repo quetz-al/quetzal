@@ -10,6 +10,8 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 ------------------------
 
 * Refactored app as a package in ``quetzal.app``.
+* Added a file storage backend, an alternative storage that does not use Google
+  Cloud Platform.
 
 
 0.1.0 (2019-03-05)
