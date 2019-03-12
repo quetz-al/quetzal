@@ -3,7 +3,7 @@ openapi: 3.0.2
 
 info:
   title: Quetzalcoatl API
-  version: 0.1.0
+  version: "{{ version }}"
   description: |
     Quetzal (short for Quetzalcoatl): an API to manage data files and their
     associated metadata.
@@ -56,14 +56,15 @@ info:
 
     API version | Changes
     ------------|---------
-    0.1.0       | [API changes](https://quetz.al/docs/changelog#v0-1-0)
+    0.2.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.2.0)
+    0.1.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.1.0)
 
     # TODO
 
     * Add file delete mechanism.
     * Add workspace update through a PUT.
 
-    # API reference
+    # API Reference
 
   termsOfService: https://quetz.al/terms  # TODO: activate this URL
   contact:
@@ -83,8 +84,8 @@ servers:
     description: Local development data server
 
 externalDocs:
-  url: https://quetz.al/docs              # TODO: activate this URL. Maybe readthedocs?
-  description: Detailed documentation and source code of Quetzalcoatl.
+  url: https://quetzal-api.readthedocs.org
+  description: Quetzal documentation at readthedocs.org.
 
 paths:
   # Authentication endpoints

@@ -2,7 +2,7 @@
 Changelog
 =========
 
-This document list all important changes to Quetzal.
+This document lists all important changes to Quetzal.
 
 Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 

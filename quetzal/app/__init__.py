@@ -77,7 +77,10 @@ def create_app(config_name=None):
     flask_app.celery = celery
 
     # APIs
-    connexion_app.add_api('../../openapi.yaml', strict_validation=True, validate_responses=True,
+    from . import __version__
+    connexion_app.add_api('../../openapi.yaml',
+                          arguments={'version': __version__},
+                          strict_validation=True, validate_responses=True,
                           validator_map={'response': CustomResponseValidator})
 
     # Other extensions

@@ -1,5 +1,7 @@
 # app.db database for development
 app.db
+logs
+
 # ignore any sensitive configuration file
 conf/*
 # OSX stuff
