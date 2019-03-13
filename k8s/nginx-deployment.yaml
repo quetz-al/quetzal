@@ -27,6 +27,13 @@ spec:
           volumeMounts:
             - mountPath: /etc/nginx/ssl
               name: nginx-secret-files-volume
+          env:
+            - name: SERVER_NAMES
+              value: "stage.quetz.al"
+            - name: ADMIN_EMAIL
+              value: "admin@quetz.al"
+            - name: DISABLE_CERTBOT
+              value: "1"
       restartPolicy: Always
       volumes:
         - name: nginx-secret-files-volume
