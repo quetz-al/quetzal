@@ -1,0 +1,14 @@
+title: Quetzal application role
+description: >
+  A role that encapsulates the minimal set of permissions needed by the
+  Quetzal application.
+stage: ALPHA
+includedPermissions:
+  # These are the only *required* permissions for Quetzal. Do not modify,
+  # or else Quetzal will not work correctly.
+  - storage.buckets.create   # To create buckets when creating workspaces and to create the global data buckets
+  - storage.buckets.delete   # To delete buckets when deleting workspaces
+  - storage.buckets.get      # To list buckets for workspace details
+  - storage.objects.create   # To save files into buckets when uploading files
+  - storage.objects.delete   # To delete files from buckets when deleting workspaces
+  - storage.objects.list     # To list files for workspaces details
