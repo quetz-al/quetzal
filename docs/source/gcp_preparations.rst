@@ -1,9 +1,13 @@
+.. _`GCP preparations`:
+
 ==================================
 Google Cloud Platform preparations
 ==================================
 
 Quetzal can be deployed as a Kubernetes application on Google Cloud Platform
 (GCP). To achieve this, follow this guide.
+
+.. _`GCP project preparations`:
 
 Project
 =======
@@ -55,6 +59,8 @@ Project
     project = <your-project-id>         # << ... and that this is your GCP project
 
     Your active configuration is: [default]
+
+.. _`GCP credential preparations`:
 
 Credentials
 ===========
@@ -118,6 +124,8 @@ these credentials.
       --member=serviceAccount:quetzal-service-account@<your-organization>.iam.gserviceaccount.com \
       --role=projects/<your-organization>/roles/quetzal_app_role
 
+.. _`GCP API preparations`:
+
 APIs
 ====
 
@@ -149,6 +157,8 @@ Quetzal uses Docker images and the Google Container Registry (GCR).
 
      $ gcloud components install kubectl
 
+
+.. _`GCP external IP`:
 
 IP address reservation
 ======================

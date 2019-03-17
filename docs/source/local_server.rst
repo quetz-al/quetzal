@@ -1,8 +1,8 @@
+.. _`Local development server`:
+
 ========================
 Local development server
 ========================
-
-Instructions here.
 
 The following instructions assume that you have are using Linux or OSX.
 For instructions under Windows, please help us by adapting them and filing
@@ -38,8 +38,11 @@ Google Cloud Platform
 ---------------------
 
 Using Google buckets to save data needs some preparations described in
-:ref:`Google Cloud Platform preparations`. For a development server you need
-the follow the :ref:`Project`, :ref:`Credentials` and :ref:`APIs` instructions.
+:ref:`GCP preparations`.
+For a development server you need to follow the
+:ref:`GCP project preparations`,
+:ref:`GCP credential preparations` and
+:ref:`GCP API preparations` instructions.
 
 SSL
 ---
@@ -102,7 +105,7 @@ server runs as a multi-container application managed by docker-compose.
    create some roles and users. You can do this while the server is running
    with the following script:
 
-   .. code-block::
+   .. code-block:: console
 
     $ docker-compose exec web ./init.sh
 

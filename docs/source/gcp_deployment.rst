@@ -1,3 +1,4 @@
+================
 Deploying on GCP
 ================
 
@@ -5,14 +6,14 @@ The following instructions create a Kubernetes (k8s) cluster with a Quetzal
 server running on the *staging* configuration.
 Change the *stage-* references to *prod-* to create a production server.
 
-Part 1: GCP Preparations
-------------------------
+Part 1: Docker images
+---------------------
 
 1. Follow the :ref:`Local development server` instructions and make sure that
    you are able to run and launch a development environment. You will need to
    activate your virtual environment.
 
-2. Read and follow the :ref:`Google Cloud Platform preparations`. You will
+2. Read and follow the :ref:`GCP preparations`. You will
    need to have a gcloud correctly configured, a JSON credentials file,
    and a reserved external IP address.
 
@@ -27,7 +28,7 @@ Part 1: GCP Preparations
 Part 2: GCP Deployment
 ----------------------
 
-1. Create k8s cluster.
+1. Create a k8s cluster.
 
    .. code-block:: console
 
@@ -78,7 +79,7 @@ Part 2: GCP Deployment
 
    * Proxy (nginx) SSL secrets
 
-   .. code-block::
+   .. code-block:: console
 
       # Create nginx secrets with the following command:
       $ kubectl create secret generic stage-nginx-secrets \
@@ -130,14 +131,14 @@ Part 2: GCP Deployment
    their ``SERVER_NAME`` and ``FLASK_ENV`` are correct.
 
    Finally, verify that the ``nginx-service.yaml`` has the correct external
-   IP created before:
+   IP created on :ref:`GCP external IP`:
 
    .. code-block:: yaml
 
      ...
      spec:
        type: LoadBalancer
-       loadBalancerIP: 34.76.151.30
+       loadBalancerIP: x.x.x.x
      ...
 
 4. Create k8s deployments and services
@@ -188,7 +189,7 @@ Part 2: GCP Deployment
     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP    PORT(S)                      AGE
     db           ClusterIP      10.27.247.154   <none>         5432/TCP                     5m
     kubernetes   ClusterIP      10.27.240.1     <none>         443/TCP                      33m
-    nginx        LoadBalancer   10.27.249.146   34.76.151.30   80:31842/TCP,443:30919/TCP   2m
+    nginx        LoadBalancer   10.27.249.146   x.x.x.x        80:31842/TCP,443:30919/TCP   2m
     rabbitmq     ClusterIP      10.27.255.80    <none>         5672/TCP,15672/TCP           5m
     web          ClusterIP      10.27.240.128   <none>         5000/TCP                     2m
 
@@ -224,9 +225,10 @@ Part 2: GCP Deployment
     $ flask quetzal user create alice alice.smith@example.com
     $ flask quetzal role add alice public_read public_write
 
+-----
 
-7. That's all, you can now explore the documentation at
-   https://stage.quetz.al/redoc. Or wherever your configuration points to.
+That's all, you can now explore the documentation at
+https://stage.quetz.al/redoc, or wherever your configuration points to.
 
 .. _gcloud: https://cloud.google.com/sdk/gcloud/
 .. _n1-standard-1: https://cloud.google.com/compute/docs/machine-types
