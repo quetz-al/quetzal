@@ -1,121 +1,64 @@
 Deploying on GCP
 ================
 
-The following instructions create a cluster with a Quetzal server running
-on the *staging* configuration. Change the *stage-* references to *prod-* to
-create a production server.
+The following instructions create a Kubernetes (k8s) cluster with a Quetzal
+server running on the *staging* configuration.
+Change the *stage-* references to *prod-* to create a production server.
 
-Part 1: Requisites
-------------------
+Part 1: GCP Preparations
+------------------------
 
-1. Install gcloud_.
+1. Follow the :ref:`Local development server` instructions and make sure that
+   you are able to run and launch a development environment. You will need to
+   activate your virtual environment.
 
-2. Configure gcloud.
-
-   .. code-block:: console
-
-    $ gcloud config set project <your project id>
-    $ gcloud config set compute/zone europe-west1-c # or some other region
-
-   Where ``<your project id>`` is the project ID on your Google Cloud Platform.
-
-   Also, configure the gcloud and Docker configuration:
-
-   .. code-block:: console
-
-    $ gcloud auth configure-docker
-
-   Finally, install the kubernetes client:
-
-   .. code-block:: console
-
-     $ gcloud components install kubectl
-
-3. Reserve an external IP **if you have not reserved one yet.**.
-
-   .. code-block:: console
-
-    $ gcloud compute addresses create quetzal-stage-server-ip \
-      --description="Quetzal stage server external IP" \
-      --global --network-tier=PREMIUM
-
-   Write down this IP address for later.
+2. Read and follow the :ref:`Google Cloud Platform preparations`. You will
+   need to have a gcloud correctly configured, a JSON credentials file,
+   and a reserved external IP address.
 
 3. Build and upload the Docker container images to Google Container Registry.
 
    .. code-block:: console
 
     $ flask quetzal deploy create-images \
-      --registry gcr.io/<your project id>
+      --registry gcr.io/<your-project-id>
 
-4. Create database disk.
 
-   We need a persistent disk for the database, but I don't know how to do this
-   automatically with kubernetes, volume claims and persistent volume claims.
-   For the moment, we need to do this manually.
+Part 2: GCP Deployment
+----------------------
 
-   First, create a Google Compute Engine Disk
+1. Create k8s cluster.
 
    .. code-block:: console
 
-    $ gcloud compute disks create --size=200GB quetzal-stage-db-volume
+    $ gcloud container clusters create quetzal-cluster \
+      --num-nodes=4
 
-   Then, start a temporary virtual machine to format it:
-
-   .. code-block:: console
-
-    $ gcloud compute instances create formatter-instance \
-      --machine-type "n1-standard-1" \
-      --disk "name=quetzal-stage-db-volume,device-name=quetzal-stage-db-volume,mode=rw,boot=no" \
-      --image "ubuntu-1604-xenial-v20170811" --image-project "ubuntu-os-cloud" \
-      --boot-disk-size "10" --boot-disk-type "pd-standard" \
-      --boot-disk-device-name "formatter-instance-boot-disk"
-
-   You can safely ignore any warnings concerning the disk size, they concern
-   the virtual machine boot disk, not the database disk.
-
-   Now, connect to the formatter instance with:
+   This will create 4 Google Compute Engine VM instances that will be used as
+   CPU and memory resources managed by k8s. The VM machine type in this example
+   is the default `n1-standard-1`_, as shown by:
 
    .. code-block:: console
 
-    $ gcloud compute ssh formatter-instance
+    $ gcloud container clusters list
+    NAME             LOCATION        MASTER_VERSION  MASTER_IP      MACHINE_TYPE   NODE_VERSION  NUM_NODES  STATUS
+    quetzal-cluster  europe-west1-c  1.11.7-gke.4    x.x.x.x        n1-standard-1  1.11.7-gke.4  2          RUNNING
 
-   And run the following commands **inside that virtual machine**:
-
-   .. code-block:: console
-
-    # Find out where the disks are attached
-    $ sudo lsblk
-    NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-    sdb      8:16   0  200G  0 disk             ## << this is our disk
-    sda      8:0    0   10G  0 disk
-    `-sda1   8:1    0   10G  0 part /
-
-    # Then this command to format the disk:
-    # sudo mkfs.ext4 -m 0 -F -E lazy_itable_init=0,lazy_journal_init=0,discard /dev/[DEVICE_ID]
-    # In this example:
-    $ sudo mkfs.ext4 -m 0 -F -E lazy_itable_init=0,lazy_journal_init=0,discard /dev/sdb
-
-    # We are done
-    logout
-
-   Finally, delete the instance to detach the disk and delete that temporary
-   virtual machine:
+   If you need more resources, you can change the number of nodes with:
 
    .. code-block:: console
 
-    $ gcloud compute instances delete formatter-instance
+    $ gcloud container clusters resize quetzal-cluster --size N
 
-Part 2: Deployment
-------------------
+   or change the type of VM instance type for another machine type that uses
+   more CPU or memory. This procedure is out of scope of this guide, but you
+   can read more at the
+   `node pools documentation <https://cloud.google.com/kubernetes-engine/docs/concepts/node-pools>`_.
 
-1. Create kubernetes cluster
+2. Create k8s secrets.
 
-   .. code-block:: console
-
-    $ gcloud container clusters create quetzal-stage-cluster --num-nodes=4
-
-2. Create kubernetes secrets
+   Quetzal uses several services that need some configuration values that are
+   sensitive and should be protected. These values are saved as `k8s secrets`_.
 
    There are three secrets to create:
 
@@ -133,7 +76,7 @@ Part 2: Deployment
        --from-literal=username=postgres \
        --from-literal=password=<your db password>
 
-   * Proxy (nginx) ssl secrets
+   * Proxy (nginx) SSL secrets
 
    .. code-block::
 
@@ -283,6 +226,8 @@ Part 2: Deployment
 
 
 7. That's all, you can now explore the documentation at
-   https://staging.quetz.al/redoc. Or wherever your configuration points to.
+   https://stage.quetz.al/redoc. Or wherever your configuration points to.
 
 .. _gcloud: https://cloud.google.com/sdk/gcloud/
+.. _n1-standard-1: https://cloud.google.com/compute/docs/machine-types
+.. _k8s secrets: https://kubernetes.io/docs/concepts/configuration/secret/
