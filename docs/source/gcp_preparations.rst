@@ -165,13 +165,26 @@ IP address reservation
 
 This step is optional. When deploying Quetzal, you might want to associate it
 to some fixed IP address (in order to associate it in your DNS records). You
-can reserve one IP as follows:
+can reserve one IP as follows (change the region to your case):
 
 .. code-block:: console
 
   $ gcloud compute addresses create quetzal-stage-server-ip \
    --description="Quetzal server external IP" \
-   --global --network-tier=PREMIUM
+   --region=europe-west1 \
+   --network-tier=PREMIUM
+
+Get the reserved IP with the following command:
+
+.. code-block:: console
+
+  $ gcloud compute addresses list
+  NAME                     ADDRESS/RANGE   TYPE  PURPOSE  NETWORK  REGION        SUBNET  STATUS
+  quetzal-stage-server-ip  x.x.x.x                                 europe-west1          RESERVED
+
+.. important:: GCP reserved IPs incur in charges if they are not associated to
+  a service. If you are not going to use it immediately, you may want to do this
+  as late as possible.
 
 
 .. _GCP console: https://console.cloud.google.com

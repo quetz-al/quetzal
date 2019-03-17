@@ -63,7 +63,7 @@ Part 2: GCP Deployment
 
    There are three secrets to create:
 
-   * Database secrets
+   * Database secrets:
 
    .. code-block:: console
 
@@ -77,7 +77,7 @@ Part 2: GCP Deployment
        --from-literal=username=postgres \
        --from-literal=password=<your db password>
 
-   * Proxy (nginx) SSL secrets
+   * Proxy (nginx) SSL secrets:
 
    .. code-block:: console
 
@@ -87,7 +87,7 @@ Part 2: GCP Deployment
         --from-file=./conf/ssl/mysite.crt \
         --from-file=./conf/ssl/mysite.key
 
-   * Application secrets
+   * Application secrets:
 
    .. code-block:: console
 
@@ -113,20 +113,7 @@ Part 2: GCP Deployment
    Check that all ``-deployment.yaml`` files point to the versions of the
    images that you want.
 
-   An important thing to check is if ``db-deployment.yaml`` is using the
-   correct disk that you created before:
-
-   .. code-block:: yaml
-
-     ...
-     volumes:
-       - name: db-data-volume
-         gcePersistentDisk:
-           pdName: quetzal-stage-db-volume
-           fsType: ext4
-     ...
-
-   Another important thing to check is the environment variables of the
+   An important thing to check is the environment variables of the
    ``web-deployment.yaml`` *and* ``worker-deployment.yaml``. Verify that
    their ``SERVER_NAME`` and ``FLASK_ENV`` are correct.
 
@@ -141,7 +128,41 @@ Part 2: GCP Deployment
        loadBalancerIP: x.x.x.x
      ...
 
-4. Create k8s deployments and services
+4. Create k8s storage classes and disks.
+
+   There are two pods in k8s that need an external disk. In both cases, it
+   should be a disk that is not deleted when the disk resource is not used. To
+   address this, we need to create a specific storage class resource:
+
+   .. code-block:: console
+
+    $ kubectl create -f k8s/storage-class.yaml
+    storageclass.storage.k8s.io/standard-retain created
+
+   Then create the two persistent volume claims:
+
+   .. code-block:: console
+
+    $ kubectl create -f k8s/db-pvc.yaml
+    persistentvolumeclaim/db-pvc created
+    $ kubectl create -f k8s/nginx-pvc.yaml
+    persistentvolumeclaim/nginx-pv-claim created
+
+   You can see the disks that were created on the `GCP compute disks`_
+   on the GCP console or with:
+
+   .. code-block:: console
+
+    $ gcloud compute disks list
+    NAME                            ZONE            SIZE_GB  TYPE         STATUS
+    gke-quetzal-cluster-a8-pvc-xxx  europe-west1-c  200      pd-standard  READY
+    gke-quetzal-cluster-a8-pvc-xxx  europe-west1-c  20       pd-standard  READY
+
+   These disks **will not be erased** if the cluster is deleted. This ensures
+   that the Quetzal database and nginx certificates are not lost.
+
+
+4. Create k8s deployments and services.
 
    The following commands create deployments (pods) and services. After each
    create command, you can verify its status with
@@ -150,22 +171,26 @@ Part 2: GCP Deployment
 
    .. code-block:: console
 
-
+    # rabbitmq
     $ kubectl create -f k8s/rabbitmq-deployment.yaml
     $ kubectl create -f k8s/rabbitmq-service.yaml
 
+    # database
     $ kubectl create -f k8s/db-deployment.yaml
     $ kubectl create -f k8s/db-service.yaml
 
+    # web application
     $ kubectl create -f k8s/web-deployment.yaml
     $ kubectl create -f k8s/web-service.yaml
 
+    # background celery worker
     $ kubectl create -f k8s/worker-deployment.yaml
 
+    # nginx reverse proxy
     $ kubectl create -f k8s/nginx-deployment.yaml
     $ kubectl create -f k8s/nginx-service.yaml
 
-5. Verify that everything is running
+5. Verify that everything is running.
 
    You can check that all pods are running with:
 
@@ -233,3 +258,4 @@ https://stage.quetz.al/redoc, or wherever your configuration points to.
 .. _gcloud: https://cloud.google.com/sdk/gcloud/
 .. _n1-standard-1: https://cloud.google.com/compute/docs/machine-types
 .. _k8s secrets: https://kubernetes.io/docs/concepts/configuration/secret/
+.. _GCP compute disks: https://console.cloud.google.com/compute/disks

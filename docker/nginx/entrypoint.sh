@@ -22,10 +22,11 @@ then
     do
         if [[ ! -f  "/etc/letsencrypt/live/${server}/fullchain.pem" ]]
         then
-            needs_initial_run="1"
+            needs_initial_run=1
         fi
     done
 fi
+
 if [[ -v DISABLE_CERTBOT ]]
 then
     echo "Certbot initial configuration disabled through DISABLE_CERTBOT"

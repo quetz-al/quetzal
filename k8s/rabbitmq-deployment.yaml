@@ -3,22 +3,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rabbitmq-deployment
+  name: rabbitmq
   labels:
-    name: rabbitmq-pods
+    name: rabbitmq
+    app: quetzal
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: rabbitmq-pods
+      name: rabbitmq
+      app: quetzal
   template:
     metadata:
       labels:
-        name: rabbitmq-pods
+        name: rabbitmq
+        app: quetzal
     spec:
       containers:
         - name: rabbitmq
-          image: gcr.io/dojeda-sandbox/quetzal/rabbitmq:0.1.0
+          image: gcr.io/quetzal-omind/quetzal/rabbitmq:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort:  5672

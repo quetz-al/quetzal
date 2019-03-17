@@ -5,22 +5,25 @@ kind: Deployment
 metadata:
   name: worker-deployment
   labels:
-    name: worker-pods
+    name: worker
+    app: quetzal
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: worker-pods
+      name: worker
+      app: quetzal
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        name: worker-pods
+        name: worker
+        app: quetzal
     spec:
       containers:
         - name: worker
-          image: gcr.io/dojeda-sandbox/quetzal/app:0.1.0
+          image: gcr.io/quetzal-omind/quetzal/app:0.1.0
           imagePullPolicy: Always
           command:
             - /entrypoint-worker.sh
@@ -30,7 +33,7 @@ spec:
               name: app-secret-files-volume
           env:
             - name: SERVER_NAME
-              value: staging.quetz.al
+              value: stage.quetz.al
             - name: FLASK_ENV
               value: staging
             - name: QUETZAL_ADMIN_MAIL
