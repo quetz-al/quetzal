@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: db
-          image: gcr.io/quetzal-omind/quetzal/db:0.1.0
+          image: gcr.io/quetzal/quetzal/db:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 5432
