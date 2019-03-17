@@ -7,3 +7,4 @@ Development
    :caption: Development environment
 
    local_server
+   python_doc
