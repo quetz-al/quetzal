@@ -23,10 +23,17 @@ project = 'Quetzal'
 copyright = '2019, David Ojeda. Logo by Veronica Ojeda Avellaneda'
 author = 'David Ojeda'
 
-# The short X.Y version
-version = '0.1'
-# The full version, including alpha/beta/rc tags
-release = '0.1.0'
+# Extract version from versioneer
+try:
+    import quetzal.app
+    version = '.'.join(quetzal.app.__version__.split('.')[:2])
+    release = quetzal.app.__version__
+    del quetzal.app
+except:
+    # The short X.Y version
+    version = '0.0'
+    # The full version, including alpha/beta/rc tags
+    release = '0.0.0'
 
 
 # -- General configuration ---------------------------------------------------
