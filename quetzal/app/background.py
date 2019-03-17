@@ -25,6 +25,11 @@ def hello():
 
 def backup_logs(app):
     with app.app_context():
+
+        if app.config['QUETZAL_DATA_STORAGE'] != 'GCP':
+            logger.info('No log backup performed: storage is not GCP.')
+            return
+
         log_dir = pathlib.Path(app.config['LOG_DIR'])
         log_bucket_name = app.config['QUETZAL_GCP_BACKUP_BUCKET']
         logger.info('Backing up logs in %s to %s', log_dir.name, log_bucket_name)

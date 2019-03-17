@@ -3,9 +3,10 @@ import logging
 import os
 import pathlib
 import tempfile
+import urllib.parse
 from uuid import uuid4
 
-from flask import request, send_file
+from flask import current_app, request, send_file
 from requests import codes
 
 from quetzal.app import db
@@ -398,6 +399,15 @@ def _gather_metadata(metadatas):
 
 
 def _upload_file(name, content):
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _upload_file_gcp(name, content)
+    elif storage_backend == 'file':
+        return _upload_file_local(name, content)
+    raise ValueError(f'Unknown storage backend {storage_backend}.')
+
+
+def _upload_file_gcp(name, content):
     """Upload contents to the google data bucket"""
     data_bucket = get_data_bucket()
     blob = data_bucket.blob(name)
@@ -405,7 +415,23 @@ def _upload_file(name, content):
     return f'gs://{data_bucket.name}/{name}'
 
 
+def _upload_file_local(name, content):
+    data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
+    filename = str((data_dir / name).resolve())
+    content.save(filename)
+    return f'file://{filename}'
+
+
 def _download_file(url):
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _download_file_gcp(url)
+    elif storage_backend == 'file':
+        return _download_file_local(url)
+    raise ValueError(f'Unknown storage backend {storage_backend}.')
+
+
+def _download_file_gcp(url):
     # Create a temporal file in memory unless it exceeds 32Mb, whence it
     # will be spilled to a file
     file_obj = tempfile.SpooledTemporaryFile(mode='w+b', max_size=32 * (1 << 20))
@@ -416,6 +442,10 @@ def _download_file(url):
     file_obj.flush()
     file_obj.seek(0)
     return file_obj
+
+
+def _download_file_local(url):
+    return urllib.parse.urlparse(url).path
 
 
 def _verify_filename_path(filename, path):

@@ -53,6 +53,12 @@ services:
       USE_GUNICORN: 1
       QUETZAL_BACKGROUND_JOBS: 1
       QUETZAL_ADMIN_MAIL: quetzal.api@gmail.com
+      QUETZAL_DATA_STORAGE: GCP
+      # When using local storage instead of GCP buckets for data, use this
+      # configuration together with the volumes declared later
+#      QUETZAL_DATA_STORAGE: file
+#      QUETZAL_FILE_DATA_DIR: /mnt/data
+#      QUETZAL_FILE_USER_DATA_DIR: /mnt/workspaces
       # KOMBU_LOG_CONNECTION: 1  # Useful to debug kombu bug
     volumes:
       # Setup a volume for development: it allows the web container to have the
@@ -62,6 +68,10 @@ services:
       # The secret files in the configuration are set as a volume, but don't use
       # it like this on production, use a secret!
       - ./conf:/code/conf:ro
+      # When using local storage instead of GCP buckets for data, create two
+      # directories and add them here:
+#      - ./data:/mnt/data
+#      - ./workspaces:/mnt/workspaces
     depends_on:
       - db
       - rabbitmq
@@ -85,6 +95,12 @@ services:
       DB_PORT: 5432
       DB_DATABASE: quetzal
       QUETZAL_BACKGROUND_JOBS: 1
+      QUETZAL_DATA_STORAGE: GCP
+      # When using local storage instead of GCP buckets for data, use this
+      # configuration together with the volumes declared later
+#      QUETZAL_DATA_STORAGE: file
+#      QUETZAL_FILE_DATA_DIR: /mnt/data
+#      QUETZAL_FILE_USER_DATA_DIR: /mnt/workspaces
     volumes:
       # Setup a volume for development: it allows the web container to have the
       # latest changes so one does not need to build everytime there is a
@@ -93,6 +109,10 @@ services:
       # The secret files in the configuration are set as a volume, but don't use
       # it like this on production, use a secret!
       - ./conf:/code/conf:ro
+      # When using local storage instead of GCP buckets for data, create two
+      # directories and add them here:
+#      - ./data:/mnt/data:ro
+#      - ./workspaces:/mnt/workspaces
     depends_on:
       - db
       - rabbitmq

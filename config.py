@@ -194,13 +194,22 @@ class Config:
     }
 
     # Quetzal-specific configuration
-    QUETZAL_GCP_CREDENTIALS = os.environ.get('QUETZAL_APP_CREDENTIALS') or \
+    # ------------------------------
+    # data storage: 'GCP' for Google Cloud Platform, 'file' for local storage
+    QUETZAL_DATA_STORAGE = os.environ.get('QUETZAL_DATA_STORAGE', 'GCP')
+    QUETZAL_BACKGROUND_JOBS = bool(os.environ.get('QUETZAL_BACKGROUND_JOBS', False))
+
+    # Quetzal-GCP storage configuration
+    QUETZAL_GCP_CREDENTIALS = os.environ.get('QUETZAL_GCP_CREDENTIALS') or \
         os.path.join(basedir, 'conf', 'credentials.json')
     QUETZAL_GCP_DATA_BUCKET = os.environ.get('QUETZAL_GCP_DATA_BUCKET') or \
         'gs://quetzal-dev-data'
     QUETZAL_GCP_BACKUP_BUCKET = os.environ.get('QUETZAL_GCP_BACKUP_BUCKET') or \
         'gs://quetzal-dev-backups'
-    QUETZAL_BACKGROUND_JOBS = bool(os.environ.get('QUETZAL_BACKGROUND_JOBS', False))
+
+    # Quetzal-file storage configuration
+    QUETZAL_FILE_DATA_DIR = os.environ.get('QUETZAL_FILE_DATA_DIR') or '/data'
+    QUETZAL_FILE_USER_DATA_DIR = os.environ.get('QUETZAL_FILE_USER_DATA_DIR') or '/workspaces'
 
     def __init__(self):
         # Dynamic properties: configuration elements that must change according

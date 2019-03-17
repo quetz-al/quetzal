@@ -18,6 +18,11 @@ data_cli = AppGroup('data', help='Data API operations.')
               default='europe-west1')
 def data_init_command(storage_class, location):
     """ Initialize bucket for data"""
+
+    if current_app.config['QUETZAL_DATA_STORAGE'] != 'GCP':
+        click.secho('No bucket initialization performed: storage is not GCP.')
+        return
+
     data_bucket = current_app.config['QUETZAL_GCP_DATA_BUCKET']
     click.secho(f'Creating bucket {data_bucket}...')
 
@@ -42,8 +47,13 @@ def data_init_command(storage_class, location):
               default='europe-west1')
 def data_init_backups(storage_class, location):
     """ Initialize bucket for backups"""
+
+    if current_app.config['QUETZAL_DATA_STORAGE'] != 'GCP':
+        click.secho('No bucket initialization performed: storage is not GCP.')
+        return
+
     data_bucket = current_app.config['QUETZAL_GCP_BACKUP_BUCKET']
-    click.secho(f'Creating bucket {data_bucket}...')
+    click.secho(f'Creating bucket for backups {data_bucket}...')
 
     client = get_client()
     bucket_name = urlparse(data_bucket).netloc
