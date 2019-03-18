@@ -12,7 +12,9 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 * Refactored app as a package in ``quetzal.app``.
 * Added a file storage backend, an alternative storage that does not use Google
   Cloud Platform.
-
+* Added Let's encrypt SSL certificate management.
+* Added deployment on GCP documentation.
+* Added Sphinx documentation structure.
 
 0.1.0 (2019-03-05)
 ------------------
