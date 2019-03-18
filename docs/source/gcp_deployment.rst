@@ -114,8 +114,14 @@ Part 2: GCP Deployment
    images that you want.
 
    An important thing to check is the environment variables of the
-   ``web-deployment.yaml`` *and* ``worker-deployment.yaml``. Verify that
-   their ``SERVER_NAME`` and ``FLASK_ENV`` are correct.
+   ``web-deployment.yaml`` *and* ``worker-deployment.yaml``, which reference
+   the configMap defined in `app-configmap.yaml`. Verify all the entries in
+   this file. Once you are sure of your configuration values, send them to
+   k8s with:
+
+   .. code-block:: console
+
+    $ kubectl create -f k8s/app-configmap.yaml
 
    Finally, verify that the ``nginx-service.yaml`` has the correct external
    IP created on :ref:`GCP external IP`:

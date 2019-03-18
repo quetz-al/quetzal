@@ -3,7 +3,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: web-deployment
+  name: web
   labels:
     name: web
     app: quetzal
@@ -33,19 +33,34 @@ spec:
               name: app-secret-files-volume
           env:
             - name: SERVER_NAME
-              value: stage.quetz.al
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: server_name
             - name: FLASK_ENV
-              value: staging
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: flask_env
+            - name: QUETZAL_ADMIN_MAIL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: admin_mail
+            - name: QUETZAL_GCP_DATA_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: data_bucket
+            - name: QUETZAL_GCP_BACKUP_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: backup_bucket
             - name: QUETZAL_BACKGROUND_JOBS
               value: "1"
             - name: USE_GUNICORN
               value: "1"
-            - name: QUETZAL_ADMIN_MAIL
-              value: quetzal.api@gmail.com
-            - name: QUETZAL_GCP_DATA_BUCKET
-              value: gs://quetzal-stage-data
-            - name: QUETZAL_GCP_BACKUP_BUCKET
-              value: gs://quetzal-stage-backups
             - name: DB_HOST
               value: db
             - name: DB_PORT

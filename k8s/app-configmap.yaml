@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-configmap
+  labels:
+    name: app-configmap
+    app: quetzal
+data:
+  server_name: stage.quetz.al
+  flask_env: staging
+  admin_mail: quetzal.api@gmail.com
+  data_bucket: gs://public-quetzal-stage-data
+  backup_bucket: gs://public-quetzal-stage-backups

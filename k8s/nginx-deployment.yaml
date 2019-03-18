@@ -34,9 +34,15 @@ spec:
               name: nginx-certbot-storage
           env:
             - name: SERVER_NAMES
-              value: "stage.quetz.al"
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: server_name
             - name: ADMIN_EMAIL
-              value: "admin@quetz.al"
+              valueFrom:
+                configMapKeyRef:
+                  name: app-configmap
+                  key: admin_mail
             - name: DISABLE_CERTBOT
               value: "1"
       restartPolicy: Always
