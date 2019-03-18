@@ -5,22 +5,25 @@ kind: Deployment
 metadata:
   name: web-deployment
   labels:
-    name: web-pods
+    name: web
+    app: quetzal
 spec:
-  replicas: 3
+  replicas: 1
   selector:
     matchLabels:
-      name: web-pods
+      name: web
+      app: quetzal
   strategy:
     type: RollingUpdate
   template:
     metadata:
       labels:
-        name: web-pods
+        name: web
+        app: quetzal
     spec:
       containers:
         - name: web
-          image: gcr.io/dojeda-sandbox/quetzal/app:0.1.0
+          image: gcr.io/quetzal/quetzal/app:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
@@ -30,7 +33,7 @@ spec:
               name: app-secret-files-volume
           env:
             - name: SERVER_NAME
-              value: staging.quetz.al
+              value: stage.quetz.al
             - name: FLASK_ENV
               value: staging
             - name: QUETZAL_BACKGROUND_JOBS

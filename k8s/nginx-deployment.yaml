@@ -5,20 +5,23 @@ kind: Deployment
 metadata:
   name: nginx-deployment
   labels:
-    name: nginx-pods
+    name: nginx
+    app: quetzal
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: nginx-pods
+      name: nginx
+      app: quetzal
   template:
     metadata:
       labels:
-        name: nginx-pods
+        name: nginx
+        app: quetzal
     spec:
       containers:
         - name: nginx
-          image: gcr.io/dojeda-sandbox/quetzal/nginx:0.1.0
+          image: gcr.io/quetzal/quetzal/nginx:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 80
@@ -27,8 +30,20 @@ spec:
           volumeMounts:
             - mountPath: /etc/nginx/ssl
               name: nginx-secret-files-volume
+            - mountPath: /etc/letsencrypt
+              name: nginx-certbot-storage
+          env:
+            - name: SERVER_NAMES
+              value: "stage.quetz.al"
+            - name: ADMIN_EMAIL
+              value: "admin@quetz.al"
+            - name: DISABLE_CERTBOT
+              value: "1"
       restartPolicy: Always
       volumes:
         - name: nginx-secret-files-volume
           secret:
             secretName: stage-nginx-secrets
+        - name: nginx-certbot-storage
+          persistentVolumeClaim:
+            claimName: nginx-pvc

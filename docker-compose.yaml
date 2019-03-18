@@ -8,6 +8,11 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    environment:
+      # A comma-separate list of server names
+      SERVER_NAMES: "local.quetz.al,david.quetz.al"
+      ADMIN_EMAIL: "admin@quetz.al"
+      DISABLE_CERTBOT: "1"
     links:
       - web
 

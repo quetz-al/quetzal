@@ -11,4 +11,5 @@ spec:
       port: 5432
       targetPort: 5432
   selector:
-    name: db-pods
+    name: db
+    app: quetzal

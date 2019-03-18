@@ -1,125 +1,69 @@
+================
 Deploying on GCP
 ================
 
-The following instructions create a cluster with a Quetzal server running
-on the *staging* configuration. Change the *stage-* references to *prod-* to
-create a production server.
+The following instructions create a Kubernetes (k8s) cluster with a Quetzal
+server running on the *staging* configuration.
+Change the *stage-* references to *prod-* to create a production server.
 
-Part 1: Requisites
-------------------
+Part 1: Docker images
+---------------------
 
-1. Install gcloud_.
+1. Follow the :ref:`Local development server` instructions and make sure that
+   you are able to run and launch a development environment. You will need to
+   activate your virtual environment.
 
-2. Configure gcloud.
-
-   .. code-block:: console
-
-    $ gcloud config set project <your project id>
-    $ gcloud config set compute/zone europe-west1-c # or some other region
-
-   Where ``<your project id>`` is the project ID on your Google Cloud Platform.
-
-   Also, configure the gcloud and Docker configuration:
-
-   .. code-block:: console
-
-    $ gcloud auth configure-docker
-
-   Finally, install the kubernetes client:
-
-   .. code-block:: console
-
-     $ gcloud components install kubectl
-
-3. Reserve an external IP **if you have not reserved one yet.**.
-
-   .. code-block:: console
-
-    $ gcloud compute addresses create quetzal-stage-server-ip \
-      --description="Quetzal stage server external IP" \
-      --global --network-tier=PREMIUM
-
-   Write down this IP address for later.
+2. Read and follow the :ref:`GCP preparations`. You will
+   need to have a gcloud correctly configured, a JSON credentials file,
+   and a reserved external IP address.
 
 3. Build and upload the Docker container images to Google Container Registry.
 
    .. code-block:: console
 
     $ flask quetzal deploy create-images \
-      --registry gcr.io/<your project id>
+      --registry gcr.io/<your-project-id>
 
-4. Create database disk.
 
-   We need a persistent disk for the database, but I don't know how to do this
-   automatically with kubernetes, volume claims and persistent volume claims.
-   For the moment, we need to do this manually.
+Part 2: GCP Deployment
+----------------------
 
-   First, create a Google Compute Engine Disk
+1. Create a k8s cluster.
 
    .. code-block:: console
 
-    $ gcloud compute disks create --size=200GB quetzal-stage-db-volume
+    $ gcloud container clusters create quetzal-cluster \
+      --num-nodes=4
 
-   Then, start a temporary virtual machine to format it:
-
-   .. code-block:: console
-
-    $ gcloud compute instances create formatter-instance \
-      --machine-type "n1-standard-1" \
-      --disk "name=quetzal-stage-db-volume,device-name=quetzal-stage-db-volume,mode=rw,boot=no" \
-      --image "ubuntu-1604-xenial-v20170811" --image-project "ubuntu-os-cloud" \
-      --boot-disk-size "10" --boot-disk-type "pd-standard" \
-      --boot-disk-device-name "formatter-instance-boot-disk"
-
-   You can safely ignore any warnings concerning the disk size, they concern
-   the virtual machine boot disk, not the database disk.
-
-   Now, connect to the formatter instance with:
+   This will create 4 Google Compute Engine VM instances that will be used as
+   CPU and memory resources managed by k8s. The VM machine type in this example
+   is the default `n1-standard-1`_, as shown by:
 
    .. code-block:: console
 
-    $ gcloud compute ssh formatter-instance
+    $ gcloud container clusters list
+    NAME             LOCATION        MASTER_VERSION  MASTER_IP      MACHINE_TYPE   NODE_VERSION  NUM_NODES  STATUS
+    quetzal-cluster  europe-west1-c  1.11.7-gke.4    x.x.x.x        n1-standard-1  1.11.7-gke.4  2          RUNNING
 
-   And run the following commands **inside that virtual machine**:
-
-   .. code-block:: console
-
-    # Find out where the disks are attached
-    $ sudo lsblk
-    NAME   MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
-    sdb      8:16   0  200G  0 disk             ## << this is our disk
-    sda      8:0    0   10G  0 disk
-    `-sda1   8:1    0   10G  0 part /
-
-    # Then this command to format the disk:
-    # sudo mkfs.ext4 -m 0 -F -E lazy_itable_init=0,lazy_journal_init=0,discard /dev/[DEVICE_ID]
-    # In this example:
-    $ sudo mkfs.ext4 -m 0 -F -E lazy_itable_init=0,lazy_journal_init=0,discard /dev/sdb
-
-    # We are done
-    logout
-
-   Finally, delete the instance to detach the disk and delete that temporary
-   virtual machine:
+   If you need more resources, you can change the number of nodes with:
 
    .. code-block:: console
 
-    $ gcloud compute instances delete formatter-instance
+    $ gcloud container clusters resize quetzal-cluster --size N
 
-Part 2: Deployment
-------------------
+   or change the type of VM instance type for another machine type that uses
+   more CPU or memory. This procedure is out of scope of this guide, but you
+   can read more at the
+   `node pools documentation <https://cloud.google.com/kubernetes-engine/docs/concepts/node-pools>`_.
 
-1. Create kubernetes cluster
+2. Create k8s secrets.
 
-   .. code-block:: console
-
-    $ gcloud container clusters create quetzal-stage-cluster --num-nodes=4
-
-2. Create kubernetes secrets
+   Quetzal uses several services that need some configuration values that are
+   sensitive and should be protected. These values are saved as `k8s secrets`_.
 
    There are three secrets to create:
 
-   * Database secrets
+   * Database secrets:
 
    .. code-block:: console
 
@@ -133,9 +77,9 @@ Part 2: Deployment
        --from-literal=username=postgres \
        --from-literal=password=<your db password>
 
-   * Proxy (nginx) ssl secrets
+   * Proxy (nginx) SSL secrets:
 
-   .. code-block::
+   .. code-block:: console
 
       # Create nginx secrets with the following command:
       $ kubectl create secret generic stage-nginx-secrets \
@@ -143,7 +87,7 @@ Part 2: Deployment
         --from-file=./conf/ssl/mysite.crt \
         --from-file=./conf/ssl/mysite.key
 
-   * Application secrets
+   * Application secrets:
 
    .. code-block:: console
 
@@ -169,35 +113,56 @@ Part 2: Deployment
    Check that all ``-deployment.yaml`` files point to the versions of the
    images that you want.
 
-   An important thing to check is if ``db-deployment.yaml`` is using the
-   correct disk that you created before:
-
-   .. code-block:: yaml
-
-     ...
-     volumes:
-       - name: db-data-volume
-         gcePersistentDisk:
-           pdName: quetzal-stage-db-volume
-           fsType: ext4
-     ...
-
-   Another important thing to check is the environment variables of the
+   An important thing to check is the environment variables of the
    ``web-deployment.yaml`` *and* ``worker-deployment.yaml``. Verify that
    their ``SERVER_NAME`` and ``FLASK_ENV`` are correct.
 
    Finally, verify that the ``nginx-service.yaml`` has the correct external
-   IP created before:
+   IP created on :ref:`GCP external IP`:
 
    .. code-block:: yaml
 
      ...
      spec:
        type: LoadBalancer
-       loadBalancerIP: 34.76.151.30
+       loadBalancerIP: x.x.x.x
      ...
 
-4. Create k8s deployments and services
+4. Create k8s storage classes and disks.
+
+   There are two pods in k8s that need an external disk. In both cases, it
+   should be a disk that is not deleted when the disk resource is not used. To
+   address this, we need to create a specific storage class resource:
+
+   .. code-block:: console
+
+    $ kubectl create -f k8s/storage-class.yaml
+    storageclass.storage.k8s.io/standard-retain created
+
+   Then create the two persistent volume claims:
+
+   .. code-block:: console
+
+    $ kubectl create -f k8s/db-pvc.yaml
+    persistentvolumeclaim/db-pvc created
+    $ kubectl create -f k8s/nginx-pvc.yaml
+    persistentvolumeclaim/nginx-pv-claim created
+
+   You can see the disks that were created on the `GCP compute disks`_
+   on the GCP console or with:
+
+   .. code-block:: console
+
+    $ gcloud compute disks list
+    NAME                            ZONE            SIZE_GB  TYPE         STATUS
+    gke-quetzal-cluster-a8-pvc-xxx  europe-west1-c  200      pd-standard  READY
+    gke-quetzal-cluster-a8-pvc-xxx  europe-west1-c  20       pd-standard  READY
+
+   These disks **will not be erased** if the cluster is deleted. This ensures
+   that the Quetzal database and nginx certificates are not lost.
+
+
+4. Create k8s deployments and services.
 
    The following commands create deployments (pods) and services. After each
    create command, you can verify its status with
@@ -206,22 +171,26 @@ Part 2: Deployment
 
    .. code-block:: console
 
-
+    # rabbitmq
     $ kubectl create -f k8s/rabbitmq-deployment.yaml
     $ kubectl create -f k8s/rabbitmq-service.yaml
 
+    # database
     $ kubectl create -f k8s/db-deployment.yaml
     $ kubectl create -f k8s/db-service.yaml
 
+    # web application
     $ kubectl create -f k8s/web-deployment.yaml
     $ kubectl create -f k8s/web-service.yaml
 
+    # background celery worker
     $ kubectl create -f k8s/worker-deployment.yaml
 
+    # nginx reverse proxy
     $ kubectl create -f k8s/nginx-deployment.yaml
     $ kubectl create -f k8s/nginx-service.yaml
 
-5. Verify that everything is running
+5. Verify that everything is running.
 
    You can check that all pods are running with:
 
@@ -245,7 +214,7 @@ Part 2: Deployment
     NAME         TYPE           CLUSTER-IP      EXTERNAL-IP    PORT(S)                      AGE
     db           ClusterIP      10.27.247.154   <none>         5432/TCP                     5m
     kubernetes   ClusterIP      10.27.240.1     <none>         443/TCP                      33m
-    nginx        LoadBalancer   10.27.249.146   34.76.151.30   80:31842/TCP,443:30919/TCP   2m
+    nginx        LoadBalancer   10.27.249.146   x.x.x.x        80:31842/TCP,443:30919/TCP   2m
     rabbitmq     ClusterIP      10.27.255.80    <none>         5672/TCP,15672/TCP           5m
     web          ClusterIP      10.27.240.128   <none>         5000/TCP                     2m
 
@@ -281,8 +250,12 @@ Part 2: Deployment
     $ flask quetzal user create alice alice.smith@example.com
     $ flask quetzal role add alice public_read public_write
 
+-----
 
-7. That's all, you can now explore the documentation at
-   https://staging.quetz.al/redoc. Or wherever your configuration points to.
+That's all, you can now explore the documentation at
+https://stage.quetz.al/redoc, or wherever your configuration points to.
 
 .. _gcloud: https://cloud.google.com/sdk/gcloud/
+.. _n1-standard-1: https://cloud.google.com/compute/docs/machine-types
+.. _k8s secrets: https://kubernetes.io/docs/concepts/configuration/secret/
+.. _GCP compute disks: https://console.cloud.google.com/compute/disks
