@@ -82,7 +82,7 @@ these credentials.
     Created service account [quetzal-service-account].
     {
       "displayName": "Quetzal application service account",
-      "email": "quetzal-service-account@<your-organization>.iam.gserviceaccount.com",
+      "email": "quetzal-service-account@<your-project-id>.iam.gserviceaccount.com",
       ...
     }
 
@@ -94,7 +94,7 @@ these credentials.
 
     $ gcloud iam service-accounts keys create \
        conf/credentials.json \
-       --iam-account=quetzal-service-account@<your-organization>.iam.gserviceaccount.com
+       --iam-account=quetzal-service-account@<your-project-id>.iam.gserviceaccount.com
 
    .. important:: Anyone with this file could use your GCP resources, so this
      file should not be shared or committed to your version control system.
@@ -121,8 +121,8 @@ these credentials.
    .. code-block:: console
 
     $ gcloud projects add-iam-policy-binding <your-project-id> \
-      --member=serviceAccount:quetzal-service-account@<your-organization>.iam.gserviceaccount.com \
-      --role=projects/<your-organization>/roles/quetzal_app_role
+      --member=serviceAccount:quetzal-service-account@<your-project-id>.iam.gserviceaccount.com \
+      --role=projects/<your-project-id>/roles/quetzal_app_role
 
 .. _`GCP API preparations`:
 
@@ -155,7 +155,7 @@ Quetzal uses Docker images and the Google Container Registry (GCR).
 
    .. code-block:: console
 
-     $ gcloud components install kubectl
+    $ gcloud components install kubectl
 
 
 .. _`GCP external IP`:
@@ -170,7 +170,7 @@ can reserve one IP as follows (change the region to your case):
 .. code-block:: console
 
   $ gcloud compute addresses create quetzal-stage-server-ip \
-   --description="Quetzal server external IP" \
+   --description="Quetzal stage server external IP" \
    --region=europe-west1 \
    --network-tier=PREMIUM
 
