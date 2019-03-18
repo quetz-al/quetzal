@@ -15,6 +15,8 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 * Added Let's encrypt SSL certificate management.
 * Added deployment on GCP documentation.
 * Added Sphinx documentation structure.
+* Added file delete endpoint.
+* Added file state in base metadata.
 
 0.1.0 (2019-03-05)
 ------------------

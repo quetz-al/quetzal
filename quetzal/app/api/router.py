@@ -64,6 +64,7 @@ class WorkspaceFilesRouter:
     Where ``func`` is a member of this class.
     """
     create = _data.file.create
+    delete = _data.file.delete
     details = _data.file.details_w
     fetch = _data.file.fetch_w
     set_metadata = _data.file.set_metadata
