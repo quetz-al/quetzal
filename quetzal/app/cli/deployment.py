@@ -1,9 +1,31 @@
 import pathlib
+import re
 
 import click
 from flask.cli import AppGroup
 
+from quetzal.app import __version__
+
+
 deploy_cli = AppGroup('deploy', help='Deployment operations.')
+
+# Regex on semver taken from
+# https://github.com/semver/semver/issues/232#issuecomment-430840155
+semver_re = re.compile(
+    r'^'
+    r'(?P<Major>0|[1-9]\d*)\.'
+    r'(?P<Minor>0|[1-9]\d*)\.'
+    r'(?P<Patch>0|[1-9]\d*)'
+    r'(?P<PreReleaseTagWithSeparator>'
+      r'-(?P<PreReleaseTag>'
+        r'(?:0|[1-9]\d*|\d*[A-Z-a-z-][\dA-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][\dA-Za-z-]*))*'
+      r')'
+    r')?'
+    r'(?P<BuildMetadataTagWithSeparator>'
+      r'\+(?P<BuildMetadataTag>[\dA-Za-z-]+(\.[\dA-Za-z-]*)*)'
+    r')?'
+    r'$'
+)
 
 
 @deploy_cli.command('create-images')
@@ -38,7 +60,25 @@ def create_docker_images(ctx, registry, images):
     # Get the docker client object
     import docker
     client = docker.from_env()
-    version = '0.1.0'
+
+    # Determine version tag
+    app_version = __version__
+    semver_match = semver_re.match(app_version)
+    if semver_match:
+        # take semver without the build tag
+        version = '{major}.{minor}.{patch}{prerelease}'.format(
+            major=semver_match.group('Major'),
+            minor=semver_match.group('Minor'),
+            patch=semver_match.group('Patch'),
+            prerelease=semver_match.group('PreReleaseTagWithSeparator') or ''
+        )
+        if semver_match.group('BuildMetadataTagWithSeparator') is not None:
+            click.confirm(f'Current version is is {app_version}, which is not a '
+                          f'"clean" version. Images will be tagged as "{version}"'
+                          f'\nAre you sure you want to push these images?',
+                          abort=True, default=False)
+    else:
+        raise click.ClickException('Version string does not conform to semver')
 
     # Build and push each image
     for i in images:
