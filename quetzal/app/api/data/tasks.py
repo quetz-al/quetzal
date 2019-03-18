@@ -300,7 +300,12 @@ def scan_workspace(wid):
                 col_k = col_k.cast(types_schema[k])
             columns.append(col_k.label(k))
 
-        create_table_query = workspace_metadata.filter(Family.name == family.name).with_entities(*columns).subquery()
+        create_table_query = (
+            workspace_metadata.filter(Family.name == family.name,
+                                      Metadata.json['state'].astext != 'DELETED')
+            .with_entities(*columns)
+            .subquery()
+        )
         family_table_name = f'{new_schema}.{family.name}'
         create_table_statement = CreateTableAs(family_table_name, create_table_query)
         db.session.execute(create_table_statement)
