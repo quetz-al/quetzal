@@ -9,5 +9,5 @@ data:
   server_name: stage.quetz.al
   flask_env: staging
   admin_mail: quetzal.api@gmail.com
-  data_bucket: gs://public-quetzal-stage-data
-  backup_bucket: gs://public-quetzal-stage-backups
+  data_bucket: gs://data.stage.quetz.al
+  backup_bucket: gs://backups.stage.quetz.al
