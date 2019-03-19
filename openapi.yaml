@@ -587,6 +587,89 @@ paths:
         default:
           $ref: '#/components/responses/Error'
 
+  /data/queries/:
+    get:
+      summary: List public queries.
+      description: |-
+        List all the queries that are associated with the global workspace.
+        Note that each query listed here is shown _without_ its results, for
+        brevity.
+      tags:
+        - data
+        - public
+        - query
+      operationId: public.query_fetch
+      x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedQueries'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      summary: Prepare a query.
+      description: |-
+        Queries in Quetzal are saved as a resource, in this case, associated
+        with the global workspace.
+        This endpoint creates one and responds with a *see other* status
+        referencing the query details endpoint.
+
+        Since the query details contains the query results as a
+        paginated list, this endpoint also accepts the normal pagination
+        parameters.
+      tags:
+        - data
+        - public
+        - query
+      operationId: public.query_create
+      x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Query'
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/QueryDetails'
+        '303':
+          $ref: '#/components/responses/QueryDetails'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /data/queries/{qid}:
+    parameters:
+      - name: qid
+        in: path
+        description: Query identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Query details.
+      description: |-
+        The details of a query, which contains the query itself and a paginated
+        list of its results.
+      tags:
+        - data
+        - workspace
+        - query
+      operationId: public.query_details
+      x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryDetails'
+        default:
+          $ref: '#/components/responses/Error'
+
 components:
   parameters:
     pageOffset:
@@ -973,8 +1056,11 @@ components:
           readOnly: true
           example: 123
         workspace_id:
-          description: Workspace identifier where the query operates
+          description: |-
+            Workspace identifier where the query operates. Null when the query
+            uses the global committed metadata.
           type: integer
+          nullable: true
           readOnly: true
           example: 1
         dialect:
