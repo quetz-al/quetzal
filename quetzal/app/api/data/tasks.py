@@ -7,7 +7,7 @@ from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.dialects.postgresql import UUID
 
 from quetzal.app import celery, db
-from quetzal.app.api.exceptions import WorkerException
+from quetzal.app.api.exceptions import Conflict, WorkerException
 from quetzal.app.helpers.google_api import get_client, get_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
 from quetzal.app.models import Workspace, WorkspaceState, Metadata, Family
@@ -340,11 +340,17 @@ def commit_workspace(wid):
     if workspace.state != WorkspaceState.COMMITTING:
         raise WorkerException('Workspace was not on the expected state')
 
-    # Do the committing task
-
     # TODO: verify conflicts
-    logger.warning('No conflict detection implemented!')
+    try:
+        _conflict_detection(workspace)
+    except Conflict:
+        logger.info('Commit failed due to conflict', exc_info=True)
+        workspace.state = WorkspaceState.CONFLICT
+        db.session.add(workspace)
+        db.session.commit()
+        return
 
+    # Do the committing task
     for family in workspace.families.all():
         new_family = family.increment()
         family.version = new_family.version
@@ -369,8 +375,30 @@ def commit_workspace(wid):
         workspace.fk_last_metadata_id = None
 
     # Update the workspace object
-    # TODO: consider if the schema be deleted?
+    # TODO: consider if the schema (ie the postgres view) should be deleted?
     workspace.state = WorkspaceState.READY
     db.session.add(workspace)
 
     db.session.commit()
+
+
+def _conflict_detection(workspace):
+    # if the workspace families are the latest global families, then
+    # there is no conflict
+    latest_families_query = (
+        db.session.query(Family.name, func.max(Family.version))
+        .filter(Family.fk_workspace_id.is_(None))
+        .group_by(Family.name)
+    )
+    latest_families = {k: v for k, v in latest_families_query}
+    for family in workspace.families:
+        if family.name not in latest_families:
+            # It's a new family, not known in the global workspace
+            continue
+        if family.version < latest_families[family.name]:
+            # The family is known in the global workspace and it has a greater
+            # version: there is a conflict!
+            # TODO: improve this, as it is actually simplistic, there could be no conflict
+            raise Conflict(f'Family {family.name} is outdated in workspace {workspace.id}.')
+
+    # TODO: more conflict detection is needed

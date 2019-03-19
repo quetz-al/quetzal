@@ -180,7 +180,7 @@ def update_metadata(*, wid, uuid, body):
                 # see RFC 7231 or https://stackoverflow.com/a/3290198/227103
                 raise APIException(status=codes.bad_request,
                                    title='Invalid metadata modification',
-                                   detail='Cannot change metadata family "base" for the exception of its path')
+                                   detail='Cannot change metadata family "base" except for its path')
             # Do some verifications on the filename and path
             _verify_filename_path(content.get('filename', ''), content.get('path', ''))
 
