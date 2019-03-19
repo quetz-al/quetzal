@@ -1,3 +1,4 @@
+import itertools
 import logging
 import pathlib
 
@@ -10,7 +11,7 @@ from quetzal.app import celery, db
 from quetzal.app.api.exceptions import Conflict, WorkerException
 from quetzal.app.helpers.google_api import get_client, get_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
-from quetzal.app.models import Workspace, WorkspaceState, Metadata, Family
+from quetzal.app.models import Family, FileState, Metadata, Workspace, WorkspaceState
 
 
 logger = logging.getLogger(__name__)
@@ -340,47 +341,78 @@ def commit_workspace(wid):
     if workspace.state != WorkspaceState.COMMITTING:
         raise WorkerException('Workspace was not on the expected state')
 
-    # TODO: verify conflicts
-    try:
-        _conflict_detection(workspace)
-    except Conflict:
-        logger.info('Commit failed due to conflict', exc_info=True)
-        workspace.state = WorkspaceState.CONFLICT
+    with db.session.begin_nested():
+        # Lock the database so that nothing gets written or read on the database
+        db.session.execute(f'LOCK TABLE {Metadata.__table__.name} IN ACCESS EXCLUSIVE MODE;')
+
+        # TODO: verify conflicts
+        try:
+            _conflict_detection(workspace)
+        except Conflict:
+            logger.info('Commit failed due to conflict', exc_info=True)
+            workspace.state = WorkspaceState.CONFLICT
+            db.session.add(workspace)
+            db.session.commit()
+            return
+
+        # File ids of files that are temporary
+        base_family = workspace.families.filter(Family.name == 'base').first()
+        files_not_ready = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext != FileState.READY.name)
+            .subquery()
+        )
+
+        # Do the committing task:
+        # Iterate over all families, but do base family last, because the
+        # subquery above files_not_ready takes uses the base family to determine
+        # which files are note ready
+        families = itertools.chain(
+            workspace.families.filter(Family.name != 'base'),
+            [base_family]
+        )
+        for family in families:
+            new_family = family.increment()
+            family.version = new_family.version
+            family.workspace = None
+            db.session.add_all([family, new_family])
+
+            # All files that are not READY (they are temporary or deleted) need
+            # to be associated with the family of this workspace, not the
+            # committed family
+            meta_not_ready = (
+                family.metadata_set
+                .join(files_not_ready, Metadata.id_file == files_not_ready.c.id_file)
+            )
+            logger.info('Meta that is not ready: %s', meta_not_ready.all())
+            for meta in meta_not_ready:
+                meta.family = new_family
+                db.session.add(meta)
+
+        # update the fk_last_metadata_id:
+        # Determine the most recent "global" metadata entry so that the workspace
+        # has a reference number from which any new metadata will be ignored
+        # TODO: needs to consider the version!
+        # TODO: consider refactor into workspace model
+        latest_metadata = (
+            db.session.query(Metadata)
+            .join(Family)
+            .filter_by(workspace=None)
+            .order_by(Metadata.id.desc())
+            .first()
+        )
+        if latest_metadata is not None:
+            workspace.fk_last_metadata_id = latest_metadata.id
+        else:
+            workspace.fk_last_metadata_id = None
+
+        # Update the global views for public queries
+        _update_global_views()
+
+        # Update the workspace object
+        # TODO: consider if the schema (ie the postgres view) should be deleted?
+        workspace.state = WorkspaceState.READY
         db.session.add(workspace)
-        db.session.commit()
-        return
-
-    # Do the committing task
-    for family in workspace.families.all():
-        new_family = family.increment()
-        family.version = new_family.version
-        family.workspace = None
-        db.session.add_all([family, new_family])
-
-    # update the fk_last_metadata_id:
-    # Determine the most recent "global" metadata entry so that the workspace
-    # has a reference number from which any new metadata will be ignored
-    # TODO: needs to consider the version!
-    # TODO: consider refactor into workspace model
-    latest_metadata = (
-        db.session.query(Metadata)
-        .join(Family)
-        .filter_by(workspace=None)
-        .order_by(Metadata.id.desc())
-        .first()
-    )
-    if latest_metadata is not None:
-        workspace.fk_last_metadata_id = latest_metadata.id
-    else:
-        workspace.fk_last_metadata_id = None
-
-    # Update the global views for public queries
-    _update_global_views()
-
-    # Update the workspace object
-    # TODO: consider if the schema (ie the postgres view) should be deleted?
-    workspace.state = WorkspaceState.READY
-    db.session.add(workspace)
 
     db.session.commit()
 
@@ -414,23 +446,13 @@ def _update_global_views():
     db.session.execute(DropSchemaIfExists('global_views', cascade=True))
     db.session.execute(CreateSchema('global_views'))
 
-    # Get the latest global families
-    global_families = (
-        Family.query
-        .filter(Family.fk_workspace_id.is_(None))
-        .distinct(Family.name)
-        .order_by(Family.name, Family.id.desc())
-    )
+    # Get all the known families
+    families = Family.query.filter(Family.fk_workspace_id.is_(None)).distinct(Family.name)
     # This is the metadata entries related to the latest global families
-    global_metadata = (
-        Metadata.query
-        .join(Family)
-        .filter(Family.fk_workspace_id.is_(None))
-        .join(global_families.subquery())
-    )
+    global_metadata = Metadata.get_latest_global()
 
     # For each family, create a view/table
-    for family in global_families:
+    for family in families:
         tmp = global_metadata.filter(Family.name == family.name).subquery()
         keys_query = db.session.query(func.jsonb_object_keys(tmp.c.json)).distinct()
         keys = set(res[0] for res in keys_query.all()) - {'id'}
@@ -465,7 +487,3 @@ def _update_global_views():
 
     # Set permissions on readonly user to the schema contents
     db.session.execute(GrantUsageOnSchema('global_views', 'db_ro_user'))
-
-    # # Drop previous schema
-    # if old_schema is not None:
-    #     db.session.execute(DropSchemaIfExists(old_schema, cascade=True))

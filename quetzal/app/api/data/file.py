@@ -269,7 +269,7 @@ def details(*, uuid):
         # associated to their families
         latest_meta_committed = Metadata.get_latest_global(uuid)
 
-        if not latest_meta_committed:
+        if latest_meta_committed.count() == 0:
             raise APIException(status=codes.not_found,
                                title='File not found',
                                detail=f'File {uuid} does not exist or has not '
@@ -283,12 +283,12 @@ def details(*, uuid):
         # into the "base" metadata that has been committed
         latest_base_meta_committed = Metadata.get_latest_global(uuid, 'base')
 
-        if not latest_base_meta_committed:
+        if latest_base_meta_committed.count() == 0:
             raise APIException(status=codes.not_found,
                                title='File not found',
                                detail=f'File {uuid} does not exist or has not '
                                f'been committed yet.')
-        base_meta = latest_base_meta_committed[0]
+        base_meta = latest_base_meta_committed.first()
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
