@@ -302,7 +302,7 @@ def scan_workspace(wid):
 
         create_table_query = (
             workspace_metadata.filter(Family.name == family.name,
-                                      Metadata.json['state'].astext != 'DELETED')
+                                      Metadata.json['state'].astext != 'DELETED' if family.name == 'base' else True)
             .with_entities(*columns)
             .subquery()
         )
@@ -374,6 +374,9 @@ def commit_workspace(wid):
     else:
         workspace.fk_last_metadata_id = None
 
+    # Update the global views for public queries
+    _update_global_views()
+
     # Update the workspace object
     # TODO: consider if the schema (ie the postgres view) should be deleted?
     workspace.state = WorkspaceState.READY
@@ -385,20 +388,84 @@ def commit_workspace(wid):
 def _conflict_detection(workspace):
     # if the workspace families are the latest global families, then
     # there is no conflict
-    latest_families_query = (
+    latest_families = (
         db.session.query(Family.name, func.max(Family.version))
         .filter(Family.fk_workspace_id.is_(None))
         .group_by(Family.name)
     )
-    latest_families = {k: v for k, v in latest_families_query}
+    latest_families_dict = {k: v for k, v in latest_families}
     for family in workspace.families:
-        if family.name not in latest_families:
+        if family.name not in latest_families_dict:
             # It's a new family, not known in the global workspace
             continue
-        if family.version < latest_families[family.name]:
+        if family.version < latest_families_dict[family.name]:
             # The family is known in the global workspace and it has a greater
             # version: there is a conflict!
             # TODO: improve this, as it is actually simplistic, there could be no conflict
             raise Conflict(f'Family {family.name} is outdated in workspace {workspace.id}.')
 
     # TODO: more conflict detection is needed
+
+
+def _update_global_views():
+    # TODO: protect with a database lock
+
+    # Create postgres schema
+    db.session.execute(DropSchemaIfExists('global_views', cascade=True))
+    db.session.execute(CreateSchema('global_views'))
+
+    # Get the latest global families
+    global_families = (
+        Family.query
+        .filter(Family.fk_workspace_id.is_(None))
+        .distinct(Family.name)
+        .order_by(Family.name, Family.id.desc())
+    )
+    # This is the metadata entries related to the latest global families
+    global_metadata = (
+        Metadata.query
+        .join(Family)
+        .filter(Family.fk_workspace_id.is_(None))
+        .join(global_families.subquery())
+    )
+
+    # For each family, create a view/table
+    for family in global_families:
+        tmp = global_metadata.filter(Family.name == family.name).subquery()
+        keys_query = db.session.query(func.jsonb_object_keys(tmp.c.json)).distinct()
+        keys = set(res[0] for res in keys_query.all()) - {'id'}
+        logger.info('Keys for family %s are %s', family.name, keys)
+
+        # 2.1 Determine the type of all columns
+        # TODO consider this, for the moment, everything is a string
+        types_schema = {}
+        if family.name == 'base':  # TODO refactor base schema to an external variable
+            types_schema['size'] = types.BigInteger
+            types_schema['date'] = types.DateTime(timezone=True)
+
+        # 2.2 Create table
+        columns = [Metadata.json['id'].astext.cast(UUID).label('id')]
+        for k in keys:
+            col_k = Metadata.json[k].astext  # TODO: do we need to protect the key names from injection?
+            if k in types_schema:
+                col_k = col_k.cast(types_schema[k])
+            columns.append(col_k.label(k))
+
+        create_table_query = (
+            global_metadata.filter(Family.name == family.name,
+                                   Metadata.json['state'].astext != 'DELETED' if family.name == 'base' else True)
+            .with_entities(*columns)
+            .subquery()
+        )
+        family_table_name = f'global_views.{family.name}'
+        create_table_statement = CreateTableAs(family_table_name, create_table_query)
+        db.session.execute(create_table_statement)
+
+        # TODO: create an index on the id column
+
+    # Set permissions on readonly user to the schema contents
+    db.session.execute(GrantUsageOnSchema('global_views', 'db_ro_user'))
+
+    # # Drop previous schema
+    # if old_schema is not None:
+    #     db.session.execute(DropSchemaIfExists(old_schema, cascade=True))
