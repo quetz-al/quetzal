@@ -319,6 +319,17 @@ paths:
       operationId: workspace_file.create
       x-openapi-router-controller: quetzal.app.api.router
       parameters:
+        - name: path
+          in: query
+          description: |-
+            Path for the filename that will be set on the base metadata.
+            This parameter is provided as a workaround to the fact that files
+            are usually uploaded without their complete path on the filename
+            field of the form-data request.
+          required: false
+          schema:
+            type: string
+          example: study/s001
         - name: temporary
           in: query
           description: True when the uploaded file is a temporary file.

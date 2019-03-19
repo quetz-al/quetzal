@@ -19,6 +19,8 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 * Added file state in base metadata.
 * Added a simple/naive workspace commit conflict detection.
 * Added global queries.
+* Added support for temporary files. They are uploaded on the users' bucket.
+* Added path as query parameter when uploading files.
 
 0.1.0 (2019-03-05)
 ------------------

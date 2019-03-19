@@ -10,7 +10,7 @@ from flask import current_app, request, send_file
 from requests import codes
 
 from quetzal.app import db
-from quetzal.app.helpers.google_api import get_object, get_data_bucket
+from quetzal.app.helpers.google_api import get_bucket, get_data_bucket, get_object
 from quetzal.app.helpers.files import split_check_path, get_readable_info
 from quetzal.app.helpers.pagination import paginate
 from quetzal.app.api.exceptions import APIException
@@ -74,6 +74,8 @@ def create(*, wid, content=None, user, token_info=None):
     meta = Metadata(id_file=uuid4(), family=base_family)
     md5, size = get_readable_info(content)
     path, filename = split_check_path(content.filename)
+    if 'path' in request.args:
+        path = request.args['path']
     meta.json = {
         'id': str(meta.id_file),
         'filename': filename,
@@ -87,7 +89,13 @@ def create(*, wid, content=None, user, token_info=None):
     db.session.add(meta)
 
     # Send file to bucket
-    meta.json['url'] = _upload_file(str(meta.id_file), content)
+    if temporary:
+        filename = pathlib.Path(meta.json['path']) / meta.json['filename']
+        url = _upload_file(str(filename), content,
+                           location=workspace.data_url, alt_name=str(meta.id_file))
+    else:
+        url = _upload_file(str(meta.id_file), content)
+    meta.json['url'] = url
 
     # Save model
     db.session.add(meta)
@@ -464,26 +472,36 @@ def _gather_metadata(metadatas):
     return gathered_meta
 
 
-def _upload_file(name, content):
+def _upload_file(name, content, **kwargs):
     storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
     if storage_backend == 'GCP':
-        return _upload_file_gcp(name, content)
+        return _upload_file_gcp(name, content, bucket=kwargs.get('location', None))
     elif storage_backend == 'file':
-        return _upload_file_local(name, content)
+        return _upload_file_local(name, content, dirname=kwargs.get('location', None),
+                                  alt_name=kwargs.get('alt_name', None))
     raise ValueError(f'Unknown storage backend {storage_backend}.')
 
 
-def _upload_file_gcp(name, content):
+def _upload_file_gcp(name, content, bucket=None):
     """Upload contents to the google data bucket"""
-    data_bucket = get_data_bucket()
+    if bucket is None:
+        data_bucket = get_data_bucket()
+    else:
+        data_bucket = get_bucket(bucket)
     blob = data_bucket.blob(name)
     blob.upload_from_file(content, rewind=True)
     return f'gs://{data_bucket.name}/{name}'
 
 
-def _upload_file_local(name, content):
-    data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
-    filename = str((data_dir / name).resolve())
+def _upload_file_local(name, content, dirname=None, alt_name=None):
+    if dirname is None:
+        data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
+    else:
+        data_dir = pathlib.Path(urllib.parse.urlparse(dirname).path)
+    target_path = data_dir / name
+    if target_path.exists():
+        target_path = data_dir / alt_name
+    filename = str(target_path.resolve())
     content.save(filename)
     return f'file://{filename}'
 
