@@ -6,14 +6,17 @@ from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
 from quetzal.app.models import Family, Metadata, WorkspaceState
 
 
-def test_update_metadata_success(db_session, make_workspace, upload_file):
+def test_update_metadata_success(db_session, make_workspace, upload_file, mocker):
     """Update metadata success conditions"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'other': 0})
     file_id = upload_file(workspace=workspace)
 
     new_metadata = {
-        'other': {
-            'key': 'value',
+        'metadata': {
+            'other': {
+                'key': 'value',
+            }
         }
     }
     update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
@@ -22,8 +25,9 @@ def test_update_metadata_success(db_session, make_workspace, upload_file):
 @pytest.mark.parametrize('state',
                          [ws for ws in WorkspaceState
                           if ws not in [WorkspaceState.READY, WorkspaceState.CONFLICT]])
-def test_update_metadata_invalid_state(db_session, make_workspace, upload_file, state):
+def test_update_metadata_invalid_state(db_session, make_workspace, upload_file, state, mocker):
     """Cannot change metadata when the workspace is not ready or in conflict"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     # Create a workspace on READY state because we can only add files to it
     # when it is READY
     workspace = make_workspace(families={'base': 0, 'other': 0},
@@ -53,15 +57,18 @@ def test_update_metadata_missing_workspace(missing_workspace_id):
                         body={'family': {'key': 'value'}})
 
 
-@pytest.mark.parametrize('key', ['id', 'size', 'checksum', 'url', 'date'])
-def test_update_metadata_base_blacklist(db_session, make_workspace, upload_file, key):
+@pytest.mark.parametrize('key', ['id', 'size', 'checksum', 'url', 'date', 'state'])
+def test_update_metadata_base_blacklist(db_session, make_workspace, upload_file, key, mocker):
     """It should not be possible to change some keys in the base family"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0})
     file_id = upload_file(workspace=workspace)
 
     new_metadata = {
-        'base': {
-            key: 'some_value',
+        'metadata': {
+            'base': {
+                key: 'some_value',
+            }
         }
     }
     with pytest.raises(APIException):
@@ -69,28 +76,34 @@ def test_update_metadata_base_blacklist(db_session, make_workspace, upload_file,
 
 
 @pytest.mark.parametrize('key', ['filename', 'path'])
-def test_update_metadata_base_whitelist(db_session, make_workspace, upload_file, key):
+def test_update_metadata_base_whitelist(db_session, make_workspace, upload_file, key, mocker):
     """It should be possible to change some specific keys in the base family"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0})
     file_id = upload_file(workspace=workspace)
 
     new_metadata = {
-        'base': {
-            key: 'some_value',
+        'metadata': {
+            'base': {
+                key: 'some_value',
+            }
         }
     }
 
     update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
 
 
-def test_update_metadata_id_blacklist(db_session, make_workspace, upload_file):
+def test_update_metadata_id_blacklist(db_session, make_workspace, upload_file, mocker):
     """The "id" metadata cannot be modified on other families"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'other': 0})
     file_id = upload_file(workspace=workspace)
 
     new_metadata = {
-        'other': {
-            'id': '00000000-0000-4000-8000-000000000000',
+        'metadata': {
+            'other': {
+                'id': '00000000-0000-4000-8000-000000000000',
+            }
         }
     }
     with pytest.raises(APIException):
@@ -102,14 +115,17 @@ def test_update_metadata_other_workspace():
     warnings.warn('Unit test not implemented', UserWarning)
 
 
-def test_update_metadata_family_does_not_exist(db_session, make_workspace, upload_file):
+def test_update_metadata_family_does_not_exist(db_session, make_workspace, upload_file, mocker):
     """Updating metadata of a family not present in a workspace should fail"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'existing': 0})
     file_id = upload_file(workspace=workspace)
 
     new_metadata = {
-        'unknown': {
-            'key': 'value',
+        'metadata': {
+            'unknown': {
+                'key': 'value',
+            }
         }
     }
     with pytest.raises(APIException):
@@ -122,14 +138,17 @@ def test_update_metadata_family_exists_global():
     warnings.warn('Unit test not implemented', UserWarning)
 
 
-def test_update_metadata_family_exists_local(db_session, make_workspace, upload_file):
+def test_update_metadata_family_exists_local(db_session, make_workspace, upload_file, mocker):
     """Modification of metadata on a file in a workspace"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'existing': 0})
     file_id = upload_file(workspace=workspace)
 
     new_metadata = {
-        'existing': {
-            'new_key': 'new_value',
+        'metadata': {
+            'existing': {
+                'new_key': 'new_value',
+            }
         }
     }
 
@@ -142,8 +161,9 @@ def test_update_metadata_correct_content_global():
     warnings.warn('Unit test not implemented', UserWarning)
 
 
-def test_update_metadata_correct_content_local(db_session, make_workspace, upload_file):
+def test_update_metadata_correct_content_local(db_session, make_workspace, upload_file, mocker):
     """Verify exact modifications of metadata of a file in a workspace"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'existing': 0})
     file_id = upload_file(workspace=workspace, name='filename.txt',
                           path='a/b/c', content=b'hello world',
@@ -151,20 +171,23 @@ def test_update_metadata_correct_content_local(db_session, make_workspace, uploa
                           date='2019-02-03 16:30:11.350719+00:00')
 
     new_metadata = {
-        'existing': {
-            'string': 'hello',
-            'integer': 123,
-            'float': 0.5,
-            'null': None,
-            'list': ['a', 'b', 'c'],
-            'object': {'a': 'A', 'b': 'B', 'c': 'C'},
+        'metadata': {
+            'existing': {
+                'string': 'hello',
+                'integer': 123,
+                'float': 0.5,
+                'null': None,
+                'list': ['a', 'b', 'c'],
+                'object': {'a': 'A', 'b': 'B', 'c': 'C'},
+            }
         }
     }
 
     result, _ = update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata)
     expected_result = new_metadata.copy()
-    expected_result['existing']['id'] = file_id
-    expected_result['base'] = {
+    expected_result['id'] = file_id
+    expected_result['metadata']['existing']['id'] = file_id
+    expected_result['metadata']['base'] = {
         'id': file_id,
         'filename': 'filename.txt',
         'path': 'a/b/c',
@@ -172,13 +195,14 @@ def test_update_metadata_correct_content_local(db_session, make_workspace, uploa
         'size': 11,
         'url': 'gs://some_bucket/some_name',
         'date': '2019-02-03 16:30:11.350719+00:00',
+        'state': 'READY'
     }
-
     assert result == expected_result
 
 
-def test_update_metadata_correct_db_content_local(db_session, make_workspace, upload_file):
+def test_update_metadata_correct_db_content_local(db_session, make_workspace, upload_file, mocker):
     """Verify exact database modifications of metadata of a file in a workspace"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'other': 0})
     file_id = upload_file(workspace=workspace, name='filename.txt',
                           path='a/b/c', content=b'hello world',
@@ -186,13 +210,15 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
                           date='2019-02-03 16:30:11.350719+00:00')
 
     new_metadata = {
-        'other': {
-            'string': 'hello',
-            'integer': 123,
-            'float': 0.5,
-            'null': None,
-            'list': ['a', 'b', 'c'],
-            'object': {'a': 'A', 'b': 'B', 'c': 'C'},
+        'metadata': {
+            'other': {
+                'string': 'hello',
+                'integer': 123,
+                'float': 0.5,
+                'null': None,
+                'list': ['a', 'b', 'c'],
+                'object': {'a': 'A', 'b': 'B', 'c': 'C'},
+            }
         }
     }
 
@@ -216,15 +242,17 @@ def test_update_metadata_correct_db_content_local(db_session, make_workspace, up
         'size': 11,
         'url': 'gs://some_bucket/some_name',
         'date': '2019-02-03 16:30:11.350719+00:00',
+        'state': 'READY'
     }
-    other_metadata_expected = new_metadata['other'].copy()
+    other_metadata_expected = new_metadata['metadata']['other'].copy()
     other_metadata_expected['id'] = file_id
     assert base_metadata_db.json == base_metadata_expected
     assert other_metadata_db.json == other_metadata_expected
 
 
-def test_update_metadata_db_records(make_workspace, upload_file):
+def test_update_metadata_db_records(make_workspace, upload_file, mocker):
     """Changing existing metadata reuses the previous entry on the DB"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     workspace = make_workspace(families={'base': 0, 'other': 0})
     file_id = upload_file(workspace=workspace)
 
@@ -241,8 +269,10 @@ def test_update_metadata_db_records(make_workspace, upload_file):
 
     # Modify the base metadata
     new_metadata_1 = {
-        'base': {
-            'path': 'new/path/value',
+        'metadata': {
+            'base': {
+                'path': 'new/path/value',
+            }
         }
     }
     update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata_1)
@@ -253,8 +283,10 @@ def test_update_metadata_db_records(make_workspace, upload_file):
 
     # Now modify the other metadata
     new_metadata_2 = {
-        'other': {
-            'key': 'value',
+        'metadata': {
+            'other': {
+                'key': 'value',
+            }
         }
     }
     update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata_2)
@@ -265,8 +297,10 @@ def test_update_metadata_db_records(make_workspace, upload_file):
 
     # Modify the other metadata again
     new_metadata_3 = {
-        'other': {
-            'another_key': 'another value',
+        'metadata': {
+            'other': {
+                'another_key': 'another value',
+            }
         }
     }
     update_metadata(wid=workspace.id, uuid=file_id, body=new_metadata_3)

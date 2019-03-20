@@ -196,8 +196,7 @@ def test_download_file_content_in_workspace(app, db_session, make_workspace, upl
     workspace = make_workspace(families={'base': 0})
     known_content = b'some content bytes'
     mocker.patch('quetzal.app.api.data.file._download_file', return_value=io.BytesIO(known_content))
-    with app.test_request_context():
-        file_id = upload_file(workspace=workspace, content=known_content)
+    file_id = upload_file(workspace=workspace, content=known_content)
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
@@ -214,8 +213,7 @@ def test_download_file_metadata_in_workspace(app, db_session, make_workspace, up
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
     workspace = make_workspace(families={'base': 0})
-    with app.test_request_context():
-        file_id = upload_file(workspace=workspace)
+    file_id = upload_file(workspace=workspace)
 
     headers = {'accept': 'application/json'}
     with app.test_request_context(headers=headers):
@@ -275,8 +273,7 @@ def test_download_file_content_correct_api(app, db_session, make_workspace, uplo
 
     # Create workspace and with a file
     workspace = make_workspace(families={'base': 0})
-    with app.test_request_context():
-        file_id = upload_file(workspace=workspace, url='gs://bucket_name/object_name')
+    file_id = upload_file(workspace=workspace, url='gs://bucket_name/object_name')
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
