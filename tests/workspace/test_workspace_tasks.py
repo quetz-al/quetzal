@@ -15,6 +15,7 @@ from quetzal.app.api.exceptions import WorkerException
 
 def test_create_workspace_backend_tasks(app, user, db_session, mocker):
     """Workspace create triggers three tasks in the correct order and args"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     request = {
         'name': 'unit-test-failed-queue',
         'description': 'Unit test workspace description',
@@ -23,7 +24,7 @@ def test_create_workspace_backend_tasks(app, user, db_session, mocker):
         }
     }
 
-    run_mock = mocker.patch('app.helpers.celery._mockable_call')
+    run_mock = mocker.patch('quetzal.app.helpers.celery._mockable_call')
     result, code = create(body=request, user=user)
 
     # There should have been three calls to a celery task:
