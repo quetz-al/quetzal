@@ -48,7 +48,7 @@ def db(app):
     logger.debug('Creating database connection')
     connection = _db.engine.connect()
     transaction = connection.begin()
-    with unittest.mock.patch('app.db.get_engine') as get_engine_mock:
+    with unittest.mock.patch('quetzal.app.db.get_engine') as get_engine_mock:
         get_engine_mock.return_value = connection
         try:
             yield _db
