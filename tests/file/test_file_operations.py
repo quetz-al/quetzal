@@ -13,10 +13,11 @@ from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
 from quetzal.app.models import Metadata, WorkspaceState
 
 
-def test_create_file_success(db, db_session, user, make_workspace, file_id, make_file, mocker):
+def test_create_file_success(app, db, db_session, user, make_workspace, file_id, make_file, mocker):
     """File create on success conditions"""
     mocker.patch('quetzal.app.api.data.file._upload_file', return_value='gs://some_url')
     mocker.patch('quetzal.app.api.data.file.uuid4', return_value=file_id)
+    mocker.patch('flask_principal.Permission.can', return_value=True)
 
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
@@ -24,7 +25,8 @@ def test_create_file_success(db, db_session, user, make_workspace, file_id, make
 
     # Create a file with some dummy contents
     content = make_file()
-    create(wid=workspace.id, content=content, user=user)
+    with app.test_request_context(query_string=''):
+        create(wid=workspace.id, content=content, user=user)
 
     # There should be a base metadata entry
     base_family = workspace.families.filter_by(name='base').first()
@@ -36,11 +38,13 @@ def test_create_file_success(db, db_session, user, make_workspace, file_id, make
     assert count == 1
 
 
-def test_create_file_missing_base(db, db_session, make_workspace, make_file, user, caplog):
+def test_create_file_missing_base(db, db_session, make_workspace, make_file, user, mocker, caplog):
     """Adding a file on a workspace without base family should fail"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     # Explicitly make a workspace without base family. This should never happen
     # but we want to make sure anyways
-    workspace = make_workspace(families={})
+    workspace = make_workspace(families={}, owner=user)
 
     # Create a file with some dummy contents
     content = make_file()
@@ -53,9 +57,10 @@ def test_create_file_missing_base(db, db_session, make_workspace, make_file, use
 
 def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_id, make_file, user, mocker):
     """Creating a file creates the correct metadata"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     mocker.patch('google.auth.default',
                  return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('quetzal.app.api.data.helpers.get_client',
+    mocker.patch('quetzal.app.helpers.google_api.get_client',
                  return_value=Client(project='mock-project'))
     mocker.patch('google.cloud._http.JSONConnection.api_request',
                  return_value={})
@@ -79,7 +84,8 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
 
     # Create a file with some dummy contents
     content = make_file(name='filename.txt', path='a/b/c', content=b'hello world')
-    create(wid=workspace.id, content=content, user=user)
+    with app.test_request_context(query_string=''):
+        create(wid=workspace.id, content=content, user=user)
 
     # Verify that the base metadata entry is correct
     base_family = workspace.families.filter_by(name='base').first()
@@ -93,6 +99,7 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
         'checksum': '5eb63bbbe01eeed093cb22bb8f5acdc3',
         'url': f'{bucket_url}/{file_id}',
         'date': '2019-02-03 16:30:11.350719+00:00',
+        'state': 'READY'
     }
 
     assert base_metadata == expected_metadata
@@ -100,9 +107,10 @@ def test_create_file_correct_metadata(app, db, db_session, make_workspace, file_
 
 def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, make_file, user, mocker):
     """Creating a file sends a correct GCP API to create an object"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
     mocker.patch('google.auth.default',
                  return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('quetzal.app.api.data.helpers.get_client',
+    mocker.patch('quetzal.app.helpers.google_api.get_client',
                  return_value=Client(project='mock-project'))
     mocker.patch('google.cloud._http.JSONConnection.api_request',
                  return_value={})
@@ -126,7 +134,8 @@ def test_create_file_correct_api(app, db, db_session, make_workspace, file_id, m
 
     # Create a file with some dummy contents
     content = make_file(name='filename.txt', path='a/b/c', content=b'hello world')
-    create(wid=workspace.id, content=content, user=user)
+    with app.test_request_context(query_string=''):
+        create(wid=workspace.id, content=content, user=user)
 
     # Verify the correct calls to the API
 
@@ -165,8 +174,10 @@ def test_create_file_missing_workspace(missing_workspace_id, make_file, user):
 @pytest.mark.parametrize('state',
                          [ws for ws in WorkspaceState
                           if ws not in [WorkspaceState.READY, WorkspaceState.CONFLICT]])
-def test_create_file_invalid_state(db, db_session, make_workspace, state, make_file, user):
+def test_create_file_invalid_state(db, db_session, make_workspace, state, make_file, user, mocker):
     """Cannot create a file unless the workspace is ready"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
     workspace = make_workspace(families={'base': 0}, state=state)
@@ -178,12 +189,15 @@ def test_create_file_invalid_state(db, db_session, make_workspace, state, make_f
 
 def test_download_file_content_in_workspace(app, db_session, make_workspace, upload_file, mocker):
     """Retrieve file contents of a file uploaded to a workspace"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
     workspace = make_workspace(families={'base': 0})
     known_content = b'some content bytes'
     mocker.patch('quetzal.app.api.data.file._download_file', return_value=io.BytesIO(known_content))
-    file_id = upload_file(workspace=workspace, content=known_content)
+    with app.test_request_context():
+        file_id = upload_file(workspace=workspace, content=known_content)
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
@@ -193,12 +207,15 @@ def test_download_file_content_in_workspace(app, db_session, make_workspace, upl
     assert content.data == known_content
 
 
-def test_download_file_metadata_in_workspace(app, db_session, make_workspace, upload_file):
+def test_download_file_metadata_in_workspace(app, db_session, make_workspace, upload_file, mocker):
     """Retrieve file metadata of a file uploaded to a workspace"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     # Create a workspace with the base family because the file create function
     # assumes the workspace is correctly initialized: it must have a base family
     workspace = make_workspace(families={'base': 0})
-    file_id = upload_file(workspace=workspace)
+    with app.test_request_context():
+        file_id = upload_file(workspace=workspace)
 
     headers = {'accept': 'application/json'}
     with app.test_request_context(headers=headers):
@@ -211,6 +228,8 @@ def test_download_file_metadata_in_workspace(app, db_session, make_workspace, up
 
 def test_download_file_content_in_global(app, db_session, committed_file, mocker):
     """Retrieve file contents of a file uploaded and committed"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     file_id = committed_file['id']
     file_contents = committed_file['content']
     mocker.patch('quetzal.app.api.data.file._download_file', return_value=io.BytesIO(file_contents))
@@ -223,8 +242,10 @@ def test_download_file_content_in_global(app, db_session, committed_file, mocker
     assert content.data == file_contents
 
 
-def test_download_file_metadata_in_global(app, db_session, committed_file):
+def test_download_file_metadata_in_global(app, db_session, committed_file, mocker):
     """Retrieve file contents of a file uploaded and committed"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     file_id = committed_file['id']
     file_metadata = committed_file['metadata']
 
@@ -238,11 +259,13 @@ def test_download_file_metadata_in_global(app, db_session, committed_file):
 
 def test_download_file_content_correct_api(app, db_session, make_workspace, upload_file, mocker):
     """Retrieve file contents of a file uploaded to a workspace"""
+    mocker.patch('flask_principal.Permission.can', return_value=True)
+
     # There are a lot of mocks to do in order to test file downloading.
     result_type = namedtuple('request', ['status_code', 'headers', 'json'])
     mocker.patch('google.auth.default',
                  return_value=(AnonymousCredentials(), 'mock-project'))
-    mocker.patch('quetzal.app.api.data.helpers.get_client',
+    mocker.patch('quetzal.app.helpers.google_api.get_client',
                  return_value=Client(project='mock-project'))
     request_mock = mocker.patch('google.cloud._http.JSONConnection.api_request',
                                 side_effect=result_type(200, {'location': 'something'}, lambda: {}))
@@ -252,7 +275,8 @@ def test_download_file_content_correct_api(app, db_session, make_workspace, uplo
 
     # Create workspace and with a file
     workspace = make_workspace(families={'base': 0})
-    file_id = upload_file(workspace=workspace, url='gs://bucket_name/object_name')
+    with app.test_request_context():
+        file_id = upload_file(workspace=workspace, url='gs://bucket_name/object_name')
 
     headers = {'accept': 'application/octet-stream'}
     with app.test_request_context(headers=headers):
