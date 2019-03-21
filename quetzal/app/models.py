@@ -26,17 +26,6 @@ roles_users_table = db.Table('roles_users',
                              UniqueConstraint('fk_user_id', 'fk_role_id'))
 
 
-@enum.unique
-class BaseMetadataKeys(enum.Enum):
-    ID = 'id'
-    FILENAME = 'filename'
-    PATH = 'path'
-    SIZE = 'size'
-    CHECKSUM = 'checksum'
-    DATE = 'date'
-    URL = 'url'
-
-
 class Role(db.Model):
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String(80), unique=True)
@@ -102,6 +91,26 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 
+@enum.unique
+class FileState(enum.Enum):
+    READY = 'ready'
+    TEMPORARY = 'temporary'
+    DELETED = 'deleted'
+
+
+@enum.unique
+class BaseMetadataKeys(enum.Enum):
+    ID = 'id'
+    FILENAME = 'filename'
+    PATH = 'path'
+    SIZE = 'size'
+    CHECKSUM = 'checksum'
+    DATE = 'date'
+    URL = 'url'
+    STATE = 'state'
+
+
+@enum.unique
 class WorkspaceState(enum.Enum):
     INITIALIZING = 'initializing'
     READY = 'ready'
@@ -383,23 +392,35 @@ class Metadata(db.Model):
         return None
 
     @staticmethod
-    def get_latest_global(file_id, family_name=None):
+    def get_latest_global(file_id=None, family_name=None):
         # Get the families with null workspace (these are the committed families).
         # From these, get the max version of each family.
         # Finally, what we want is the associated metadata so we need to join
         # with the Metadata
-        queryset = (
-            Metadata
-            .query
-            .join(Family)
-            .filter(Metadata.id_file == file_id,
-                    Family.fk_workspace_id.is_(None),
-                    # Handy trick to add an inline filter only when family_name is set
-                    Family.name == family_name if family_name is not None else True)
-            .distinct(Family.name)
-            .order_by(Family.name, Family.version.desc())
-        )
-        return queryset.all()
+        if file_id is not None:
+            queryset = (
+                Metadata
+                .query
+                .join(Family)
+                .filter(Metadata.id_file == file_id,
+                        Family.fk_workspace_id.is_(None),
+                        # Handy trick to add an inline filter only when family_name is set
+                        Family.name == family_name if family_name is not None else True)
+                .distinct(Family.name)
+                .order_by(Family.name, Family.version.desc())
+            )
+        else:
+            queryset = (
+                Metadata
+                .query
+                .join(Family)
+                .filter(Family.fk_workspace_id.is_(None),
+                        # Handy trick to add an inline filter only when family_name is set
+                        Family.name == family_name if family_name is not None else True)
+                .distinct(Metadata.id_file, Family.name)
+                .order_by(Metadata.id_file, Family.name, Family.version.desc())
+            )
+        return queryset
 
 
 class QueryDialect(enum.Enum):

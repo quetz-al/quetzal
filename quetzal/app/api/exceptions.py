@@ -33,3 +33,6 @@ class InvalidTransitionException(QuetzalException):
 class WorkerException(QuetzalException):
     pass
 
+
+class Conflict(QuetzalException):
+    pass

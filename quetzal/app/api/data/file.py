@@ -10,11 +10,13 @@ from flask import current_app, request, send_file
 from requests import codes
 
 from quetzal.app import db
-from quetzal.app.helpers.google_api import get_object, get_data_bucket
+from quetzal.app.helpers.google_api import get_bucket, get_data_bucket, get_object
 from quetzal.app.helpers.files import split_check_path, get_readable_info
 from quetzal.app.helpers.pagination import paginate
 from quetzal.app.api.exceptions import APIException
-from quetzal.app.models import BaseMetadataKeys, Family, Workspace, Metadata
+from quetzal.app.models import (
+    BaseMetadataKeys, Family, FileState, Workspace, Metadata
+)
 from quetzal.app.security import (
     PublicReadPermission, ReadWorkspacePermission, WriteWorkspacePermission
 )
@@ -61,10 +63,19 @@ def create(*, wid, content=None, user, token_info=None):
                                   'should not happen and will be reported to '
                                   'the administrator')
 
+    # Manage temporary parameter
+    temporary = (request.args.get('temporary', 'false').capitalize() == 'True')
+    if temporary:
+        state = FileState.TEMPORARY
+    else:
+        state = FileState.READY
+
     #  Create metadata object
     meta = Metadata(id_file=uuid4(), family=base_family)
     md5, size = get_readable_info(content)
     path, filename = split_check_path(content.filename)
+    if 'path' in request.args:
+        path = request.args['path']
     meta.json = {
         'id': str(meta.id_file),
         'filename': filename,
@@ -73,17 +84,80 @@ def create(*, wid, content=None, user, token_info=None):
         'checksum': md5,
         'date': _now(),
         'url': '',
+        'state': state.name,
     }
     db.session.add(meta)
 
     # Send file to bucket
-    meta.json['url'] = _upload_file(str(meta.id_file), content)
+    if temporary:
+        filename = pathlib.Path(meta.json['path']) / meta.json['filename']
+        url = _upload_file(str(filename), content,
+                           location=workspace.data_url, alt_name=str(meta.id_file))
+    else:
+        url = _upload_file(str(meta.id_file), content)
+    meta.json['url'] = url
 
     # Save model
     db.session.add(meta)
     db.session.commit()
 
     return meta.json, codes.created
+
+
+def delete(*, wid, uuid, user, token_info=None):
+    workspace = Workspace.get_or_404(wid)
+
+    if not WriteWorkspacePermission(wid).can():
+        raise APIException(status=codes.forbidden,
+                           title='Forbidden',
+                           detail='You are not authorized to modify metadata on this workspace')
+
+    if not workspace.can_change_metadata:
+        # See note on 412 code and werkzeug on top of workspace.py file
+        raise APIException(status=codes.precondition_failed,
+                           title=f'Cannot update metadata of file',
+                           detail=f'Cannot update metadata of files to a '
+                                  f'workspace on {workspace.state.name} state')
+
+    # Before marking the file for deletion, we must ensure that this workspace
+    # has all the metadata families that reference this file
+    latest_meta_committed = Metadata.get_latest_global(uuid)
+    related_families = set(m.family.name for m in latest_meta_committed)
+    if related_families > set(f.name for f in workspace.families):
+        # Note the > is the superset operator
+        raise APIException(status=codes.precondition_failed,
+                           title='Cannot delete file',
+                           detail='Cannot delete file in this workspace '
+                                  'because the workspace does not use all the '
+                                  'metadata families associated with this file. '
+                                  'These families are: ' +
+                                  ', '.join(related_families) + '.')
+
+    # For the other families, deleting means erasing all key:value entries except id
+    for family in workspace.families:
+        if family.name not in related_families:
+            continue
+
+        latest = Metadata.get_latest(uuid, family)
+        if family.name == 'base':
+            # For the base family, deleting means changing its state
+            latest.update({'state' : FileState.DELETED.name})
+            db.session.add(latest)
+        else:
+            # For other families, it means deleting all keys except id
+            if latest.family.workspace is None:
+                # The metadata is global, not from this workspace
+                latest = latest.copy()
+                latest.json = {'id': uuid}
+                latest.family = family
+                db.session.add(latest)
+            else:
+                # The metadata is from this workspace
+                latest.json = {'id': uuid}
+                db.session.add(latest)
+
+    db.session.commit()
+    return None, codes.accepted
 
 
 def update_metadata(*, wid, uuid, body):
@@ -114,7 +188,7 @@ def update_metadata(*, wid, uuid, body):
                 # see RFC 7231 or https://stackoverflow.com/a/3290198/227103
                 raise APIException(status=codes.bad_request,
                                    title='Invalid metadata modification',
-                                   detail='Cannot change metadata family "base" for the exception of its path')
+                                   detail='Cannot change metadata family "base" except for its path')
             # Do some verifications on the filename and path
             _verify_filename_path(content.get('filename', ''), content.get('path', ''))
 
@@ -195,7 +269,7 @@ def details(*, uuid):
         # associated to their families
         latest_meta_committed = Metadata.get_latest_global(uuid)
 
-        if not latest_meta_committed:
+        if latest_meta_committed.count() == 0:
             raise APIException(status=codes.not_found,
                                title='File not found',
                                detail=f'File {uuid} does not exist or has not '
@@ -209,12 +283,12 @@ def details(*, uuid):
         # into the "base" metadata that has been committed
         latest_base_meta_committed = Metadata.get_latest_global(uuid, 'base')
 
-        if not latest_base_meta_committed:
+        if latest_base_meta_committed.count() == 0:
             raise APIException(status=codes.not_found,
                                title='File not found',
                                detail=f'File {uuid} does not exist or has not '
                                f'been committed yet.')
-        base_meta = latest_base_meta_committed[0]
+        base_meta = latest_base_meta_committed.first()
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
@@ -398,26 +472,36 @@ def _gather_metadata(metadatas):
     return gathered_meta
 
 
-def _upload_file(name, content):
+def _upload_file(name, content, **kwargs):
     storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
     if storage_backend == 'GCP':
-        return _upload_file_gcp(name, content)
+        return _upload_file_gcp(name, content, bucket=kwargs.get('location', None))
     elif storage_backend == 'file':
-        return _upload_file_local(name, content)
+        return _upload_file_local(name, content, dirname=kwargs.get('location', None),
+                                  alt_name=kwargs.get('alt_name', None))
     raise ValueError(f'Unknown storage backend {storage_backend}.')
 
 
-def _upload_file_gcp(name, content):
+def _upload_file_gcp(name, content, bucket=None):
     """Upload contents to the google data bucket"""
-    data_bucket = get_data_bucket()
+    if bucket is None:
+        data_bucket = get_data_bucket()
+    else:
+        data_bucket = get_bucket(bucket)
     blob = data_bucket.blob(name)
     blob.upload_from_file(content, rewind=True)
     return f'gs://{data_bucket.name}/{name}'
 
 
-def _upload_file_local(name, content):
-    data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
-    filename = str((data_dir / name).resolve())
+def _upload_file_local(name, content, dirname=None, alt_name=None):
+    if dirname is None:
+        data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
+    else:
+        data_dir = pathlib.Path(urllib.parse.urlparse(dirname).path)
+    target_path = data_dir / name
+    if target_path.exists():
+        target_path = data_dir / alt_name
+    filename = str(target_path.resolve())
     content.save(filename)
     return f'file://{filename}'
 

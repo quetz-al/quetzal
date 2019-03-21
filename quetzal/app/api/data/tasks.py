@@ -1,3 +1,4 @@
+import itertools
 import logging
 import pathlib
 
@@ -7,10 +8,10 @@ from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.dialects.postgresql import UUID
 
 from quetzal.app import celery, db
-from quetzal.app.api.exceptions import WorkerException
+from quetzal.app.api.exceptions import Conflict, WorkerException
 from quetzal.app.helpers.google_api import get_client, get_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
-from quetzal.app.models import Workspace, WorkspaceState, Metadata, Family
+from quetzal.app.models import Family, FileState, Metadata, Workspace, WorkspaceState
 
 
 logger = logging.getLogger(__name__)
@@ -300,7 +301,12 @@ def scan_workspace(wid):
                 col_k = col_k.cast(types_schema[k])
             columns.append(col_k.label(k))
 
-        create_table_query = workspace_metadata.filter(Family.name == family.name).with_entities(*columns).subquery()
+        create_table_query = (
+            workspace_metadata.filter(Family.name == family.name,
+                                      Metadata.json['state'].astext != 'DELETED' if family.name == 'base' else True)
+            .with_entities(*columns)
+            .subquery()
+        )
         family_table_name = f'{new_schema}.{family.name}'
         create_table_statement = CreateTableAs(family_table_name, create_table_query)
         db.session.execute(create_table_statement)
@@ -335,37 +341,149 @@ def commit_workspace(wid):
     if workspace.state != WorkspaceState.COMMITTING:
         raise WorkerException('Workspace was not on the expected state')
 
-    # Do the committing task
+    with db.session.begin_nested():
+        # Lock the database so that nothing gets written or read on the database
+        db.session.execute(f'LOCK TABLE {Metadata.__table__.name} IN ACCESS EXCLUSIVE MODE;')
 
-    # TODO: verify conflicts
-    logger.warning('No conflict detection implemented!')
+        # TODO: verify conflicts
+        try:
+            _conflict_detection(workspace)
+        except Conflict:
+            logger.info('Commit failed due to conflict', exc_info=True)
+            workspace.state = WorkspaceState.CONFLICT
+            db.session.add(workspace)
+            db.session.commit()
+            return
 
-    for family in workspace.families.all():
-        new_family = family.increment()
-        family.version = new_family.version
-        family.workspace = None
-        db.session.add_all([family, new_family])
+        # File ids of files that are temporary
+        base_family = workspace.families.filter(Family.name == 'base').first()
+        files_not_ready = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext != FileState.READY.name)
+            .subquery()
+        )
 
-    # update the fk_last_metadata_id:
-    # Determine the most recent "global" metadata entry so that the workspace
-    # has a reference number from which any new metadata will be ignored
-    # TODO: needs to consider the version!
-    # TODO: consider refactor into workspace model
-    latest_metadata = (
-        db.session.query(Metadata)
-        .join(Family)
-        .filter_by(workspace=None)
-        .order_by(Metadata.id.desc())
-        .first()
-    )
-    if latest_metadata is not None:
-        workspace.fk_last_metadata_id = latest_metadata.id
-    else:
-        workspace.fk_last_metadata_id = None
+        # Do the committing task:
+        # Iterate over all families, but do base family last, because the
+        # subquery above files_not_ready takes uses the base family to determine
+        # which files are note ready
+        families = itertools.chain(
+            workspace.families.filter(Family.name != 'base'),
+            [base_family]
+        )
+        for family in families:
+            new_family = family.increment()
+            family.version = new_family.version
+            family.workspace = None
+            db.session.add_all([family, new_family])
 
-    # Update the workspace object
-    # TODO: consider if the schema be deleted?
-    workspace.state = WorkspaceState.READY
-    db.session.add(workspace)
+            # All files that are not READY (they are temporary or deleted) need
+            # to be associated with the family of this workspace, not the
+            # committed family
+            meta_not_ready = (
+                family.metadata_set
+                .join(files_not_ready, Metadata.id_file == files_not_ready.c.id_file)
+            )
+            logger.info('Meta that is not ready: %s', meta_not_ready.all())
+            for meta in meta_not_ready:
+                meta.family = new_family
+                db.session.add(meta)
+
+        # update the fk_last_metadata_id:
+        # Determine the most recent "global" metadata entry so that the workspace
+        # has a reference number from which any new metadata will be ignored
+        # TODO: needs to consider the version!
+        # TODO: consider refactor into workspace model
+        latest_metadata = (
+            db.session.query(Metadata)
+            .join(Family)
+            .filter_by(workspace=None)
+            .order_by(Metadata.id.desc())
+            .first()
+        )
+        if latest_metadata is not None:
+            workspace.fk_last_metadata_id = latest_metadata.id
+        else:
+            workspace.fk_last_metadata_id = None
+
+        # Update the global views for public queries
+        _update_global_views()
+
+        # Update the workspace object
+        # TODO: consider if the schema (ie the postgres view) should be deleted?
+        workspace.state = WorkspaceState.READY
+        db.session.add(workspace)
 
     db.session.commit()
+
+
+def _conflict_detection(workspace):
+    # if the workspace families are the latest global families, then
+    # there is no conflict
+    latest_families = (
+        db.session.query(Family.name, func.max(Family.version))
+        .filter(Family.fk_workspace_id.is_(None))
+        .group_by(Family.name)
+    )
+    latest_families_dict = {k: v for k, v in latest_families}
+    for family in workspace.families:
+        if family.name not in latest_families_dict:
+            # It's a new family, not known in the global workspace
+            continue
+        if family.version < latest_families_dict[family.name]:
+            # The family is known in the global workspace and it has a greater
+            # version: there is a conflict!
+            # TODO: improve this, as it is actually simplistic, there could be no conflict
+            raise Conflict(f'Family {family.name} is outdated in workspace {workspace.id}.')
+
+    # TODO: more conflict detection is needed
+
+
+def _update_global_views():
+    # TODO: protect with a database lock
+
+    # Create postgres schema
+    db.session.execute(DropSchemaIfExists('global_views', cascade=True))
+    db.session.execute(CreateSchema('global_views'))
+
+    # Get all the known families
+    families = Family.query.filter(Family.fk_workspace_id.is_(None)).distinct(Family.name)
+    # This is the metadata entries related to the latest global families
+    global_metadata = Metadata.get_latest_global()
+
+    # For each family, create a view/table
+    for family in families:
+        tmp = global_metadata.filter(Family.name == family.name).subquery()
+        keys_query = db.session.query(func.jsonb_object_keys(tmp.c.json)).distinct()
+        keys = set(res[0] for res in keys_query.all()) - {'id'}
+        logger.info('Keys for family %s are %s', family.name, keys)
+
+        # 2.1 Determine the type of all columns
+        # TODO consider this, for the moment, everything is a string
+        types_schema = {}
+        if family.name == 'base':  # TODO refactor base schema to an external variable
+            types_schema['size'] = types.BigInteger
+            types_schema['date'] = types.DateTime(timezone=True)
+
+        # 2.2 Create table
+        columns = [Metadata.json['id'].astext.cast(UUID).label('id')]
+        for k in keys:
+            col_k = Metadata.json[k].astext  # TODO: do we need to protect the key names from injection?
+            if k in types_schema:
+                col_k = col_k.cast(types_schema[k])
+            columns.append(col_k.label(k))
+
+        create_table_query = (
+            global_metadata.filter(Family.name == family.name,
+                                   Metadata.json['state'].astext != 'DELETED' if family.name == 'base' else True)
+            .with_entities(*columns)
+            .subquery()
+        )
+        family_table_name = f'global_views.{family.name}'
+        create_table_statement = CreateTableAs(family_table_name, create_table_query)
+        db.session.execute(create_table_statement)
+
+        # TODO: create an index on the id column
+
+    # Set permissions on readonly user to the schema contents
+    db.session.execute(GrantUsageOnSchema('global_views', 'db_ro_user'))

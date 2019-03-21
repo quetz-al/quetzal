@@ -1,5 +1,7 @@
 Flask
-werkzeug
+# We need the future werkzeug 0.15 version but they refuse to release it
+# werkzeug
+https://github.com/pallets/werkzeug/archive/03c81ae.zip#egg=werkzeug
 Flask-Login
 Flask-Principal
 connexion

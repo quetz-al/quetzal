@@ -318,6 +318,25 @@ paths:
         - workspace
       operationId: workspace_file.create
       x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - name: path
+          in: query
+          description: |-
+            Path for the filename that will be set on the base metadata.
+            This parameter is provided as a workaround to the fact that files
+            are usually uploaded without their complete path on the filename
+            field of the form-data request.
+          required: false
+          schema:
+            type: string
+          example: study/s001
+        - name: temporary
+          in: query
+          description: True when the uploaded file is a temporary file.
+          required: false
+          schema:
+            type: boolean
+          example: false
       requestBody:
         content:
           # There are some limitations of the wsgi server and connexion that
@@ -405,6 +424,26 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/FileMetadata'
+        default:
+          $ref: '#/components/responses/Error'
+    delete:
+      summary: Delete a file.
+      description: |-
+        Marks a file for deletion. File deletion will only occur when the
+        workspace is committed. This operation will set the base metadata
+        "state" to "deleted". Note that, in order to delete a file, the
+        workspace must have access to all the families related to the file.
+        In other words, if a file has metadata on families `base`, `foo` and
+        `bar`, then the workspace of this operation must have these three
+        families. Otherwise, this operation returns an error.
+      tags:
+        - data
+        - workspace
+      operationId: workspace_file.delete
+      x-openapi-router-controller: quetzal.app.api.router
+      responses:
+        '202':
+          description: File marked for deletion.
         default:
           $ref: '#/components/responses/Error'
 
@@ -556,6 +595,89 @@ paths:
       responses:
         '200':
           $ref: '#/components/responses/FileContentsOrMetadata'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /data/queries/:
+    get:
+      summary: List public queries.
+      description: |-
+        List all the queries that are associated with the global workspace.
+        Note that each query listed here is shown _without_ its results, for
+        brevity.
+      tags:
+        - data
+        - public
+        - query
+      operationId: public.query_fetch
+      x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          $ref: '#/components/responses/PaginatedQueries'
+        default:
+          $ref: '#/components/responses/Error'
+    post:
+      summary: Prepare a query.
+      description: |-
+        Queries in Quetzal are saved as a resource, in this case, associated
+        with the global workspace.
+        This endpoint creates one and responds with a *see other* status
+        referencing the query details endpoint.
+
+        Since the query details contains the query results as a
+        paginated list, this endpoint also accepts the normal pagination
+        parameters.
+      tags:
+        - data
+        - public
+        - query
+      operationId: public.query_create
+      x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Query'
+        required: true
+      responses:
+        '201':
+          $ref: '#/components/responses/QueryDetails'
+        '303':
+          $ref: '#/components/responses/QueryDetails'
+        default:
+          $ref: '#/components/responses/Error'
+
+  /data/queries/{qid}:
+    parameters:
+      - name: qid
+        in: path
+        description: Query identifier
+        required: true
+        schema:
+          type: integer
+    get:
+      summary: Query details.
+      description: |-
+        The details of a query, which contains the query itself and a paginated
+        list of its results.
+      tags:
+        - data
+        - workspace
+        - query
+      operationId: public.query_details
+      x-openapi-router-controller: quetzal.app.api.router
+      parameters:
+        - $ref: '#/components/parameters/pageOffset'
+        - $ref: '#/components/parameters/pageSize'
+      responses:
+        '200':
+          $ref: '#/components/responses/QueryDetails'
         default:
           $ref: '#/components/responses/Error'
 
@@ -776,6 +898,7 @@ components:
       required:
         - id
         - url
+        - state
         - path
         - filename
         - checksum
@@ -792,6 +915,13 @@ components:
           type: string
           format: url
           example: gs://data-bucket/d06861a5-a14c-449c-bc9a-8f547186286a
+        state:
+          description: File status.
+          enum:
+            - READY
+            - TEMPORARY
+            - DELETED
+          example: READY
         path:
           description: Path of the file.
           type: string
@@ -937,8 +1067,11 @@ components:
           readOnly: true
           example: 123
         workspace_id:
-          description: Workspace identifier where the query operates
+          description: |-
+            Workspace identifier where the query operates. Null when the query
+            uses the global committed metadata.
           type: integer
+          nullable: true
           readOnly: true
           example: 1
         dialect:

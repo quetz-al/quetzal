@@ -72,11 +72,14 @@ def nuke(keep_users):
         quetzal.app.models.Workspace.data_url.isnot(None),
     )
     click.echo(f'Erasing {workspaces_with_data.count()} workspaces...')
-    for workspace in workspaces_with_data.all():
+    for workspace_id in [w.id for w in workspaces_with_data]:
+        # For some weird reason, in this loop I need to use directly the
+        # workspace.id instead of the instance or I get a
+        # sqlalchemy.orm.exc.DetachedInstanceError
         try:
-            delete_workspace(workspace.id, force=True)
+            delete_workspace(workspace_id, force=True)
         except Exception as ex:
-            click.secho(f'Could not delete workspace {workspace.id}: '
+            click.secho(f'Could not delete workspace {workspace_id}: '
                         f'{type(ex).__name__}: {ex}')
             continue
 
