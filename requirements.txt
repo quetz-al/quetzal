@@ -1,33 +1,30 @@
-Flask
-werkzeug>=0.15.0
-Flask-Login
-Flask-Principal
-connexion
-celery
-kombu
-Flask-Celery-Helper
-SQLAlchemy
-Flask-SQLAlchemy
-Flask-Migrate
-alembic
-psycopg2-binary
-sqlparse
-requests
-Click
-syslog-rfc5424-formatter
-apscheduler
-gunicorn
+Flask==1.0.2
+werkzeug==0.15.0
+Flask-Login==0.4.1
+Flask-Principal==0.4.0
+connexion==2.2.0
+celery==4.2.1
+kombu==4.3.0
+Flask-Celery-Helper==1.1.0
+SQLAlchemy==1.2.18
+Flask-SQLAlchemy==2.3.2
+Flask-Migrate==2.4.0
+alembic==1.0.7
+psycopg2-binary==2.7.7
+sqlparse==0.2.4
+requests==2.20.1
+Click==7.0
+syslog-rfc5424-formatter==1.0.1
+APScheduler==3.5.3
+gunicorn==19.9.0
 
 # Requirements needed for saving data on GCP
-google-cloud-storage
+google-cloud-storage==1.14.0
 
 # Requirements needed for deployment
-docker
+docker==3.7.0
 
 # Requirements for unit tests
-# pytest has a weird bug/regression on version 4.1.0 that gives
-# "AttributeError: 'Function' object has no attribute 'get_marker'"
-# This will be fixed eventually
-pytest==4.0.2
-pytest-mock
-coverage
+pytest==4.3.1
+pytest-mock==1.10.1
+coverage==4.5.3
