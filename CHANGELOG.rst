@@ -21,6 +21,7 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 * Added global queries.
 * Added support for temporary files. They are uploaded on the users' bucket.
 * Added path as query parameter when uploading files.
+* Fixes unit tests that failed since introduction of roles.
 
 0.1.0 (2019-03-05)
 ------------------
