@@ -1,6 +1,3 @@
-# pytest has a weird bug/regression on version 4.1.0 that gives
-# "AttributeError: 'Function' object has no attribute 'get_marker'"
-# This will be fixed eventually
-pytest==4.0.2
-pytest-mock
-coverage
+pytest==4.3.1
+pytest-mock==1.10.1
+coverage==4.5.3
