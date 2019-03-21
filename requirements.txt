@@ -1,7 +1,5 @@
 Flask
-# We need the future werkzeug 0.15 version but they refuse to release it
-# werkzeug
-https://github.com/pallets/werkzeug/archive/03c81ae.zip#egg=werkzeug
+werkzeug>=0.15.0
 Flask-Login
 Flask-Principal
 connexion
@@ -25,3 +23,11 @@ google-cloud-storage
 
 # Requirements needed for deployment
 docker
+
+# Requirements for unit tests
+# pytest has a weird bug/regression on version 4.1.0 that gives
+# "AttributeError: 'Function' object has no attribute 'get_marker'"
+# This will be fixed eventually
+pytest==4.0.2
+pytest-mock
+coverage
