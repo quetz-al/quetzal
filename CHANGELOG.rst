@@ -6,8 +6,8 @@ This document lists all important changes to Quetzal.
 
 Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 
-0.2.0 (not released yet)
-------------------------
+0.2.0 (2019-03-21)
+------------------
 
 * Refactored app as a package in ``quetzal.app``.
 * Added a file storage backend, an alternative storage that does not use Google
@@ -17,6 +17,7 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 * Added Sphinx documentation structure.
 * Added file delete endpoint.
 * Added file state in base metadata.
+* Added a simple.naive implementation to file delete.
 * Added a simple/naive workspace commit conflict detection.
 * Added global queries.
 * Added support for temporary files. They are uploaded on the users' bucket.
