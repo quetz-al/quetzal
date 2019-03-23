@@ -43,8 +43,9 @@ spec:
                 configMapKeyRef:
                   name: app-configmap
                   key: admin_mail
-            - name: DISABLE_CERTBOT
-              value: "1"
+            # Uncomment this to disable CA certbot
+            # - name: DISABLE_CERTBOT
+            #   value: "1"
       restartPolicy: Always
       volumes:
         - name: nginx-secret-files-volume
