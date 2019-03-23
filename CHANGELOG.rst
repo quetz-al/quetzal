@@ -6,6 +6,12 @@ This document lists all important changes to Quetzal.
 
 Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 
+0.2.x (unreleased)
+------------------
+
+* Added GCP cluster auto-scaling.
+* Added k8s horizontal scaler for web and worker.
+
 0.2.0 (2019-03-21)
 ------------------
 
