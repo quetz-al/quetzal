@@ -26,5 +26,9 @@ COPY docker/app/entrypoint-server.sh docker/app/entrypoint-worker.sh /
 # Flask configuration
 ENV FLASK_ENV development
 
+# Permit version override
+ARG QUETZAL_VERSION
+ENV QUETZAL_VERSION ${QUETZAL_VERSION}
+
 EXPOSE 5000
 ENTRYPOINT /entrypoint-server.sh

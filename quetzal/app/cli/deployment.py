@@ -44,7 +44,8 @@ def create_docker_images(ctx, registry, images):
         # The image for the app and worker is slightly different, because it
         # uses the root directory as context
         'app': dict(path=str(pathlib.Path().resolve()),
-                    dockerfile='docker/app/Dockerfile'),
+                    dockerfile='docker/app/Dockerfile',
+                    buildargs={}),
     }
 
     # Extra parameter validation
@@ -77,6 +78,7 @@ def create_docker_images(ctx, registry, images):
                           f'"clean" version. Images will be tagged as "{version}"'
                           f'\nAre you sure you want to push these images?',
                           abort=True, default=False)
+        images_kwargs['app']['buildargs']['QUETZAL_VERSION'] = app_version
     else:
         raise click.ClickException('Version string does not conform to semver')
 

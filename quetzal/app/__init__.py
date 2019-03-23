@@ -19,10 +19,14 @@ from .middleware.headers import HttpHostHeaderMiddleware
 from .security import load_identity
 
 
-# Version with versioneer
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+# Version may be defined with a env variable but falls back to versioneer,
+# because the Docker installation does not include the git repo
+if os.environ.get('QUETZAL_VERSION', ''):
+    __version__ = os.environ.get('QUETZAL_VERSION')
+else:
+    from ._version import get_versions
+    __version__ = get_versions()['version']
+    del get_versions
 
 
 # Common objects usable across the application
