@@ -33,11 +33,14 @@ Part 2: GCP Deployment
    .. code-block:: console
 
     $ gcloud container clusters create quetzal-cluster \
-      --num-nodes=4
+      --num-nodes=1 \
+      --enable-autoscaling --min-nodes=1 --max-nodes=4
 
-   This will create 4 Google Compute Engine VM instances that will be used as
-   CPU and memory resources managed by k8s. The VM machine type in this example
-   is the default `n1-standard-1`_, as shown by:
+   This will create a pool of 1 node (a Google Compute Engine VM instance) that
+   will be used as CPU and memory resources managed by k8s. This also enables
+   horizontal autoscaling, which will create or delete nodes in order to meet
+   the resource usage of the services running in the cluster. The VM machine
+   type in this example is the default `n1-standard-1`_, as shown by:
 
    .. code-block:: console
 
@@ -188,9 +191,11 @@ Part 2: GCP Deployment
     # web application
     $ kubectl create -f k8s/web-deployment.yaml
     $ kubectl create -f k8s/web-service.yaml
+    $ kubectl create -f k8s/web-scaler.yaml
 
     # background celery worker
     $ kubectl create -f k8s/worker-deployment.yaml
+    $ kubectl create -f k8s/worker-scaler.yaml
 
     # nginx reverse proxy
     $ kubectl create -f k8s/nginx-deployment.yaml
