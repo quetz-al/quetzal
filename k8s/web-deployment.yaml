@@ -23,11 +23,17 @@ spec:
     spec:
       containers:
         - name: web
-          image: gcr.io/quetzal/quetzal/app:0.1.0
+          image: gcr.io/quetzal/quetzal/app:0.2.0
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
-          resources: {}
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "4Gi"
+              cpu: "1000m"
           volumeMounts:
             - mountPath: /code/conf
               name: app-secret-files-volume

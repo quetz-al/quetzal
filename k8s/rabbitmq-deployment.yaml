@@ -21,10 +21,18 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: gcr.io/quetzal/quetzal/rabbitmq:0.1.0
+          image: gcr.io/quetzal/quetzal/rabbitmq:0.2.0
           imagePullPolicy: Always
           ports:
             - containerPort:  5672
             - containerPort: 15672
-          resources: {}
+          resources:
+            requests:
+              # Memory request set to the value documented in
+              # https://www.rabbitmq.com/production-checklist.html#resource-limits-ram
+              memory: "128Mi"
+              cpu: "250m"
+            limits:
+              memory: "256Mi"
+              cpu: "1000m"
       restartPolicy: Always

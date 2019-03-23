@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: gcr.io/quetzal/quetzal/nginx:0.1.0
+          image: gcr.io/quetzal/quetzal/nginx:0.2.0
           imagePullPolicy: Always
           ports:
             - containerPort: 80
