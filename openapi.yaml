@@ -74,6 +74,9 @@ info:
   license:
     name: BSD-3-Clause
     url: https://opensource.org/licenses/BSD-3-Clause
+  x-logo:
+    url: https://raw.githubusercontent.com/quetz-al/quetzal/docs/docs/logo_h.png
+    altText: Quetzal logo
 
 servers:
   - url: https://api.quetz.al/api/v1       # TODO: activate and deploy here
