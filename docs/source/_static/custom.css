@@ -3,5 +3,9 @@
 }
 
 .wy-side-nav-search {
-    background-color: #333131;
+    background-color: #56565a;
+}
+
+.wy-menu-vertical p.caption {
+    color: #00aac7;
 }

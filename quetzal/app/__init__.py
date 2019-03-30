@@ -1,7 +1,6 @@
 import os
 from logging.config import dictConfig
 
-
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from flask.helpers import get_env
