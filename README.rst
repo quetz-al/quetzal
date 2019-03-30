@@ -1,6 +1,6 @@
 .. class:: center
 
-    .. image:: docs/logo_h.png
+    .. image:: docs/source/_static/logo_h.png
        :height: 100px
        :alt: Quetzal logo
 
@@ -48,45 +48,49 @@ There are two scenarios where Quetzal was designed to help:
 
 In brief, Quetzal offers the following main features:
 
-* Storage of data files based on cloud storage providers, which benefits from
-  all of the features from the provider, such as virtually infinite storage
-  size.
-* *Unstructured* metadata associated to each file. Quetzal does not force the
-  user to organize your metadata in a particular way, it lets the user keep
+* **Storage** of data files, based on cloud storage providers, which benefits
+  from all of the features from the provider, such as virtually infinite
+  storage size.
+* **Unstructured metadata** associated to each file*. Quetzal does not force
+  the user to organize your metadata in a particular way, it lets the user keep
   whatever structure they prefer.
-* *Structured* metadata views for metadata exploration or dataset definition.
+* **Structured metadata views** for metadata exploration or dataset definition.
   By leveraging Postgres SQL, unstructured metadata can be queried as JSON
   objects, letting the user express what subset of the data they want to use.
-* Metadata versioning. Changes on metadata are versioned, which is particularly
-  useful to ensure that a dataset are reproducible.
+* **Metadata versioning**. Changes on metadata are versioned, which is
+  particularly useful to ensure that a dataset are reproducible.
+* Endpoints and operations defined using the
+  `OpenAPI v3 specification <https://github.com/OAI/OpenAPI-Specification>`_.
 
 .. abstract_end
 
-Features
---------
+Documentation
+-------------
 
-- Feature 1
-- Feature 2
+Quetzal's documentation is available on
+`readthedocs <https://quetzal-api.readthedocs.org>`_. The API documentation is
+embedded into its specification; the best way to visualize it is through the
+is also a
+`ReDoc API reference documentation site <https://stage.quetz.al/redoc>`_.
 
-Installation
-------------
 
-Installation of a development server.
 
 Contribute
 ----------
 
-- Issue Tracker: github.com/quetz-al/quetzal/issues
-- Source Code: github.com/quetz-al/quetzal
+- Issue Tracker: https://github.com/quetz-al/quetzal/issues
+- Source Code: https://github.com/quetz-al/quetzal
 
 Support
 -------
 
-If you are having issues, please let us know.
+If you are having issues, please let us know by opening an issue or by sending
+an email to support@quetz.al.
 
 License
 -------
 
 The project is under the BSD 3-clause license.
 
-Links to copyright and authors.
+See the `authors <./AUTHORS.rst>`_ page for more information on the authors and
+copyright holders.

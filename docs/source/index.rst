@@ -12,7 +12,7 @@ Quetzal documentation
    :start-after: abstract_start
    :end-before: abstract_end
 
-The following documentation is divided in three main sections, a
+The rest of this documentation is divided in three main sections, a
 :ref:`general_toc` explanation of Quetzal concepts, design decisions and how
 it works. For Quetzal users, that is, those who want to consume the API to
 explore or download from the public datasets, the :ref:`user_toc` section shows

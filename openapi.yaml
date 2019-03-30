@@ -75,7 +75,7 @@ info:
     name: BSD-3-Clause
     url: https://opensource.org/licenses/BSD-3-Clause
   x-logo:
-    url: https://raw.githubusercontent.com/quetz-al/quetzal/docs/docs/logo_h.png
+    url: https://quetz.al/static/logo_h.png
     altText: Quetzal logo
 
 servers:
