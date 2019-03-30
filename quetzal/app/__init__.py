@@ -134,7 +134,8 @@ def create_app(config_name=None):
         flask_app.after_request(debug_response)
 
     # Other middleware
-    proxied = HttpHostHeaderMiddleware(flask_app.wsgi_app, server=flask_app.config['SERVER_NAME'])
+    proxied = HttpHostHeaderMiddleware(flask_app.wsgi_app,
+                                       server=flask_app.config['SERVER_NAME'])
     flask_app.wsgi_app = proxied
 
     # Install recurrent jobs (not through celery):
