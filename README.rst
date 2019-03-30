@@ -1,10 +1,10 @@
 .. class:: center
 
-    .. image:: docs/quetzal_logo_horizontal.png
-     :height: 100px
-     :alt: Quetzal logo.
+    .. image:: docs/logo_h.png
+       :height: 100px
+       :alt: Quetzal logo
 
-    Quetzal — A REST API for data and metadata management.
+    Quetzal — A RESTful API for data and metadata management.
 
 .. badges will go here
 
