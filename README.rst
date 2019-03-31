@@ -28,7 +28,7 @@ There are two scenarios where Quetzal was designed to help:
   How do you manage the different sources? How to download them?
 
   Quetzal provides a single data source with a simple API that will let you
-  define easily the scope of your study and, with a short code that
+  define easily the scope of your study and, with a brief Python code that
   uses `Quetzal client <https://github.com/quetz-al/quetzal-client>`_, you will
   be able to download your dataset.
 
@@ -41,9 +41,9 @@ There are two scenarios where Quetzal was designed to help:
   so you either save them as manual notes, text files, or some database that
   gives you the flexibility to quickly adapt its structre.
 
-  Using the Quetzal API and a short Python code, you automate the upload and
-  safe storage of the study files, associate the metadata of these files while
-  having the liberty to set and modify the metadata structure as you see fit.
+  Using the Quetzal API, you automate the upload and safe storage of the study
+  files, associate the metadata of these files while having the liberty to set
+  and modify the metadata structure as you see fit.
 
 
 In brief, Quetzal offers the following main features:
