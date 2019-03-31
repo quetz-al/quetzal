@@ -6,7 +6,7 @@ metadata:
     name: app-configmap
     app: quetzal
 data:
-  server_name: stage.quetz.al
+  server_name: quetz.al,api.quetz.al,stage.quetz.al
   flask_env: staging
   admin_mail: quetzal.api@gmail.com
   data_bucket: gs://data.stage.quetz.al

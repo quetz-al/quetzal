@@ -48,6 +48,7 @@ except:
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
+    'sphinx_tabs.tabs'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -75,7 +76,7 @@ language = None
 exclude_patterns = []
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
+pygments_style = 'monokai'
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -106,7 +107,7 @@ html_context = {
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
-html_logo = '_static/logo.png'
+html_logo = '_static/logo_v.png'
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.

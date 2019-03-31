@@ -35,15 +35,18 @@ else
     then
         echo "Needs an initial run of certbot..."
         sleep 10
+        server_names=$(echo ${SERVER_NAMES} | sed -e "s/,/ -d /g")
+        first_name=$(echo ${SERVER_NAMES} | cut -d, -f1)
         certbot --nginx certonly \
                 -n --agree-tos \
                 --email ${ADMIN_EMAIL} \
-                -d ${SERVER_NAMES}
+                --expand \
+                -d ${server_names}
         sed -i \
-            -e "s#/etc/nginx/ssl/mysite.crt#/etc/letsencrypt/live/${SERVER_NAMES}/fullchain.pem#g" \
+            -e "s#/etc/nginx/ssl/mysite.crt#/etc/letsencrypt/live/${first_name}/fullchain.pem#g" \
             /etc/nginx/conf.d/default.conf
         sed -i \
-            -e "s#/etc/nginx/ssl/mysite.key#/etc/letsencrypt/live/${SERVER_NAMES}/privkey.pem#g" \
+            -e "s#/etc/nginx/ssl/mysite.key#/etc/letsencrypt/live/${first_name}/privkey.pem#g" \
             /etc/nginx/conf.d/default.conf
         echo "Reloading nginx..."
         /etc/init.d/nginx reload
