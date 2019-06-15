@@ -16,6 +16,8 @@ flask quetzal role create public_read \
     --description "Users that can perform read operations"
 flask quetzal role create public_write \
     --description "Users that can perform write operations (create workspaces, upload files, ...)"
+flask quetzal role create public_commit \
+    --description "Users that can commit workspaces"
 
 # Create admin user
 if [ -z ${QUETZAL_ADMIN_MAIL} ]
@@ -24,5 +26,5 @@ then
 else
     echo "Creating admin user..."
     flask quetzal user create admin ${QUETZAL_ADMIN_MAIL}
-    flask quetzal role add admin public_read public_write
+    flask quetzal role add admin public_read public_write public_commit
 fi

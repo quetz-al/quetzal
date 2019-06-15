@@ -11,9 +11,14 @@ logger = logging.getLogger(__name__)
 WorkspaceNeed = namedtuple('workspace', ['method', 'value'])
 ReadWorkspaceNeed = partial(WorkspaceNeed, 'read')
 WriteWorkspaceNeed = partial(WorkspaceNeed, 'write')
+CommitWorkspaceNeed = partial(WorkspaceNeed, 'commit')
 
 PublicReadPermission = Permission(RoleNeed('public_read'))
-PublicWritePermission = Permission(RoleNeed('public_read'), RoleNeed('public_write'))
+PublicWritePermission = Permission(RoleNeed('public_read'),
+                                   RoleNeed('public_write'))
+PublicCommitPermission = Permission(RoleNeed('public_read'),
+                                    RoleNeed('public_write'),
+                                    RoleNeed('public_commit'))
 
 
 class ReadWorkspacePermission(Permission):
@@ -24,6 +29,11 @@ class ReadWorkspacePermission(Permission):
 class WriteWorkspacePermission(Permission):
     def __init__(self, workspace_id):
         super().__init__(PublicWritePermission, WriteWorkspaceNeed(workspace_id))
+
+
+class CommitWorkspacePermission(Permission):
+    def __init__(self, workspace_id):
+        super().__init__(PublicWritePermission, )
 
 
 def load_identity(sender, identity):
@@ -38,7 +48,8 @@ def load_identity(sender, identity):
     for role in user.roles:
         identity.provides.add(RoleNeed(role.name))
 
-    # Add workspace authorizations
+    # Add workspace authorizations:
+    # The owner of a workspace can read and write to it
     for workspace in user.workspaces:
         identity.provides.add(ReadWorkspaceNeed(workspace.id))
         identity.provides.add(WriteWorkspaceNeed(workspace.id))
