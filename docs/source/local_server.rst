@@ -25,7 +25,6 @@ a `pull request <https://github.com/quetz-al/quetzal/pull/new/master>`_.
 
     $ python3 -m venv ${HOME}/.virtualenvs/quetzal-env
     $ source ${HOME}/.virtualenvs/quetzal-env/bin/activate
-    $ pip install -r requirements.txt
     $ pip install -r requirements-dev.txt
 
 
@@ -54,6 +53,7 @@ that can be generated as follows.
 
    .. code-block:: console
 
+    $ mkdir -p conf/ssl
     $ openssl req -x509 -newkey rsa:4096 \
       -keyout conf/ssl/mysite.key -out conf/ssl/mysite.crt \
       -days 365 -nodes

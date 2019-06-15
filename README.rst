@@ -14,11 +14,29 @@ Quetzal
 
 .. abstract_start
 
-Quetzal (short for Quetzalcóatl: the feathered snake) is a RESTful API designed
+Quetzal (short for Quetzalcóatl, the feathered snake), a RESTful API designed
 to store data files and manage their associated metadata.
-Its main target audience are reserchers and data scientists looking for a
-unique bank of file datasets, without having to manage and download
-them directly.
+
+Quetzal is an application that uses Cloud storage providers and non-structured
+databases to help researchers organize their data and metadata files.
+Its main feature is to provide a remote, virtually infinite, storage location
+for researchers' data, while providing an API to encapsulate data/metadata
+operations. In other words, researchers and teams can work with large amounts
+of data that would be too large for local analyses, using Quetzal to simplify
+the complexity of Cloud resource management.
+
+Quetzal's mid-term roadmap is to integrate with large public physiological
+signal databases like PhysioNet_, MIPDB_, TUH_, among others. Tha main objective
+is to provide researchers and data scientists a unique bank of file datasets
+with a unified API to access the data and to encapsulate the heteronegeity of
+these datasets.
+
+.. _PhysioNet: https://physionet.org/
+.. _MIPDB: http://fcon_1000.projects.nitrc.org/indi/cmi_eeg/
+.. _TUH: https://www.isip.piconepress.com/projects/tuh_eeg/html/overview.shtml
+
+Features
+--------
 
 There are two scenarios where Quetzal was designed to help:
 

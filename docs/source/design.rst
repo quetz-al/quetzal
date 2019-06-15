@@ -100,15 +100,15 @@ Quetzal API responds to a request for the metadata of a file.
 
   {
     "base": {
-       "filename": "study_foo/subject_1/session_1/eeg/signals.xdf"
+      "filename": "study_foo/subject_1/session_1/eeg/signals.xdf"
     },
     "study": {
-       "subject": "S001",
-       "session": 1,
-       "date": "2019-03-02"
+      "subject": "S001",
+      "session": 1,
+      "date": "2019-03-02"
     },
     "signal": {
-       "type": "EEG"
+      "type": "EEG"
     }
   }
 
@@ -166,32 +166,32 @@ expand the metadata of the first file in this page as:
 
   {
     "base": {
-       "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
-       "url": "gs://some_bucket/f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
-       "filename": "signals.xdf",
-       "path": "study_foo/subject_1/session_1/eeg",
-       "size": 19058370,
-       "checksum": "9529f1439ec59ca105de75973a241574",
-       "date": "2019-03-02T09:37:05.618034+00:00",
-       "state": "READY"
+      "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "url": "gs://some_bucket/f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "filename": "signals.xdf",
+      "path": "study_foo/subject_1/session_1/eeg",
+      "size": 19058370,
+      "checksum": "9529f1439ec59ca105de75973a241574",
+      "date": "2019-03-02T09:37:05.618034+00:00",
+      "state": "READY"
     },
     "study": {
-       "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
-       "subject": "S001",
-       "session": 1,
-       "date": "2019-03-02"
+      "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "subject": "S001",
+      "session": 1,
+      "date": "2019-03-02"
     },
     "signal": {
-       "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
-       "type": "EEG",
-       "sampling_rate": 512,
-       "samples": 15360,
-       "channels": ["Fpz", "F3", "F4", "Fz"],
-       "device": {
-          "name": "foo",
-          "manufacturer": "bar",
-          "firwmare_version": "1.0.1"
-       }
+      "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "type": "EEG",
+      "sampling_rate": 512,
+      "samples": 15360,
+      "channels": ["Fpz", "F3", "F4", "Fz"],
+      "device": {
+        "name": "foo",
+        "manufacturer": "bar",
+        "firwmare_version": "1.0.1"
+      }
     }
   }
 
@@ -200,7 +200,6 @@ Note that:
 * All families have an **id** key with the same value.
 * The base family has been populated with all the required keys.
 * The signal family has been augmented with more complex objects types.
-
 
 Family versioning
 ^^^^^^^^^^^^^^^^^
@@ -221,10 +220,115 @@ result in a new version number for its associated family.
 Workspace
 ^^^^^^^^^
 
-Global vs local metadata
+All data and metadata in Quetzal is stored in a freezed state. There are no
+changes of the file contents or its metadata, unless this happens inside a
+workspace.
+
+In Quetzal, a workspace is **a configuration of exact metadata families and
+their version**. It is a **snapshot** of the data and metadata that permits
+the addition of new files and the addition or modification of metadata. It
+also provides a storage location for temporary files in a Cloud storage
+provider (typically a bucket). Finally, through a workspace, a number of
+API operations are available, such as uploading files, creating views, among
+others.
+
+Local vs global metadata
 """"""""""""""""""""""""
 
+When working on a workspace, the metadata of files requested through the
+workspace will contain the changes or additions that have been introduced in
+the workspace. On the other hand, when the metadata is requested *without* a
+workspace, it will be the metadata of the latest known version of each family.
+These two cases are referred to, respectively, as local and global metadata.
+
+Let us illustrate with an example. Suppose that Quetzal currently has only
+one file, with metadata:
+
+.. code-block:: json
+
+  {
+    "base": {
+      "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "url": "gs://some_bucket/f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "filename": "signals.xdf",
+      "path": "study_foo/subject_1/session_1/eeg",
+      "size": 19058370,
+      "checksum": "9529f1439ec59ca105de75973a241574",
+      "date": "2019-03-02T09:37:05.618034+00:00",
+      "state": "READY"
+    },
+    "study": {
+      "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+      "subject": "S001",
+      "session": 1,
+      "date": "2019-03-02"
+    }
+  }
+
+Now, assume that a user creates a workspace with id 1 that uses the **base**
+and **study** families. Immediately after its creation, both the local and
+global metadata are the same, because a workspace is a snapshot of the metadata.
+
+Let us say that the user sends a metadata modification to fix an incorrect
+subject identification, setting ``"subject"`` to ``"S123"`` and adding an
+``"operator"`` entry. After this operation, known in the API as
+`Modify metadata <https://quetz.al/redoc#operation/workspace_file.update_metadata>`_,
+the local and global metadata differ:
+
+.. tabs::
+
+  .. tab:: Local metadata
+
+    .. code-block:: json
+
+      {
+        "base": {
+          "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+          "url": "gs://some_bucket/f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+          "filename": "signals.xdf",
+          "path": "study_foo/subject_1/session_1/eeg",
+          "size": 19058370,
+          "checksum": "9529f1439ec59ca105de75973a241574",
+          "date": "2019-03-02T09:37:05.618034+00:00",
+          "state": "READY"
+        },
+        "study": {
+          "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+          "subject": "S123",
+          "session": 1,
+          "date": "2019-03-02",
+          "operator": "John Doe"
+        }
+      }
+
+  .. tab:: Global metadata
+
+    .. code-block:: json
+
+      {
+        "base": {
+          "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+          "url": "gs://some_bucket/f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+          "filename": "signals.xdf",
+          "path": "study_foo/subject_1/session_1/eeg",
+          "size": 19058370,
+          "checksum": "9529f1439ec59ca105de75973a241574",
+          "date": "2019-03-02T09:37:05.618034+00:00",
+          "state": "READY"
+        },
+        "study": {
+          "id": "f5b460ad-b1e9-4e09-ac43-2c670ffeac6d",
+          "subject": "S001",
+          "session": 1,
+          "date": "2019-03-02"
+        }
+      }
+
+
 Workspace views
+"""""""""""""""
+
+Workspace state
 """""""""""""""
 
 

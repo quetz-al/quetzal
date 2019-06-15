@@ -223,6 +223,7 @@ def delete_workspace(wid, force=False):
         raise WorkerException('Workspace was not on the expected state')
 
     # Delete the data bucket and its contents
+    # TODO: this needs to manage the different backends. It assumes GCP only!
     if workspace.data_url is not None:
         # TODO: manage exceptions/errors
         client = get_client()

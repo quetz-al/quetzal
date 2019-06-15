@@ -5,35 +5,31 @@ info:
   title: Quetzal API
   version: "{{ version }}"
   description: |
-    Quetzal (short for Quetzalcoatl): an API to manage data files and their
-    associated metadata.
+    Quetzal (short for Quetzalcóatl, the feathered snake), a RESTful API designed
+    to store data files and manage their associated metadata.
 
-    Quetzal is an application that uses Cloud storage providers and
-    non-structured databases to  help researchers organize their data and
-    metadata files. Its main feature is to provide a remote, virtually infinite,
-    storage location for researchers' data, while providing an API to
-    encapsulate data/metadata operations. In other words, researchers and teams
-    can work large amounts of data that would be too large for local analyses,
-    using Quetzal to simplify the complexity of Cloud resource management.
-    
-    # Overview
-
-    ...
-
-    ## Concepts
-
-    * File
-    * Metadata
-      Versioning too
-    * Families
-    * Workspace
-      Description, workspace states, data_url, etc.
-    * Workspace views
-    * Queries
+    Please read the Quetzal documentation at
+    [readthedocs.org](https://quetzal-api.readthedocs.org)
+    for more details on the features and use-cases of this API. To understand
+    the endpoints presented in this API, read the
+    [concepts](https://quetzal-api.readthedocs.io/en/latest/design.html#concepts)
+    and other design elements defined for Quetzal.
 
     # Authentication
 
-    Authentication details
+    All API operations require a bearer token authentication header::
+
+    ```
+    Authorization: Bearer edgBkeLJxTtTGUDWMR6kroj8UQHx86cS
+    ```
+
+    this token can be obtained on the [login](#operation/auth.get_token)
+    operation. The login operation is the only endpoint that is accessible
+    through basic HTTP authentication::
+
+    ```
+    Authorization: Basic dXNlcm5hbWU6dHNr
+    ```
 
     # Errors
 
@@ -59,17 +55,19 @@ info:
     0.2.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.2.0)
     0.1.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.1.0)
 
-    # TODO
+    # Notes
 
-    * Add file delete mechanism.
-    * Add workspace update through a PUT.
+    * Add file delete mechanism is not fully tested yet. It should clean files
+      when the workspace is committed, but there are no unit test to verify this.
+    * Workspace update through a PUT is not available yet.
+    * Workspace commit is still very naive and could be improved.
 
     # API Reference
 
   termsOfService: https://quetz.al/terms  # TODO: activate this URL
   contact:
     name: API support
-    url: https://quetz.al                 # TODO: activate this URL
+    url: https://quetz.al
     email: support@quetz.al               # TODO: activate this address
   license:
     name: BSD-3-Clause
@@ -79,7 +77,7 @@ info:
     altText: Quetzal logo
 
 servers:
-  - url: https://api.quetz.al/api/v1       # TODO: activate and deploy here
+  - url: https://api.quetz.al/api/v1
     description: Public server
   - url: https://stage.quetz.al/api/v1
     description: Staging server

@@ -2,7 +2,7 @@
 Quickstart
 ==========
 
-How to get a development environment.
+How to get a development environment
 
 
 =============

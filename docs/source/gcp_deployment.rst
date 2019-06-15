@@ -99,12 +99,10 @@ Part 2: GCP Deployment
      $ flask quetzal utils generate-secret-key
      sB-YgPO8ZVCmZyV5XKH0rg
 
-     # Use <your secret key> and <your db password> on the following command:
+     # Use <your secret key> on the following command:
      $ kubectl create secret generic stage-app-secrets \
        --from-file=./conf/credentials.json \
-       --from-literal=SECRET_KEY=<your secret key> \
-       --from-literal=DB_USERNAME=postgres \
-       --from-literal=DB_PASSWORD=<your db password>
+       --from-literal=SECRET_KEY=<your secret key>
 
 3. Read, verify and modify kubernetes deployment files.
 
