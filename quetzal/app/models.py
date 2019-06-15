@@ -133,7 +133,7 @@ class WorkspaceState(enum.Enum):
             ws.SCANNING: {ws.READY},
             ws.UPDATING: {ws.READY, ws.INVALID},
             ws.COMMITTING: {ws.READY, ws.CONFLICT},
-            ws.DELETING: {ws.DELETED},
+            ws.DELETING: {ws.DELETED, ws.INVALID},
             ws.INVALID: {ws.UPDATING, ws.DELETING},
             ws.CONFLICT: {ws.UPDATING, ws.DELETING},
             ws.DELETED: {},

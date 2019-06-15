@@ -1,6 +1,8 @@
 import itertools
 import logging
 import pathlib
+import shutil
+from urllib.parse import urlparse
 
 from flask import current_app
 from sqlalchemy import func, types
@@ -212,7 +214,8 @@ def _init_local_data_bucket(bucket_name):
 
 @celery.task()
 def delete_workspace(wid, force=False):
-    logger.info('Deleting workspace %s...', wid)
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    logger.info('Deleting workspace %s on backend %s...', wid, storage_backend)
 
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(wid)
@@ -222,19 +225,22 @@ def delete_workspace(wid, force=False):
     if workspace.state != WorkspaceState.DELETING and not force:
         raise WorkerException('Workspace was not on the expected state')
 
-    # Delete the data bucket and its contents
-    # TODO: this needs to manage the different backends. It assumes GCP only!
+    # Delete data bucket and its contents
     if workspace.data_url is not None:
-        # TODO: manage exceptions/errors
-        client = get_client()
-        bucket = get_bucket(workspace.data_url, client=client)
-
-        # Delete all blobs first
-        blobs = list(bucket.list_blobs())
-        bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
-
-        # Delete the bucket
-        bucket.delete()
+        try:
+            if storage_backend == 'GCP':
+                _delete_gcp_data_bucket(workspace.data_url)
+            elif storage_backend == 'file':
+                _delete_local_data_bucket(workspace.data_url)
+            else:
+                raise WorkerException(f'Unknown storage backend {storage_backend}.')
+        except Exception as ex:
+            # Update database model to set as invalid
+            # TODO: add this transition to the workspace state diagram
+            workspace.state = WorkspaceState.INVALID
+            db.session.add(workspace)
+            db.session.commit()
+            raise
 
     # Drop schema used for queries
     if workspace.pg_schema_name is not None:
@@ -248,6 +254,23 @@ def delete_workspace(wid, force=False):
     workspace.data_url = None
     db.session.add(workspace)
     db.session.commit()
+
+
+def _delete_gcp_data_bucket(url):
+    client = get_client()
+    bucket = get_bucket(url, client=client)
+
+    # Delete all blobs first
+    blobs = list(bucket.list_blobs())
+    bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
+
+    # Delete the bucket
+    bucket.delete()
+
+
+def _delete_local_data_bucket(url):
+    path = urlparse(url).path
+    shutil.rmtree(path)  # TODO: consider the on_error?
 
 
 @celery.task()
