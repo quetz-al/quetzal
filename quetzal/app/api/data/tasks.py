@@ -1,3 +1,4 @@
+import copy
 import itertools
 import logging
 import pathlib
@@ -461,6 +462,83 @@ def _conflict_detection(workspace):
             raise Conflict(f'Family {family.name} is outdated in workspace {workspace.id}.')
 
     # TODO: more conflict detection is needed
+
+
+def merge(ancestor, theirs, mine):
+    mine = copy.deepcopy(mine)
+    # Aliases for shorter code:
+    #
+    # a - ... - b      [i.e. global workspace]
+    #  \
+    #   - ... - c      [i.e. the workspace to commit]
+    #
+    a, b, c = ancestor, theirs, mine
+
+    keys = set(a) | set(b) | set(c)
+    for k in keys:
+        if k in a:
+            # First global case: the key existed before.
+            # Changes are either modification or deletions. However, when the
+            # new value equals the ancestor, it means no modification
+            # This means that if they key is not found in b or c, it was a deletion.
+            if k in b and k in c:
+                # Modifications on both branches
+                if b[k] == c[k]:
+                    # No conflict, same modification or no modification at all
+                    pass
+                elif a[k] == b[k] and b[k] != c[k]:
+                    # No change on b, modification on c. Accept c
+                    pass
+                elif a[k] == c[k] and b[k] != c[k]:
+                    # No change on c, modification on b. Accept b
+                    c[k] = b[k]
+                else:  # implied: a[k] != b[k] and a[k] != c[k] and b[k] != c[k]
+                    # Conflict, both modified the same with different values
+                    raise Conflict
+
+            elif k in b:  # implied: k not in c
+                # Possible modification in b and certainly deletion on c
+                if b[k] != a[k]:
+                    # There was a change on b, but c deleted it. Conflict
+                    raise Conflict
+                else:
+                    # There was no change on b, but c deleted it. Accept c
+                    pass
+
+            elif k in c:  # implied: k not in b
+                # Possible modification on c and certainly deletion on b
+                if c[k] != a[k]:
+                    # There was a change on c, but b deleted it. Conflict
+                    raise Conflict
+                else:
+                    # There was no change on c, but c deleted it. Accept b
+                    del c[k]
+
+        else:
+            # Second global case: the key did not exist before.
+            # Changes are additions
+            # This means that if the key is not found in b or c, it is
+            # because these branches did not do anything on this key
+            if k in b and k in c:
+                # Modification in both branches
+                if b[k] == c[k]:
+                    # No conflict, same modification
+                    pass
+                else:  # implied: b[k] != c[k]
+                    # Conflict, both modified the same with different values
+                    raise Conflict
+
+            elif k in b:  # implied: k not in c
+                # Modification on b but c did not do anything
+                # Accept whatever change b brings
+                c[k] = b[k]
+
+            elif k in c:  # implied: k not in b
+                # Modification on c but b did not do anything
+                # Accept whatever change c brings
+                pass
+
+    return mine
 
 
 def _update_global_views():
