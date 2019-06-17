@@ -367,6 +367,8 @@ def fetch(*args, **kwargs):
     if 'filters' in request.args:
         filters = request.args['filters'].split(',')
         for f in filters:
+            if not f:
+                continue
             try:
                 key, value = f.split('=', 1)
             except ValueError:
@@ -431,6 +433,8 @@ def fetch_w(*, wid):
     if 'filters' in request.args:
         filters = request.args['filters'].split(',')
         for f in filters:
+            if not f:
+                continue
             try:
                 key, value = f.split('=', 1)
             except ValueError:
