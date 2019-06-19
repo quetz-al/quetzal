@@ -8,10 +8,9 @@ from flask_principal import Permission, RoleNeed
 logger = logging.getLogger(__name__)
 
 
-WorkspaceNeed = namedtuple('workspace', ['method', 'value'])
-ReadWorkspaceNeed = partial(WorkspaceNeed, 'read')
-WriteWorkspaceNeed = partial(WorkspaceNeed, 'write')
-CommitWorkspaceNeed = partial(WorkspaceNeed, 'commit')
+WorkspaceNeed = namedtuple('workspace_need', ['operation', 'workspace_id'])
+ReadWorkspaceNeed = partial(WorkspaceNeed, 'read')  # Equivalent to WorkspaceNeed('read', ...)
+WriteWorkspaceNeed = partial(WorkspaceNeed, 'write')  # Equivalent to WorkspaceNeed('write', ...)
 
 PublicReadPermission = Permission(RoleNeed('public_read'))
 PublicWritePermission = Permission(RoleNeed('public_read'),
@@ -23,17 +22,25 @@ PublicCommitPermission = Permission(RoleNeed('public_read'),
 
 class ReadWorkspacePermission(Permission):
     def __init__(self, workspace_id):
-        super().__init__(PublicReadPermission, ReadWorkspaceNeed(workspace_id))
+        # To read a workspace, one must have:
+        # public_read role and a workspace-specific read permission
+        super().__init__(PublicReadPermission,
+                         ReadWorkspaceNeed(workspace_id))
 
 
 class WriteWorkspacePermission(Permission):
     def __init__(self, workspace_id):
+        # To read a workspace, one must have:
+        # public_write role and a workspace-specific write permission
         super().__init__(PublicWritePermission, WriteWorkspaceNeed(workspace_id))
 
 
 class CommitWorkspacePermission(Permission):
     def __init__(self, workspace_id):
-        super().__init__(PublicWritePermission, )
+        # To commit a workspace, one must have:
+        # public_commit role and a workspace-specific write permission
+        super().__init__(PublicCommitPermission,
+                         WriteWorkspaceNeed(workspace_id))
 
 
 def load_identity(sender, identity):

@@ -116,7 +116,7 @@ services:
       - ./conf:/code/conf:ro
       # When using local storage instead of GCP buckets for data, create two
       # directories and add them here:
-#      - ./data:/mnt/data:ro
+#      - ./data:/mnt/data
 #      - ./workspaces:/mnt/workspaces
     depends_on:
       - db
