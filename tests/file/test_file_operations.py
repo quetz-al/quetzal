@@ -38,6 +38,10 @@ def test_create_file_success(app, db, db_session, user, make_workspace, file_id,
     assert count == 1
 
 
+def test_create_file_content_in_workspace():
+    raise NotImplementedError
+
+
 def test_create_file_missing_base(db, db_session, make_workspace, make_file, user, mocker, caplog):
     """Adding a file on a workspace without base family should fail"""
     mocker.patch('flask_principal.Permission.can', return_value=True)

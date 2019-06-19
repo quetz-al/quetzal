@@ -88,13 +88,11 @@ def create(*, wid, content=None, user, token_info=None):
     }
     db.session.add(meta)
 
-    # Send file to bucket
-    if temporary:
-        filename = pathlib.Path(meta.json['path']) / meta.json['filename']
-        url = _upload_file(str(filename), content,
-                           location=workspace.data_url, alt_name=str(meta.id_file))
-    else:
-        url = _upload_file(str(meta.id_file), content)
+    # Send file to workspace bucket (not in the data bucket, this is done
+    # during the workspace commit operation)
+    # TODO: manage exceptions
+    url, obj = _upload_file(pathlib.Path(path) / filename, content, location=workspace.data_url)
+    _set_permissions(obj, workspace.owner)
     meta.json['url'] = url
 
     # Save model
@@ -219,6 +217,18 @@ def update_metadata(*, wid, uuid, body):
         else:
             # This file has some local (ie not committed) metadata
             logger.info('Got latest %s', latest)
+
+        # TODO: A change in the path of a file inside a worspace must entail a rename!
+        if name == 'base' and 'path' in content:
+            raise APIException(status=codes.server_error,
+                               title='Changing path is disabled / unimplemented',
+                               detail='Cannot change path of an uploaded file '
+                                      'because file moving is not implemented yet')
+            # new_path = content['path']
+            # if new_path.startswith(workspace.data_url):
+            #     logger.warning('NEED MOVE')
+            # else:
+            #     logger.warning('DOES NOT NEED MOVE')
 
         latest.update(content)
         db.session.add(latest)
@@ -476,38 +486,52 @@ def _gather_metadata(metadatas):
     return gathered_meta
 
 
-def _upload_file(name, content, **kwargs):
+def _upload_file(name, content, location=None):
     storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
     if storage_backend == 'GCP':
-        return _upload_file_gcp(name, content, bucket=kwargs.get('location', None))
+        return _upload_file_gcp(name, content, location=location)
     elif storage_backend == 'file':
-        return _upload_file_local(name, content, dirname=kwargs.get('location', None),
-                                  alt_name=kwargs.get('alt_name', None))
+        return _upload_file_local(name, content, location=location)
     raise ValueError(f'Unknown storage backend {storage_backend}.')
 
 
-def _upload_file_gcp(name, content, bucket=None):
+def _upload_file_gcp(name, content, location=None):
     """Upload contents to the google data bucket"""
-    if bucket is None:
+    if location is None:
+        if '/' in name:
+            raise ValueError('Data bucket should not have a sub-directory structure')
         data_bucket = get_data_bucket()
     else:
-        data_bucket = get_bucket(bucket)
+        data_bucket = get_bucket(location)
     blob = data_bucket.blob(name)
     blob.upload_from_file(content, rewind=True)
-    return f'gs://{data_bucket.name}/{name}'
+    return f'gs://{data_bucket.name}/{blob.name}', blob
 
 
-def _upload_file_local(name, content, dirname=None, alt_name=None):
-    if dirname is None:
+def _upload_file_local(name, content, location=None):
+    logger.info('upload_file_local %s %s %s', name, content, location)
+    if location is None:
+        if '/' in name:
+            raise ValueError('Data directory should not have a sub-directory structure')
         data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
     else:
-        data_dir = pathlib.Path(urllib.parse.urlparse(dirname).path)
+        data_dir = pathlib.Path(urllib.parse.urlparse(location).path)
     target_path = data_dir / name
-    if target_path.exists():
-        target_path = data_dir / alt_name
+    target_path.parent.mkdir(parents=True, exist_ok=True)
     filename = str(target_path.resolve())
     content.save(filename)
-    return f'file://{filename}'
+    return f'file://{filename}', target_path
+
+
+def _set_permissions(file_object, user):
+    logger.info('Setting permissions of %s to %s', file_object, user)
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    # if storage_backend == 'GCP':
+    #     return _set_permissions_gcp(url)
+    # elif storage_backend == 'file':
+    #     return _set_permissions_local(url)
+    # raise ValueError(f'Unknown storage backend {storage_backend}.')
+    logger.warning('Setting permissions not implemented yet')
 
 
 def _download_file(url):

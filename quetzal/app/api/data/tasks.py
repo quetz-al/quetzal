@@ -380,8 +380,28 @@ def commit_workspace(wid):
             db.session.commit()
             return
 
-        # File ids of files that are temporary
         base_family = workspace.families.filter(Family.name == 'base').first()
+
+        # Move new READY files (not temporary and not deleted) to the data
+        # directory. Since creating a new file creates a new base metadata
+        # entry, we can get this from the base metadata family of this
+        # workspace. But there is an exception when a path is changed: there is
+        # no need to copy anything at all
+        files_ready = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext == FileState.READY.name,
+                    Metadata.json['url'].astext.startswith(workspace.data_url))
+        )
+        logger.info('There are %d files to commit', files_ready.count())
+        for file_meta in files_ready:
+            logger.info('Commit: copying %s ( %s) to data directory',
+                        file_meta, file_meta.json['url'])
+            new_url = _commit_file(file_meta.json['id'], file_meta.json['url'])
+            #_set_permissions(obj, workspace.owner)
+            file_meta.update({'url': new_url})
+            db.session.add(file_meta)
+
+        # File ids of files that are temporary
         files_not_ready = (
             base_family.metadata_set
             .filter(Metadata.json['state'].astext != FileState.READY.name)
@@ -391,7 +411,7 @@ def commit_workspace(wid):
         # Do the committing task:
         # Iterate over all families, but do base family last, because the
         # subquery above files_not_ready takes uses the base family to determine
-        # which files are note ready
+        # which files are not ready
         families = itertools.chain(
             workspace.families.filter(Family.name != 'base'),
             [base_family]
@@ -462,6 +482,30 @@ def _conflict_detection(workspace):
             raise Conflict(f'Family {family.name} is outdated in workspace {workspace.id}.')
 
     # TODO: more conflict detection is needed
+
+
+
+
+def _commit_file(file_id, file_url):
+    # TODO: move to a file operations file, along with upload/download
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _commit_file_gcp(file_id, file_url)
+    elif storage_backend == 'file':
+        return _commit_file_local(file_id, file_url)
+    raise ValueError(f'Unknown storage backend {storage_backend}')
+
+
+def _commit_file_local(file_id, file_url):
+    source_path = pathlib.Path(urlparse(file_url).path)
+    target_path = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR']) / file_id
+    shutil.copy(str(source_path.resolve()), str(target_path.resolve()))
+    return f'file://{target_path.resolve()}'
+
+
+def _commit_file_gcp(file_id, file_url):
+    # data_bucket = get_data_bucket()
+    pass
 
 
 def merge(ancestor, theirs, mine):
