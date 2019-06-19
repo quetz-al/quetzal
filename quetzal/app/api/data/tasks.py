@@ -11,7 +11,7 @@ from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.dialects.postgresql import UUID
 
 from quetzal.app import celery, db
-from quetzal.app.api.exceptions import Conflict, WorkerException
+from quetzal.app.api.exceptions import Conflict, EmptyCommit, WorkerException
 from quetzal.app.helpers.google_api import get_client, get_bucket, get_data_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
 from quetzal.app.models import Family, FileState, Metadata, Workspace, WorkspaceState
@@ -215,7 +215,6 @@ def _init_local_data_bucket(bucket_name):
 
 @celery.task()
 def delete_workspace(wid, force=False):
-    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
     logger.info('Deleting workspace %s on backend %s...', wid, storage_backend)
 
     # Get the workspace object and verify preconditions
@@ -229,12 +228,7 @@ def delete_workspace(wid, force=False):
     # Delete data bucket and its contents
     if workspace.data_url is not None:
         try:
-            if storage_backend == 'GCP':
-                _delete_gcp_data_bucket(workspace.data_url)
-            elif storage_backend == 'file':
-                _delete_local_data_bucket(workspace.data_url)
-            else:
-                raise WorkerException(f'Unknown storage backend {storage_backend}.')
+            _delete_bucket(workspace.data_url)
         except Exception as ex:
             # Update database model to set as invalid
             # TODO: add this transition to the workspace state diagram
@@ -257,7 +251,20 @@ def delete_workspace(wid, force=False):
     db.session.commit()
 
 
+def _delete_bucket(url):
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        _delete_gcp_data_bucket(url)
+    elif storage_backend == 'file':
+        _delete_local_data_bucket(url)
+    else:
+        raise WorkerException(f'Unknown storage backend {storage_backend}.')
+
+
 def _delete_gcp_data_bucket(url):
+    data_bucket = current_app.config['QUETZAL_GCP_DATA_BUCKET']
+    if url.startswith(data_bucket):
+        raise RuntimeError('Refusing to delete the main data bucket')
     client = get_client()
     bucket = get_bucket(url, client=client)
 
@@ -270,6 +277,9 @@ def _delete_gcp_data_bucket(url):
 
 
 def _delete_local_data_bucket(url):
+    data_bucket = current_app.config['QUETZAL_FILE_DATA_DIR']
+    if url.startswith(data_bucket):
+        raise RuntimeError('Refusing to delete the main data directory')
     path = urlparse(url).path
     shutil.rmtree(path)  # TODO: consider the on_error?
 
@@ -366,19 +376,13 @@ def commit_workspace(wid):
     if workspace.state != WorkspaceState.COMMITTING:
         raise WorkerException('Workspace was not on the expected state')
 
-    with db.session.begin_nested():
+    db.session.begin_nested()  # make a savepoint
+    try:
         # Lock the database so that nothing gets written or read on the database
         db.session.execute(f'LOCK TABLE {Metadata.__table__.name} IN ACCESS EXCLUSIVE MODE;')
 
-        # TODO: verify conflicts
-        try:
-            _conflict_detection(workspace)
-        except Conflict:
-            logger.info('Commit failed due to conflict', exc_info=True)
-            workspace.state = WorkspaceState.CONFLICT
-            db.session.add(workspace)
-            db.session.commit()
-            return
+        # Verify conflicts, raise Conflict if there is any conflict
+        _conflict_detection(workspace)
 
         base_family = workspace.families.filter(Family.name == 'base').first()
 
@@ -389,24 +393,28 @@ def commit_workspace(wid):
         # no need to copy anything at all
         files_ready = (
             base_family.metadata_set
-            .filter(Metadata.json['state'].astext == FileState.READY.name,
-                    Metadata.json['url'].astext.startswith(workspace.data_url))
+            .filter(Metadata.json['state'].astext == FileState.READY.name)
         )
-        logger.info('There are %d files to commit', files_ready.count())
+        files_deleted = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext == FileState.DELETED.name)
+        )
+        files_not_ready = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext == FileState.TEMPORARY.name)
+            .subquery()
+        )
+
+        if files_ready.count() + files_deleted.count() == 0:
+            raise EmptyCommit
+        logger.info('There are %d files to commit', files_ready.count() + files_deleted.count())
+
         for file_meta in files_ready:
             logger.info('Commit: copying %s ( %s) to data directory',
                         file_meta, file_meta.json['url'])
             new_url = _commit_file(file_meta.json['id'], file_meta.json['url'])
-            #_set_permissions(obj, workspace.owner)
             file_meta.update({'url': new_url})
             db.session.add(file_meta)
-
-        # File ids of files that are temporary
-        files_not_ready = (
-            base_family.metadata_set
-            .filter(Metadata.json['state'].astext != FileState.READY.name)
-            .subquery()
-        )
 
         # Do the committing task:
         # Iterate over all families, but do base family last, because the
@@ -422,9 +430,8 @@ def commit_workspace(wid):
             family.workspace = None
             db.session.add_all([family, new_family])
 
-            # All files that are not READY (they are temporary or deleted) need
-            # to be associated with the family of this workspace, not the
-            # committed family
+            # All files that are TEMPORARY need to be associated with the
+            # family of this workspace, not the committed family
             meta_not_ready = (
                 family.metadata_set
                 .join(files_not_ready, Metadata.id_file == files_not_ready.c.id_file)
@@ -454,10 +461,28 @@ def commit_workspace(wid):
         # Update the global views for public queries
         _update_global_views()
 
-        # Update the workspace object
+        # Everything went ok!
         # TODO: consider if the schema (ie the postgres view) should be deleted?
         workspace.state = WorkspaceState.READY
         db.session.add(workspace)
+        db.session.commit()
+
+    except Conflict:
+        logger.info('Commit failed due to conflict', exc_info=True)
+        db.session.rollback()  # revert to savepoint
+        workspace.state = WorkspaceState.CONFLICT
+        db.session.add(workspace)
+
+    except EmptyCommit:
+        logger.info('Empty commit, nothing to do')
+        db.session.rollback()  # revert to savepoint
+        workspace.state = WorkspaceState.READY
+        db.session.add(workspace)
+
+    except:
+        logger.info('Unexpected error on workspace commit, workspace will '
+                    'remain in COMMITTING state', exc_info=True)
+        db.session.rollback()  # revert to savepoint
 
     db.session.commit()
 

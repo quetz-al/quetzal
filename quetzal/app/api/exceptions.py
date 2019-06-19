@@ -36,3 +36,7 @@ class WorkerException(QuetzalException):
 
 class Conflict(QuetzalException):
     pass
+
+
+class EmptyCommit(QuetzalException):
+    pass
