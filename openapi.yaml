@@ -915,6 +915,7 @@ components:
           description: File URL on Quetzal's data bucket.
           type: string
           format: url
+          nullable: true
           example: gs://data-bucket/d06861a5-a14c-449c-bc9a-8f547186286a
         state:
           description: File status.

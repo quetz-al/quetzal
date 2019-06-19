@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from quetzal.app import celery, db
 from quetzal.app.api.exceptions import Conflict, WorkerException
-from quetzal.app.helpers.google_api import get_client, get_bucket
+from quetzal.app.helpers.google_api import get_client, get_bucket, get_data_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
 from quetzal.app.models import Family, FileState, Metadata, Workspace, WorkspaceState
 
@@ -504,8 +504,12 @@ def _commit_file_local(file_id, file_url):
 
 
 def _commit_file_gcp(file_id, file_url):
-    # data_bucket = get_data_bucket()
-    pass
+    file_url_parsed = urlparse(file_url)
+    data_bucket = get_data_bucket()
+    workpace_bucket = get_bucket(file_url)
+    source_blob = workpace_bucket.blob(file_url_parsed.path.lstrip('/'))
+    new_blob = workpace_bucket.copy_blob(source_blob, data_bucket, file_id)
+    return f'gs://{data_bucket.name}/{new_blob.name}'
 
 
 def merge(ancestor, theirs, mine):
