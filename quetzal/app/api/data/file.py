@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import pathlib
+import shutil
 import tempfile
 import urllib.parse
 from uuid import uuid4
@@ -246,17 +247,15 @@ def update_metadata(*, wid, uuid, body):
             # This file has some local (ie not committed) metadata
             logger.info('Got latest %s', latest)
 
-        # TODO: A change in the path of a file inside a worspace must entail a rename!
-        if name == 'base' and 'path' in content:
-            raise APIException(status=codes.server_error,
-                               title='Changing path is disabled / unimplemented',
-                               detail='Cannot change path of an uploaded file '
-                                      'because file moving is not implemented yet')
-            # new_path = content['path']
-            # if new_path.startswith(workspace.data_url):
-            #     logger.warning('NEED MOVE')
-            # else:
-            #     logger.warning('DOES NOT NEED MOVE')
+        # A change in the path or filename inside a worspace must entail a rename!
+        if name == 'base' and \
+                ('path' in content or 'filename' in content) and \
+                latest.json['url'].startswith(workspace.data_url):
+            new_url = _move_file(latest.json['url'],
+                                 workspace.data_url,
+                                 content.get('path', latest.json['path']),
+                                 content.get('filename', latest.json['filename']))
+            latest.update({'url': new_url})
 
         latest.update(content)
         db.session.add(latest)
@@ -657,6 +656,33 @@ def _verify_filename_path(filename, path):
             raise APIException(status=codes.bad_request,
                                title='Invalid path modification',
                                detail='Path must be normalized')
+
+
+def _move_file(url, location, path, filename):
+    logger.info('move_file %s, %s, %s, %s', url, location, path, filename)
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _move_file_gcp(url, location, path, filename)
+    elif storage_backend == 'file':
+        return _move_file_local(url, location, path, filename)
+    raise ValueError(f'Unknown storage backend {storage_backend}.')
+
+
+def _move_file_local(url, location, path, filename):
+    source = pathlib.Path(urllib.parse.urlparse(url).path)
+    target = pathlib.Path(urllib.parse.urlparse(location).path) / path / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(source, target)
+    return f'file://{target.resolve()}'
+
+
+def _move_file_gcp(url, location, path, filename):
+    file_url_parsed = urllib.parse.urlparse(url)
+    data_bucket = get_bucket(location)
+    source_blob = data_bucket.blob(file_url_parsed.path.lstrip('/'))
+    new_path = pathlib.Path(path) / filename
+    new_blob = data_bucket.copy_blob(source_blob, data_bucket, str(new_path))
+    return f'gs://{data_bucket.name}/{new_blob.name}'
 
 
 def _now():

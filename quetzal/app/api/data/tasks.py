@@ -215,7 +215,7 @@ def _init_local_data_bucket(bucket_name):
 
 @celery.task()
 def delete_workspace(wid, force=False):
-    logger.info('Deleting workspace %s on backend %s...', wid, storage_backend)
+    logger.info('Deleting workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(wid)
