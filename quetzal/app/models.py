@@ -24,9 +24,37 @@ roles_users_table = db.Table('roles_users',
                              db.Column('fk_user_id', db.Integer(), db.ForeignKey('user.id')),
                              db.Column('fk_role_id', db.Integer(), db.ForeignKey('role.id')),
                              UniqueConstraint('fk_user_id', 'fk_role_id'))
+"""
+Auxiliary table associating users and roles
+"""
 
 
 class Role(db.Model):
+    """ Authorization management role on Quetzal
+
+    Quetzal operations are protected by an authorization system based on roles.
+    A user may have one to many roles; a role defines what operations the
+    associated users can do.
+
+    Note that the *n to n* relationship of roles and users is implemented
+    through the :py:attr:`roles_users_table`.
+
+    Attributes
+    ----------
+    id: int
+        Identifier and primary key of a role.
+    name: str
+        Unique name of the role.
+    description: str
+        Human-readable description of the role.
+
+    Extra attributes
+    ----------------
+    users
+        Set of users associated with this role. This attribute is defined
+        through a backref in :py:class:`User`.
+
+    """
     id = db.Column(db.Integer(), primary_key=True)
     name = db.Column(db.String(80), unique=True)
     description = db.Column(db.String(255))
@@ -43,6 +71,41 @@ class Role(db.Model):
 
 
 class User(UserMixin, db.Model):
+    """ Quetzal user
+
+    Almost all operations on Quetzal can only be done with an authenticated
+    user. This model defines the internal information that Quetzal needs for
+    bookeeping its users, permissions, emails, etc.
+
+    Attributes
+    ----------
+    id: int
+        Identifier and primary key of a user.
+    username: str
+        Unique string identifier of a user (e.g. admin, alice, bob).
+    email: str
+        Unique e-mail address of a user.
+    password_hash: str
+        Internal representation of the user password with salt.
+    token: str
+        Unique, temporary authorization token.
+    token_expiration: datetime
+        Expiration date of autorization token.
+    active: bool
+        Whether this user is active (and consequently can perform operations)
+        or not.
+
+    Extra attributes
+    ----------------
+    roles
+        Set of :py:class:`Roles <Role>` associated with this user.
+    workspaces
+        Set of :py:class:`Workspaces <Workspace>` owned by this user.
+    queries
+        Set of :py:class:`Queries <Query>` created by this user.
+
+    """
+
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(256), index=True, unique=True)
@@ -58,15 +121,70 @@ class User(UserMixin, db.Model):
 
     @property
     def is_active(self):
+        """Property accessor for :py:attr:`active`.
+
+        Needed to conform to the :py:class:`flask_login.UserMixin` interface.
+        """
         return self.active
 
     def set_password(self, password):
+        """ Change the password of this user.
+
+        This function set and store the new password as a salt-hashed string.
+
+        The changes on this instance are not propagated to the database (this
+        must be done by the caller), but this instance added to the current
+        database session.
+
+        Parameters
+        ----------
+        password: str
+            The new password.
+        """
         self.password_hash = generate_password_hash(password)
+        db.session.add(self)
 
     def check_password(self, password):
+        """ Check if a password is correct.
+
+        Parameters
+        ----------
+        password: str
+            The password to verify against the hash-salted stored password.
+
+        Returns
+        -------
+        bool
+            ``True`` when the provided password matches the hash-salted stored
+            one.
+        """
         return check_password_hash(self.password_hash, password)
 
     def get_token(self, expires_in=3600):  # TODO: setting for timeout
+        """ Create or retrieve an authorization token
+
+        When a user already has an authorization token, it returns it.
+
+        If there is no authorization token or the existing authorization token
+        for this user is expired, this function will create a new one as
+        a random string.
+
+        The changes on this instance are not propagated to the database (this
+        must be done by the caller), but this instance added to the current
+        database session.
+
+        Parameters
+        ----------
+        expires_in: int
+            Expiration time, in seconds from the current date, used when
+            creating a new token.
+
+        Returns
+        -------
+        str
+            The authorization token
+
+        """
         now = datetime.utcnow()
         if self.token and self.token_expiration > now + timedelta(seconds=60):
             return self.token
@@ -76,15 +194,39 @@ class User(UserMixin, db.Model):
         return self.token
 
     def revoke_token(self):
+        """ Revoke the authorization token
+
+        The changes on this instance are not propagated to the database (this
+        must be done by the caller), but this instance added to the current
+        database session.
+
+        """
         self.token_expiration = datetime.utcnow() - timedelta(seconds=1)
         db.session.add(self)
 
     @staticmethod
     def check_token(token):
+        """ Retrieve a user by token
+
+        No user will be returned when the token is expired or does not exist.
+
+        Parameters
+        ----------
+        token: str
+            Authorization token.
+
+        Returns
+        -------
+        user: :py:class:`User`
+            User with the provided token, or ``None`` when either the token
+            was not found or it was expired.
+
+        """
         user = User.query.filter_by(token=token).first()
         if user is None or user.token_expiration < datetime.utcnow():
             return None
-        logger.debug('Token still valid for %d seconds', (user.token_expiration - datetime.utcnow()).total_seconds())
+        logger.debug('Token still valid for %d seconds',
+                     (user.token_expiration - datetime.utcnow()).total_seconds())
         return user
 
     def __repr__(self):
@@ -93,34 +235,164 @@ class User(UserMixin, db.Model):
 
 @enum.unique
 class FileState(enum.Enum):
+    """ State of a Quetzal file
+
+    Quetzal files have a status, saved in their *base* metadata under the
+    *state* key. It can only have the values defined in this enumeration.
+
+    """
     READY = 'ready'
+    """File is ready
+    
+    It has been uploaded, it can be downloaded, its metadata can be changed and
+    when its workspace is committed, it will be moved to the global data storage
+    directory or bucket.
+    """
+
     TEMPORARY = 'temporary'
+    """File is ready but temporary
+    
+    Like :py:attr:`READY`, but this file will not be considered when the
+    workspace is committed. That is, it will not be copied to the global data
+    storage directory or bucket.
+    """
+
     DELETED = 'deleted'
+    """File has been deleted.
+    
+    Deleted files will have their metadata cleared when the workspace is 
+    committed. 
+    
+    If it was an already committed file, its contents will not be
+    removed from the global data storage directory or bucket, but its metadata
+    will be cleared. If it was a file that was not committed yet, it will be
+    erased from its workspace data directory or bucket.
+    
+    Deleted files are not considered in queries.
+    """
 
 
 @enum.unique
 class BaseMetadataKeys(enum.Enum):
+    """ Set of metadata keys that exist in the base metadata family
+
+    The base metadata family is completely managed by Quetzal; a user cannot
+    set or change its values (with the exception of the value for the *path* or
+    *filename* keys). This enumeration defines the set of keys that exist in
+    this family.
+
+    """
+
     ID = 'id'
+    """Unique file identifier."""
+
     FILENAME = 'filename'
+    """Filename, without its path component."""
+
     PATH = 'path'
+    """Path component of the filename."""
+
     SIZE = 'size'
+    """Size in bytes of the file."""
+
     CHECKSUM = 'checksum'
+    """MD5 checksum of the file"""
+
     DATE = 'date'
+    """Date when this file was created."""
+
     URL = 'url'
+    """URL where this file is stored."""
+
     STATE = 'state'
+    """State of the file; see :py:class:`FileState`."""
 
 
 @enum.unique
 class WorkspaceState(enum.Enum):
+    """ Status of a workspace.
+
+    Workspaces in Quetzal have a state that defines what operations can be
+    performed on them. This addresses the need for long-running tasks that
+    modify the workspace, such as initialization, committing, deleting, etc.
+
+    The transitions from one state to another is defined on this enumeration
+    on the :py:meth:`transitions` function. The following diagram illustrates
+    the possible state transitions:
+
+    .. raw:: html
+
+        <object data="_static/diagrams/workspace-states.svg" type="image/svg+xml"></object>
+
+    The verification of state transitions is implemented in
+    the :py:attr:`quetzal.app.models.Workspace.state` property setter function.
+
+    """
+
     INITIALIZING = 'initializing'
+    """The workspace has just been created. 
+    
+    The workspace will remain on this state until the initialization routine 
+    finishes. No operation is possible until then.
+    """
+
     READY = 'ready'
+    """The workspace is ready.
+    
+    The workspace can now be scanned, updated, committed or deleted. Files can
+    be uploaded to it and their metadata can be changed.
+    """
+
     SCANNING = 'scanning'
+    """The workspace is updating its internal views.
+    
+    The workpace will remain on this state until the scanning routine finishes.
+    No operation is possible until then.
+    """
+
     UPDATING = 'updating'
+    """The workspace is updating its metadata version definition.
+    
+    The workpace will remain on this state until the updating routine finishes.
+    No operation is possible until then.
+    """
+
     COMMITTING = 'committing'
+    """The workspace is committing its files and metadata.
+    
+    The workpace will remain on this state until the committing routine finishes.
+    No operation is possible until then.
+    """
+
     DELETING = 'deleting'
+    """The workspace is deleting its files and itself.
+    
+    The workpace will remain on this state until the deleting routine finishes.
+    No operation is possible.
+    """
+
     INVALID = 'invalid'
+    """The workspace has encountered an unexpected error.
+    
+    The workpace will remain on this state until the administrator fixes this
+    situation.
+    No operation is possible.
+    """
+
     CONFLICT = 'conflict'
+    """The workspace detected a conflict during its commit routine.
+    
+    The workpace will remain on this state until the administrator fixes this
+    situation.
+    No operation is possible.
+    """
+
     DELETED = 'deleted'
+    """The workspace has been deleted.
+    
+    The instance of the workspace remains in database for bookeeping, but there
+    is no operation possible with it at this point.
+    """
 
     @staticmethod
     def transitions():
@@ -141,10 +413,63 @@ class WorkspaceState(enum.Enum):
 
     @staticmethod
     def valid_transition(from_value, to_value):
+        """Determine if a state transition is valid"""
         return to_value in WorkspaceState.transitions().get(from_value, {})
 
 
 class Workspace(db.Model):
+    """ Quetzal workspace
+
+    In Quetzal, all operations on files and metadata are *sandboxed* in
+    workspaces. Workspaces define the exact metadata families and versions,
+    which in turn provides a snapshot of what files and metadata are available.
+    This is the base of the reproducibility of dataset in Quetzal and the
+    traceability of the data changes.
+
+    Workspaces also provide a storage directory or bucket where the user can
+    upload new and temporary data files.
+
+    Attributes
+    ----------
+    id: int
+        Identifier and primary key of a workspace.
+    name: str
+        Short name for a workspace. Unique together with the owner's username.
+    _state: :py:class:`WorkspaceState`
+        State of the workspace. Do not use directly, use its property accessors.
+    description: str
+        Human-readable description of the workspace, its purpose, and any other
+        useful comment.
+    creation_date: datetime
+        Date when the workspace was created.
+    temporary: bool
+        When ``True``, Quetzal will know that this workspace is intended for
+        temporary operations and may be deleted automatically when not used
+        for a while. When ``False``, only its owner may delete it.
+    data_url: str
+        URL to the data directory or bucket where new files associated to this
+        workspace will be saved.
+    pg_schema_name: str
+        Used when creating structured views of the structured metadata, this
+        schema name is the postgresql schema where temporary tables exists
+        with a copy of the unstructured metadata.
+    fk_user_id: int
+        Owner of this workspace as a foreign key to a :py:class:`User`.
+    fk_last_metadata_id: int
+        Reference to the most recent :py:class:`Metadata` object that has been
+        committed at the time when this workspace was created. This permits to
+        have a reference to which global metadata entries should be taken into
+        account when determining the metadata in this workspace.
+
+    Extra attributes
+    ----------------
+    families
+        Set of :py:class:`Families <Family>` (including its version) used for
+        this workspace.
+    queries
+        Set of :py:class:`Queries <Query>` created on this workspace.
+
+    """
 
     __table_args__ = (
         UniqueConstraint('name', 'fk_user_id'),                 # Name and user should be unique together
@@ -170,10 +495,16 @@ class Workspace(db.Model):
 
     @property
     def state(self):
+        """Property accessor for the workspace state"""
         return self._state
 
     @state.setter
     def state(self, new_state):
+        """Property setter for the workspace state
+
+        This function enforces a valid transition as defined in
+        :py:func:`quetzal.app.models.WorkspaceState.transitions`.
+        """
         if WorkspaceState.valid_transition(self._state, new_state):
             self._state = new_state
         else:
@@ -182,11 +513,12 @@ class Workspace(db.Model):
 
     @property
     def can_change_metadata(self):
+        """Returns ``True`` when metadata can be changed on the current workspace state"""
         return self.state in {WorkspaceState.READY, WorkspaceState.CONFLICT}
 
     @staticmethod
     def get_or_404(wid):
-        """Get a workspace by id or raise an APIException"""
+        """Get a workspace by id or raise a :py:class:`quetzal.app.api.exceptions.ObjectNotFoundException`"""
         w = Workspace.query.get(wid)
         if w is None:
             raise ObjectNotFoundException(status=codes.not_found,
@@ -195,19 +527,27 @@ class Workspace(db.Model):
         return w
 
     def make_schema_name(self):
+        """Generate a unique schema name for its internal structured metadata views"""
         if self.id is None:
             # Cannot generate schema name if this object is not saved yet
-            raise QuetzalException('Workspace does not have id yet')
-        return 'view_{workspace_id}_{user_id}_{date}'.format(
+            raise QuetzalException('Workspace does not have an id yet')
+        return 'q_{workspace_id}_{user_id}_{date}'.format(
             workspace_id=self.id,
             user_id=self.owner.id if self.owner else None,
             date=datetime.utcnow().strftime('%Y%m%d%H%M%S%f')
         )
 
     def get_base_family(self):
+        """Get the base family instance associated with this workspace"""
         return self.families.filter_by(name='base').one()
 
     def get_previous_metadata(self):
+        """Get the global metadata of this workspace
+
+        The global metadata is the metadata that already has been committed,
+        but it must also have a version value that is under the values declared
+        for this workspace.
+        """
         # Important note: there can be repeated entries!
         reference = self.fk_last_metadata_id
         related_family_names = set(f.name for f in self.families.all())
@@ -226,6 +566,12 @@ class Workspace(db.Model):
         return previous_meta
 
     def get_current_metadata(self):
+        """Get the metadata that has been added or modified in this workspace
+
+        In contrast to :py:meth:`get_previous_metadata`, this function only
+        retrieves the metadata that has been changed on this workspace after
+        its creation.
+        """
         # Important note: there can be repeated entries!
         related_family_names = set(f.name for f in self.families.all())
         workspace_meta = (
@@ -238,6 +584,15 @@ class Workspace(db.Model):
         return workspace_meta
 
     def get_metadata(self):
+        """Get a union of the previous and new metadata of this workspace
+
+        This function uses a combination of the results of
+        :py:meth:`get_previous_metadata` and :py:meth:`get_current_metadata`
+        to obtain the merged version of both. This represents the definitive
+        metadata of each file, regardless of changes before or after the
+        creation of this workspace.
+
+        """
         # Important note: this one does not have repeated entries!
         merged_metadata = (
             self.get_previous_metadata()
@@ -256,6 +611,11 @@ class Workspace(db.Model):
                f'view={self.pg_schema_name}>'
 
     def to_dict(self):
+        """Return a dictionary representation of the workspace
+
+        This is used in particular to adhere to the OpenAPI specification of
+        workspace details objects.
+        """
         return {
             'id': self.id,
             'name': self.name,
@@ -270,6 +630,36 @@ class Workspace(db.Model):
 
 
 class Family(db.Model):
+    """ Quetzal metadata family
+
+    In quetzal, metadata are organized in semantic groups that have a name and
+    a version number. This is the definition of a metadata _family_. This
+    class represents this definition. It is attached to a workspace, until the
+    workspace is committed: at this point the family will be disassociated
+    from the workspace to become *global* (available as public information).
+
+    Attributes
+    ----------
+    id: int
+        Identifier and primary key of a family.
+    name: str
+        Name of the family.
+    version: int
+        Version of the family. Can be ``None`` during a workspace creation, and
+        until its initialization, to express the *latest* available version.
+    description: str
+        Human-readable description of the family and its contents,
+        documentation, and any other useful comment.
+    fk_workspace_id: int
+        Reference to the workspace that uses this family. When ``None``, it
+        means that this family and all its associated metadata is public.
+
+    Extra attributes
+    ----------------
+    metadata_set
+        All :py:class:`Metadata` entries associated to this family.
+
+    """
 
     __table_args__ = (
         # There can only one combination of name and workspace id
@@ -291,6 +681,10 @@ class Family(db.Model):
         return f'<Family {self.id} [{self.name}, version {self.version}]>'
 
     def increment(self):
+        """Create a new family with the same name but next version number
+
+        The new family will be associated to the same workspace.
+        """
         return Family(name=self.name,
                       version=self.version + 1,
                       description=self.description,
@@ -298,6 +692,31 @@ class Family(db.Model):
 
 
 class Metadata(db.Model):
+    """ Quetzal unstructured metadata
+
+    Quetzal defines metadata as a dictionary associated with a family. Families
+    define the semantic organization and versioning of metadata, while this
+    class gathers all the metadata key and values in a dictionary, represented
+    as a JSON object.
+
+    Attributes
+    ----------
+    id: int
+        Identifier and primary key of a metadata entry.
+    id_file: :py:class:`uuid.UUID`
+        Unique identifier of a file as a UUID number version 4. This identifier
+        is also present and must be the same as the *id* entry in the `json`
+        member.
+    json: dict
+        A json representation of metadata. Keys are metadata names and values
+        are the related values. It may be a nested object if needed.
+
+    Extra attributes
+    ----------------
+    family
+        The related :py:class:`Family` associated to this metadata.
+
+    """
 
     __table_args__ = (
         # Do not allow metadata without an "id" entry
@@ -316,6 +735,11 @@ class Metadata(db.Model):
         return f'<Metadata {self.id} [{self.family.name}/{self.family.version}] {self.id_file}>'
 
     def to_dict(self):
+        """Return a dictionary representation of the metadata
+
+        Used to conform to the metadata details object on the OpenAPI
+        specification.
+        """
         return {
             'id': str(self.id_file),
             'metadata': {

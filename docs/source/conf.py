@@ -216,7 +216,15 @@ intersphinx_mapping = {
     'google-cloud': (
         'https://googleapis.github.io/google-cloud-python/latest',
         None
-    )
+    ),
+    'connexion': (
+        'https://connexion.readthedocs.io/en/latest/',
+        None
+    ),
+    'flask_login': (
+        'https://flask-login.readthedocs.io/en/latest/',
+        None,
+    ),
 }
 
 # external links
@@ -243,5 +251,5 @@ napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
-napoleon_custom_sections = ['API endpoints']
+napoleon_custom_sections = ['API endpoints', 'Extra attributes']
 # napoleon_include_init_with_doc = True  # enable this when implemented in Napoleon, instead of autoclass_content = 'both'

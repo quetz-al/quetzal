@@ -41,8 +41,10 @@ quetzal.app.models module
 
 .. automodule:: quetzal.app.models
    :members:
-   :undoc-members:
    :show-inheritance:
+
+.. note: Do not set :undoc-members: on this module because there are many
+  members set by SQLAlchemy.
 
 quetzal.app.routes module
 -------------------------

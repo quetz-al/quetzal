@@ -36,7 +36,7 @@ def data_init_command(storage_class, location):
     bucket.location = location
     bucket.create()
 
-    click.secho(f'Bucket created {bucket.name} successfully!')
+    click.secho(f'Bucket {bucket.name} created successfully!')
 
 
 @data_cli.command('init-backups')
@@ -65,4 +65,4 @@ def data_init_backups(storage_class, location):
     bucket.location = location
     bucket.create()
 
-    click.secho(f'Bucket created {bucket.name} successfully!')
+    click.secho(f'Bucket {bucket.name} created successfully!')
