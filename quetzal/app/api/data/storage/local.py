@@ -59,3 +59,7 @@ def upload(filename, content, location):
     content.save(filename)
 
     return f'file://{filename}', target_path
+
+
+def set_permissions(file_obj, owner):
+    logger.debug('File permissions on file local storage does not do anything')

@@ -51,3 +51,10 @@ def upload(filename, content, location):
     blob = target_bucket.blob(filename)
     blob.upload_from_file(content, rewind=True)
     return f'gs://{target_bucket.name}/{blob.name}', blob
+
+
+def set_permissions(blob, owner):
+    logger.debug('Setting ownership of %s to %s', blob, owner)
+    acl = blob.acl
+    acl.user(owner.email).grant_owner()
+    acl.save()
