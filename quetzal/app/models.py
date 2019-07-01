@@ -615,6 +615,11 @@ class Workspace(db.Model):
 
         This is used in particular to adhere to the OpenAPI specification of
         workspace details objects.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of this object.
         """
         return {
             'id': self.id,
@@ -739,6 +744,11 @@ class Metadata(db.Model):
 
         Used to conform to the metadata details object on the OpenAPI
         specification.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of this object.
         """
         return {
             'id': str(self.id_file),
@@ -784,6 +794,15 @@ class Metadata(db.Model):
 
     @staticmethod
     def get_latest(file_id, family):
+        """Retrieve the latest metadata of a file under a particular family
+
+        Todo
+        ----
+        Define, document, explain or rethink this function with respect to
+        :py:func:`Workspace.get_previous_metadata`,
+        :py:func:`Workspace.get_current_metadata`, and
+        :py:func:`Workspace.get_metadata`.
+        """
         latest = Metadata.query.filter_by(id_file=file_id, family=family).first()
         # There is the only possible result (tested by test_update_metadata_db_records)
         if latest is not None:
@@ -817,6 +836,15 @@ class Metadata(db.Model):
 
     @staticmethod
     def get_latest_global(file_id=None, family_name=None):
+        """Retrieve the latest metadata of a file under a particular family
+
+        Todo
+        ----
+        Define, document, explain or rethink this function with respect to
+        :py:func:`Workspace.get_previous_metadata`,
+        :py:func:`Workspace.get_current_metadata`, and
+        :py:func:`Workspace.get_metadata`.
+        """
         # Get the families with null workspace (these are the committed families).
         # From these, get the max version of each family.
         # Finally, what we want is the associated metadata so we need to join
@@ -848,10 +876,34 @@ class Metadata(db.Model):
 
 
 class QueryDialect(enum.Enum):
+    """Query dialects supported by Quetzal"""
+
     POSTGRESQL = 'postgresql'
 
 
 class MetadataQuery(db.Model):
+    """ Query for metadata on Quetzal
+
+    Queries on Quetzal are temporarily saved as objects. This was initially
+    thought as a mechanism for easier and faster paginations, to avoid verifying
+    that a query is valid every time and possibly to compile these queries if
+    needed.
+
+    Attributes
+    ----------
+    id: int
+        Identifier and primary key of a query.
+    dialect: :py:class:`QueryDialect`
+        Dialect used on this query.
+    code: str
+        String representation of the query. May change in the future.
+    fk_workspace_id: int
+        Reference to the :py:class:`Workspace` where this query is applied. If
+        ``None``, the query is applied on the global, committed metadata.
+    fk_user_id: int
+        Reference to the :py:class:`User` who created this query.
+
+    """
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     dialect = db.Column(db.Enum(QueryDialect), nullable=False)
@@ -862,6 +914,7 @@ class MetadataQuery(db.Model):
 
     @staticmethod
     def get_or_create(dialect, code, workspace, owner):
+        """Retrieve a query by its fields or create a new one"""
         instance = (
             MetadataQuery
             .query
@@ -886,6 +939,22 @@ class MetadataQuery(db.Model):
         return q
 
     def to_dict(self, results=None):
+        """ Create a dict representation of the query and its results
+
+        Used to conform to the OpenAPI specification of the paginable query
+        results
+
+        Parameters
+        ----------
+        results: dict
+            Results as a paginable object.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of this object.
+
+        """
         _dict = {
             'id': self.id,
             'workspace_id': self.fk_workspace_id,
