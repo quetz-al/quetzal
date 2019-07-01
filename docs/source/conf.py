@@ -48,7 +48,9 @@ except:
 extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.napoleon',
-    'sphinx_tabs.tabs'
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.extlinks',
+    'sphinx_tabs.tabs',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -197,6 +199,39 @@ epub_exclude_files = ['search.html']
 
 # -- Extension configuration -------------------------------------------------
 
+# intersphinx mappings
+intersphinx_mapping = {
+    'python': (
+        'https://docs.python.org/3',
+        None
+    ),
+    'quetzal-client': (
+        'https://quetzal-client.readthedocs.io/en/latest',
+        None
+    ),
+    'quetzal-openapi-client': (
+        'https://quetzal-openapi-client.readthedocs.io/en/latest',
+        None
+    ),
+    'google-cloud': (
+        'https://googleapis.github.io/google-cloud-python/latest',
+        None
+    )
+}
+
+# external links
+extlinks = {
+    'issue': (
+        'https://github.com/quetz-al/quetzal/issues/%s',
+        'issue '
+    ),
+    'redoc': (
+        'https://quetzal.omind.me/redoc#%s',
+        'redoc '
+    ),
+}
+
+
 # Napoleon settings
 napoleon_google_docstring = True
 napoleon_numpy_docstring = True
@@ -208,4 +243,5 @@ napoleon_use_admonition_for_references = False
 napoleon_use_ivar = False
 napoleon_use_param = True
 napoleon_use_rtype = True
+napoleon_custom_sections = ['API endpoints']
 # napoleon_include_init_with_doc = True  # enable this when implemented in Napoleon, instead of autoclass_content = 'both'
