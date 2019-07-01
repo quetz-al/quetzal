@@ -14,6 +14,7 @@ from quetzal.app import db
 from quetzal.app.helpers.google_api import get_bucket, get_data_bucket, get_object
 from quetzal.app.helpers.files import split_check_path, get_readable_info
 from quetzal.app.helpers.pagination import paginate
+from quetzal.app.api.data import storage
 from quetzal.app.api.exceptions import APIException
 from quetzal.app.models import (
     BaseMetadataKeys, Family, FileState, Workspace, Metadata
@@ -27,6 +28,37 @@ logger = logging.getLogger(__name__)
 
 
 def create(*, wid, content=None, user, token_info=None):
+    """ Create a file on a workspace
+
+    This function is the implementation of the upload file endpoint in the
+    Quetzal API. After verifying the workspace and user permissions, it will
+    save the contents of the file in the configured file backend.
+    Finally, it initializes the base metadata family entries for the new file.
+
+    Parameters
+    ----------
+    wid: int
+        Workspace identifier where the file will be uploaded.
+    content: file-like
+        Contents of the file.
+    user: quetzal.app.models.User
+        User that owns the file. This parameter is set by connexion.
+    token_info:
+        Authentication token. This parameter is set by connexion.
+
+    Returns
+    -------
+    details: dict
+        File details object.
+    code: int
+        HTTP response code.
+
+    API endpoints
+    -------------
+    * `POST /api/v1/data/workspaces/{wid}/files/`
+      :redoc:`See in redoc <operation/workspace_file.create>`.
+
+    """
     workspace = Workspace.get_or_404(wid)
 
     if content is None:
@@ -91,14 +123,27 @@ def create(*, wid, content=None, user, token_info=None):
 
     # Send file to workspace bucket (not in the data bucket, this is done
     # during the workspace commit operation)
-    # TODO: manage exceptions
-    url, obj = _upload_file(str(pathlib.Path(path) / filename),
-                            content,
-                            location=workspace.data_url)
-    _set_permissions(obj, workspace.owner)
-    meta.json['url'] = url
+    try:
+        url, obj = storage.upload(str(pathlib.Path(path) / filename),
+                                  content,
+                                  workspace.data_url)
+    except:
+        logger.warning('Failed to upload file', exc_info=True)
+        raise APIException(status=codes.server_error,
+                           title='Failed to upload file',
+                           detail='Could not upload file')
+
+    try:
+        storage.set_permissions(obj, workspace.owner)
+    except:
+        # TODO: delete file if it was created
+        logger.warning('Failed to set file permissions', exc_info=True)
+        raise APIException(status=codes.server_error,
+                           title='Failed to upload file',
+                           detail='Could not update file permissions')
 
     # Save model
+    meta.json['url'] = url
     db.session.add(meta)
     db.session.commit()
 
@@ -519,43 +564,6 @@ def _gather_metadata(metadatas):
     for meta in metadatas:
         gathered_meta[meta.family.name] = meta.json
     return gathered_meta
-
-
-def _upload_file(name, content, location=None):
-    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
-    if storage_backend == 'GCP':
-        return _upload_file_gcp(name, content, location=location)
-    elif storage_backend == 'file':
-        return _upload_file_local(name, content, location=location)
-    raise ValueError(f'Unknown storage backend {storage_backend}.')
-
-
-def _upload_file_gcp(name, content, location=None):
-    """Upload contents to the google data bucket"""
-    if location is None:
-        if '/' in name:
-            raise ValueError('Data bucket should not have a sub-directory structure')
-        data_bucket = get_data_bucket()  # TODO: make sure that this does not happen anymore, there should not be upload to the data dir
-    else:
-        data_bucket = get_bucket(location)
-    blob = data_bucket.blob(name)
-    blob.upload_from_file(content, rewind=True)
-    return f'gs://{data_bucket.name}/{blob.name}', blob
-
-
-def _upload_file_local(name, content, location=None):
-    logger.info('upload_file_local %s %s %s', name, content, location)
-    if location is None:
-        if '/' in name:
-            raise ValueError('Data directory should not have a sub-directory structure')
-        data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
-    else:
-        data_dir = pathlib.Path(urllib.parse.urlparse(location).path)
-    target_path = data_dir / name
-    target_path.parent.mkdir(parents=True, exist_ok=True)
-    filename = str(target_path.resolve())
-    content.save(filename)
-    return f'file://{filename}', target_path
 
 
 def _set_permissions(file_object, user):
