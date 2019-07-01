@@ -2,6 +2,6 @@ quetzal
 =======
 
 .. toctree::
-   :maxdepth: 8
+   :maxdepth: 4
 
    quetzal
