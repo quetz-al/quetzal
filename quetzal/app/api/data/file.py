@@ -11,7 +11,7 @@ from flask import current_app, request, send_file
 from requests import codes
 
 from quetzal.app import db
-from quetzal.app.helpers.google_api import get_bucket, get_data_bucket, get_object
+from quetzal.app.helpers.google_api import get_bucket, get_object
 from quetzal.app.helpers.files import split_check_path, get_readable_info
 from quetzal.app.helpers.pagination import paginate
 from quetzal.app.api.data import storage
@@ -370,11 +370,11 @@ def details(*, uuid):
                                title='File not found',
                                detail=f'File {uuid} does not exist or has not '
                                f'been committed yet.')
-        if not latest_base_meta_committed.json['url']:
+        base_meta = latest_base_meta_committed.first()
+        if not base_meta.json['url']:
             raise APIException(status=codes.not_found,
                                title='File contents not found',
                                detail=f'File {uuid} has been deleted.')
-        base_meta = latest_base_meta_committed.first()
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
@@ -566,17 +566,6 @@ def _gather_metadata(metadatas):
     return gathered_meta
 
 
-def _set_permissions(file_object, user):
-    logger.info('Setting permissions of %s to %s', file_object, user)
-    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
-    # if storage_backend == 'GCP':
-    #     return _set_permissions_gcp(url)
-    # elif storage_backend == 'file':
-    #     return _set_permissions_local(url)
-    # raise ValueError(f'Unknown storage backend {storage_backend}.')
-    logger.warning('Setting permissions not implemented yet')
-
-
 def _download_file(url):
     storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
     if storage_backend == 'GCP':
@@ -690,6 +679,7 @@ def _move_file_gcp(url, location, path, filename):
     source_blob = data_bucket.blob(file_url_parsed.path.lstrip('/'))
     new_path = pathlib.Path(path) / filename
     new_blob = data_bucket.copy_blob(source_blob, data_bucket, str(new_path))
+    source_blob.delete()
     return f'gs://{data_bucket.name}/{new_blob.name}'
 
 

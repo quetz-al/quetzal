@@ -235,7 +235,7 @@ extlinks = {
         'issue '
     ),
     'redoc': (
-        'https://quetzal.omind.me/redoc#%s',
+        'https://quetz.al/redoc#%s',
         'redoc '
     ),
 }
