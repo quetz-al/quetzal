@@ -6,11 +6,24 @@ This document lists all important changes to Quetzal.
 
 Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 
-0.2.x (unreleased)
+X.Y.Z (unreleased)
+------------------
+
+Planned:
+
+* Better commit detection with a 3-way merge detection
+
+
+0.3.0 (2019-07-02)
 ------------------
 
 * Added GCP cluster auto-scaling.
 * Added k8s horizontal scaler for web and worker.
+* Added certbot for certificate management.
+* Started rewrite and restructuring of documentation.
+* Changed upload to systematically save into the workspace data directory.
+* Changed commit to copy from workspace data directory to the data directory.
+* Implemented file delete.
 
 0.2.0 (2019-03-21)
 ------------------

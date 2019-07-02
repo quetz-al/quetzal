@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
         - name: rabbitmq
-          image: gcr.io/quetzal/quetzal/rabbitmq:0.2.0
+          image: gcr.io/quetzal/quetzal/rabbitmq:0.3.0
           imagePullPolicy: Always
           ports:
             - containerPort:  5672
