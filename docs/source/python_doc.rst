@@ -1,9 +1,16 @@
-============================
-Python modules documentation
-============================
+=========
+Reference
+=========
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Models
+
+   models
+
 
 .. toctree::
    :maxdepth: 6
-   :caption: Modules
+   :caption: All modules
 
    modules

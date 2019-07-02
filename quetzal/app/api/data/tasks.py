@@ -1,6 +1,9 @@
+import copy
 import itertools
 import logging
 import pathlib
+import shutil
+from urllib.parse import urlparse
 
 from flask import current_app
 from sqlalchemy import func, types
@@ -8,8 +11,8 @@ from sqlalchemy.sql.ddl import CreateSchema
 from sqlalchemy.dialects.postgresql import UUID
 
 from quetzal.app import celery, db
-from quetzal.app.api.exceptions import Conflict, WorkerException
-from quetzal.app.helpers.google_api import get_client, get_bucket
+from quetzal.app.api.exceptions import Conflict, EmptyCommit, WorkerException
+from quetzal.app.helpers.google_api import get_client, get_bucket, get_data_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
 from quetzal.app.models import Family, FileState, Metadata, Workspace, WorkspaceState
 
@@ -222,19 +225,17 @@ def delete_workspace(wid, force=False):
     if workspace.state != WorkspaceState.DELETING and not force:
         raise WorkerException('Workspace was not on the expected state')
 
-    # Delete the data bucket and its contents
-    # TODO: this needs to manage the different backends. It assumes GCP only!
+    # Delete data bucket and its contents
     if workspace.data_url is not None:
-        # TODO: manage exceptions/errors
-        client = get_client()
-        bucket = get_bucket(workspace.data_url, client=client)
-
-        # Delete all blobs first
-        blobs = list(bucket.list_blobs())
-        bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
-
-        # Delete the bucket
-        bucket.delete()
+        try:
+            _delete_bucket(workspace.data_url)
+        except Exception as ex:
+            # Update database model to set as invalid
+            # TODO: add this transition to the workspace state diagram
+            workspace.state = WorkspaceState.INVALID
+            db.session.add(workspace)
+            db.session.commit()
+            raise
 
     # Drop schema used for queries
     if workspace.pg_schema_name is not None:
@@ -248,6 +249,39 @@ def delete_workspace(wid, force=False):
     workspace.data_url = None
     db.session.add(workspace)
     db.session.commit()
+
+
+def _delete_bucket(url):
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        _delete_gcp_data_bucket(url)
+    elif storage_backend == 'file':
+        _delete_local_data_bucket(url)
+    else:
+        raise WorkerException(f'Unknown storage backend {storage_backend}.')
+
+
+def _delete_gcp_data_bucket(url):
+    data_bucket = current_app.config['QUETZAL_GCP_DATA_BUCKET']
+    if url.startswith(data_bucket):
+        raise RuntimeError('Refusing to delete the main data bucket')
+    client = get_client()
+    bucket = get_bucket(url, client=client)
+
+    # Delete all blobs first
+    blobs = list(bucket.list_blobs())
+    bucket.delete_blobs(blobs)  # TODO: use the on_error for missing blobs
+
+    # Delete the bucket
+    bucket.delete()
+
+
+def _delete_local_data_bucket(url):
+    data_bucket = current_app.config['QUETZAL_FILE_DATA_DIR']
+    if url.startswith(data_bucket):
+        raise RuntimeError('Refusing to delete the main data directory')
+    path = urlparse(url).path
+    shutil.rmtree(path)  # TODO: consider the on_error?
 
 
 @celery.task()
@@ -342,32 +376,50 @@ def commit_workspace(wid):
     if workspace.state != WorkspaceState.COMMITTING:
         raise WorkerException('Workspace was not on the expected state')
 
-    with db.session.begin_nested():
+    db.session.begin_nested()  # make a savepoint
+    try:
         # Lock the database so that nothing gets written or read on the database
         db.session.execute(f'LOCK TABLE {Metadata.__table__.name} IN ACCESS EXCLUSIVE MODE;')
 
-        # TODO: verify conflicts
-        try:
-            _conflict_detection(workspace)
-        except Conflict:
-            logger.info('Commit failed due to conflict', exc_info=True)
-            workspace.state = WorkspaceState.CONFLICT
-            db.session.add(workspace)
-            db.session.commit()
-            return
+        # Verify conflicts, raise Conflict if there is any conflict
+        _conflict_detection(workspace)
 
-        # File ids of files that are temporary
         base_family = workspace.families.filter(Family.name == 'base').first()
+
+        # Move new READY files (not temporary and not deleted) to the data
+        # directory. Since creating a new file creates a new base metadata
+        # entry, we can get this from the base metadata family of this
+        # workspace. But there is an exception when a path is changed: there is
+        # no need to copy anything at all
+        files_ready = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext == FileState.READY.name)
+        )
+        files_deleted = (
+            base_family.metadata_set
+            .filter(Metadata.json['state'].astext == FileState.DELETED.name)
+        )
         files_not_ready = (
             base_family.metadata_set
-            .filter(Metadata.json['state'].astext != FileState.READY.name)
+            .filter(Metadata.json['state'].astext == FileState.TEMPORARY.name)
             .subquery()
         )
+
+        if files_ready.count() + files_deleted.count() == 0:
+            raise EmptyCommit
+        logger.info('There are %d files to commit', files_ready.count() + files_deleted.count())
+
+        for file_meta in files_ready:
+            logger.info('Commit: copying %s ( %s) to data directory',
+                        file_meta, file_meta.json['url'])
+            new_url = _commit_file(file_meta.json['id'], file_meta.json['url'])
+            file_meta.update({'url': new_url})
+            db.session.add(file_meta)
 
         # Do the committing task:
         # Iterate over all families, but do base family last, because the
         # subquery above files_not_ready takes uses the base family to determine
-        # which files are note ready
+        # which files are not ready
         families = itertools.chain(
             workspace.families.filter(Family.name != 'base'),
             [base_family]
@@ -378,9 +430,8 @@ def commit_workspace(wid):
             family.workspace = None
             db.session.add_all([family, new_family])
 
-            # All files that are not READY (they are temporary or deleted) need
-            # to be associated with the family of this workspace, not the
-            # committed family
+            # All files that are TEMPORARY need to be associated with the
+            # family of this workspace, not the committed family
             meta_not_ready = (
                 family.metadata_set
                 .join(files_not_ready, Metadata.id_file == files_not_ready.c.id_file)
@@ -410,10 +461,28 @@ def commit_workspace(wid):
         # Update the global views for public queries
         _update_global_views()
 
-        # Update the workspace object
+        # Everything went ok!
         # TODO: consider if the schema (ie the postgres view) should be deleted?
         workspace.state = WorkspaceState.READY
         db.session.add(workspace)
+        db.session.commit()
+
+    except Conflict:
+        logger.info('Commit failed due to conflict', exc_info=True)
+        db.session.rollback()  # revert to savepoint
+        workspace.state = WorkspaceState.CONFLICT
+        db.session.add(workspace)
+
+    except EmptyCommit:
+        logger.info('Empty commit, nothing to do')
+        db.session.rollback()  # revert to savepoint
+        workspace.state = WorkspaceState.READY
+        db.session.add(workspace)
+
+    except:
+        logger.info('Unexpected error on workspace commit, workspace will '
+                    'remain in COMMITTING state', exc_info=True)
+        db.session.rollback()  # revert to savepoint
 
     db.session.commit()
 
@@ -438,6 +507,111 @@ def _conflict_detection(workspace):
             raise Conflict(f'Family {family.name} is outdated in workspace {workspace.id}.')
 
     # TODO: more conflict detection is needed
+
+
+
+
+def _commit_file(file_id, file_url):
+    # TODO: move to a file operations file, along with upload/download
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _commit_file_gcp(file_id, file_url)
+    elif storage_backend == 'file':
+        return _commit_file_local(file_id, file_url)
+    raise ValueError(f'Unknown storage backend {storage_backend}')
+
+
+def _commit_file_local(file_id, file_url):
+    source_path = pathlib.Path(urlparse(file_url).path)
+    target_path = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR']) / file_id
+    shutil.copy(str(source_path.resolve()), str(target_path.resolve()))
+    return f'file://{target_path.resolve()}'
+
+
+def _commit_file_gcp(file_id, file_url):
+    file_url_parsed = urlparse(file_url)
+    data_bucket = get_data_bucket()
+    workpace_bucket = get_bucket(file_url)
+    source_blob = workpace_bucket.blob(file_url_parsed.path.lstrip('/'))
+    new_blob = workpace_bucket.copy_blob(source_blob, data_bucket, file_id)
+    return f'gs://{data_bucket.name}/{new_blob.name}'
+
+
+def merge(ancestor, theirs, mine):
+    mine = copy.deepcopy(mine)
+    # Aliases for shorter code:
+    #
+    # a - ... - b      [i.e. global workspace]
+    #  \
+    #   - ... - c      [i.e. the workspace to commit]
+    #
+    a, b, c = ancestor, theirs, mine
+
+    keys = set(a) | set(b) | set(c)
+    for k in keys:
+        if k in a:
+            # First global case: the key existed before.
+            # Changes are either modification or deletions. However, when the
+            # new value equals the ancestor, it means no modification
+            # This means that if they key is not found in b or c, it was a deletion.
+            if k in b and k in c:
+                # Modifications on both branches
+                if b[k] == c[k]:
+                    # No conflict, same modification or no modification at all
+                    pass
+                elif a[k] == b[k] and b[k] != c[k]:
+                    # No change on b, modification on c. Accept c
+                    pass
+                elif a[k] == c[k] and b[k] != c[k]:
+                    # No change on c, modification on b. Accept b
+                    c[k] = b[k]
+                else:  # implied: a[k] != b[k] and a[k] != c[k] and b[k] != c[k]
+                    # Conflict, both modified the same with different values
+                    raise Conflict
+
+            elif k in b:  # implied: k not in c
+                # Possible modification in b and certainly deletion on c
+                if b[k] != a[k]:
+                    # There was a change on b, but c deleted it. Conflict
+                    raise Conflict
+                else:
+                    # There was no change on b, but c deleted it. Accept c
+                    pass
+
+            elif k in c:  # implied: k not in b
+                # Possible modification on c and certainly deletion on b
+                if c[k] != a[k]:
+                    # There was a change on c, but b deleted it. Conflict
+                    raise Conflict
+                else:
+                    # There was no change on c, but c deleted it. Accept b
+                    del c[k]
+
+        else:
+            # Second global case: the key did not exist before.
+            # Changes are additions
+            # This means that if the key is not found in b or c, it is
+            # because these branches did not do anything on this key
+            if k in b and k in c:
+                # Modification in both branches
+                if b[k] == c[k]:
+                    # No conflict, same modification
+                    pass
+                else:  # implied: b[k] != c[k]
+                    # Conflict, both modified the same with different values
+                    raise Conflict
+
+            elif k in b:  # implied: k not in c
+                # Modification on b but c did not do anything
+                # Accept whatever change b brings
+                c[k] = b[k]
+
+            elif k in c:  # implied: k not in b
+                # Modification on c but b did not do anything
+                # Accept whatever change c brings
+                pass
+
+    return mine
 
 
 def _update_global_views():

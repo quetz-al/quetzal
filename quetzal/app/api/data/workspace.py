@@ -14,7 +14,7 @@ from quetzal.app.helpers.celery import log_task
 from quetzal.app.helpers.pagination import paginate
 from quetzal.app.security import (
     PublicReadPermission, PublicWritePermission,
-    WriteWorkspacePermission
+    WriteWorkspacePermission, CommitWorkspacePermission
 )
 
 
@@ -257,7 +257,7 @@ def commit(*, wid):
     """
     workspace = Workspace.get_or_404(wid)
 
-    if not WriteWorkspacePermission(wid).can():
+    if not CommitWorkspacePermission(wid).can():
         raise APIException(status=codes.forbidden,
                            title='Forbidden',
                            detail='You are not authorized to commit this workspace')

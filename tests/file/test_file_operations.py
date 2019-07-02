@@ -6,7 +6,7 @@ from collections import namedtuple
 
 import pytest
 from google.auth.credentials import AnonymousCredentials
-from google.cloud.storage import Client
+from google.cloud.storage import Client, Blob
 
 from quetzal.app.api.data.file import create, details, details_w
 from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
@@ -15,7 +15,7 @@ from quetzal.app.models import Metadata, WorkspaceState
 
 def test_create_file_success(app, db, db_session, user, make_workspace, file_id, make_file, mocker):
     """File create on success conditions"""
-    mocker.patch('quetzal.app.api.data.file._upload_file', return_value='gs://some_url')
+    mocker.patch('quetzal.app.api.data.storage.upload', return_value=('gs://some_url/some_path', Blob('some_path', None)))
     mocker.patch('quetzal.app.api.data.file.uuid4', return_value=file_id)
     mocker.patch('flask_principal.Permission.can', return_value=True)
 
@@ -36,6 +36,10 @@ def test_create_file_success(app, db, db_session, user, make_workspace, file_id,
     # There should be only one new metadata entry
     count = Metadata.query.filter_by(id_file=file_id).count()
     assert count == 1
+
+
+def test_create_file_content_in_workspace():
+    raise NotImplementedError
 
 
 def test_create_file_missing_base(db, db_session, make_workspace, make_file, user, mocker, caplog):

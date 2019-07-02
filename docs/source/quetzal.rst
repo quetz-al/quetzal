@@ -2,14 +2,13 @@ quetzal package
 ===============
 
 .. automodule:: quetzal
-    :members:
-    :undoc-members:
-    :show-inheritance:
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Subpackages
 -----------
 
 .. toctree::
 
-    quetzal.app
-
+   quetzal.app

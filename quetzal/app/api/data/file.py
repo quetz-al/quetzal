@@ -2,6 +2,7 @@ import datetime
 import logging
 import os
 import pathlib
+import shutil
 import tempfile
 import urllib.parse
 from uuid import uuid4
@@ -10,9 +11,10 @@ from flask import current_app, request, send_file
 from requests import codes
 
 from quetzal.app import db
-from quetzal.app.helpers.google_api import get_bucket, get_data_bucket, get_object
+from quetzal.app.helpers.google_api import get_bucket, get_object
 from quetzal.app.helpers.files import split_check_path, get_readable_info
 from quetzal.app.helpers.pagination import paginate
+from quetzal.app.api.data import storage
 from quetzal.app.api.exceptions import APIException
 from quetzal.app.models import (
     BaseMetadataKeys, Family, FileState, Workspace, Metadata
@@ -26,6 +28,37 @@ logger = logging.getLogger(__name__)
 
 
 def create(*, wid, content=None, user, token_info=None):
+    """ Create a file on a workspace
+
+    This function is the implementation of the upload file endpoint in the
+    Quetzal API. After verifying the workspace and user permissions, it will
+    save the contents of the file in the configured file backend.
+    Finally, it initializes the base metadata family entries for the new file.
+
+    Parameters
+    ----------
+    wid: int
+        Workspace identifier where the file will be uploaded.
+    content: file-like
+        Contents of the file.
+    user: quetzal.app.models.User
+        User that owns the file. This parameter is set by connexion.
+    token_info:
+        Authentication token. This parameter is set by connexion.
+
+    Returns
+    -------
+    details: dict
+        File details object.
+    code: int
+        HTTP response code.
+
+    API endpoints
+    -------------
+    * `POST /api/v1/data/workspaces/{wid}/files/`
+      :redoc:`See in redoc <operation/workspace_file.create>`.
+
+    """
     workspace = Workspace.get_or_404(wid)
 
     if content is None:
@@ -88,16 +121,29 @@ def create(*, wid, content=None, user, token_info=None):
     }
     db.session.add(meta)
 
-    # Send file to bucket
-    if temporary:
-        filename = pathlib.Path(meta.json['path']) / meta.json['filename']
-        url = _upload_file(str(filename), content,
-                           location=workspace.data_url, alt_name=str(meta.id_file))
-    else:
-        url = _upload_file(str(meta.id_file), content)
-    meta.json['url'] = url
+    # Send file to workspace bucket (not in the data bucket, this is done
+    # during the workspace commit operation)
+    try:
+        url, obj = storage.upload(str(pathlib.Path(path) / filename),
+                                  content,
+                                  workspace.data_url)
+    except:
+        logger.warning('Failed to upload file', exc_info=True)
+        raise APIException(status=codes.server_error,
+                           title='Failed to upload file',
+                           detail='Could not upload file')
+
+    try:
+        storage.set_permissions(obj, workspace.owner)
+    except:
+        # TODO: delete file if it was created
+        logger.warning('Failed to set file permissions', exc_info=True)
+        raise APIException(status=codes.server_error,
+                           title='Failed to upload file',
+                           detail='Could not update file permissions')
 
     # Save model
+    meta.json['url'] = url
     db.session.add(meta)
     db.session.commit()
 
@@ -105,6 +151,12 @@ def create(*, wid, content=None, user, token_info=None):
 
 
 def delete(*, wid, uuid, user, token_info=None):
+
+    # TODO: deleting a file that exists in the global workspace means clearing
+    #       its metadata and setting the base metadata with state DELETED.
+    #       But deleting a file that does not exist in the global workspace
+    #       means delete all metadata entries in this workspace.
+
     workspace = Workspace.get_or_404(wid)
 
     if not WriteWorkspacePermission(wid).can():
@@ -123,6 +175,7 @@ def delete(*, wid, uuid, user, token_info=None):
     # has all the metadata families that reference this file
     latest_meta_committed = Metadata.get_latest_global(uuid)
     related_families = set(m.family.name for m in latest_meta_committed)
+    related_families.add('base')
     if related_families > set(f.name for f in workspace.families):
         # Note the > is the superset operator
         raise APIException(status=codes.precondition_failed,
@@ -133,28 +186,47 @@ def delete(*, wid, uuid, user, token_info=None):
                                   'These families are: ' +
                                   ', '.join(related_families) + '.')
 
-    # For the other families, deleting means erasing all key:value entries except id
+    # Traverse all workspace families and clear the metadata of all the entries
+    # for this file
     for family in workspace.families:
+        #
         if family.name not in related_families:
             continue
 
         latest = Metadata.get_latest(uuid, family)
-        if family.name == 'base':
-            # For the base family, deleting means changing its state
-            latest.update({'state' : FileState.DELETED.name})
-            db.session.add(latest)
+        if latest is None:
+            # This file has no metadata (local or global) under this particular
+            # family: nothing to do for this family
+            continue
+
+        elif latest.family.workspace is None:
+            # This file has some global (ie committed) metadata, it needs to
+            # be cleared by creating a new metadata entry that will be empty
+            # (only with its id)
+            logger.info('A previous metadata entry exists, copying metadata %s', latest)
+            latest = latest.copy()
+            latest.family = family
         else:
-            # For other families, it means deleting all keys except id
-            if latest.family.workspace is None:
-                # The metadata is global, not from this workspace
-                latest = latest.copy()
-                latest.json = {'id': uuid}
-                latest.family = family
-                db.session.add(latest)
-            else:
-                # The metadata is from this workspace
-                latest.json = {'id': uuid}
-                db.session.add(latest)
+            # This file has some local (ie not committed) metadata, we can make
+            # the changes on this uncommitted metadata directly
+            logger.info('Got latest %s', latest)
+
+        # For all families except base, deleting means erasing all key:value
+        # entries, but not the id.
+        # For the base family, deleting means setting url to none
+        if latest.family.name == 'base':
+            url = latest.json['url']
+            if url and url.startswith(workspace.data_url):
+                _delete_file(latest.json['url'])
+
+            latest.json.update({
+                'state': FileState.DELETED.name,
+                'json': None,
+            })
+        else:
+            latest.json = {'id': uuid}
+
+        db.session.add(latest)
 
     db.session.commit()
     return None, codes.accepted
@@ -219,6 +291,16 @@ def update_metadata(*, wid, uuid, body):
         else:
             # This file has some local (ie not committed) metadata
             logger.info('Got latest %s', latest)
+
+        # A change in the path or filename inside a worspace must entail a rename!
+        if name == 'base' and \
+                ('path' in content or 'filename' in content) and \
+                latest.json['url'].startswith(workspace.data_url):
+            new_url = _move_file(latest.json['url'],
+                                 workspace.data_url,
+                                 content.get('path', latest.json['path']),
+                                 content.get('filename', latest.json['filename']))
+            latest.update({'url': new_url})
 
         latest.update(content)
         db.session.add(latest)
@@ -289,6 +371,10 @@ def details(*, uuid):
                                detail=f'File {uuid} does not exist or has not '
                                f'been committed yet.')
         base_meta = latest_base_meta_committed.first()
+        if not base_meta.json['url']:
+            raise APIException(status=codes.not_found,
+                               title='File contents not found',
+                               detail=f'File {uuid} has been deleted.')
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
@@ -326,6 +412,10 @@ def details_w(*, wid=None, uuid):
             raise APIException(status=codes.not_found,
                                title='File not found',
                                detail=f'File {uuid} does not exist in workspace {wid}')
+        if not base_meta.json['url']:
+            raise APIException(status=codes.not_found,
+                               title='File contents not found',
+                               detail=f'File {uuid} has been deleted in workspace {wid}')
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
@@ -367,6 +457,8 @@ def fetch(*args, **kwargs):
     if 'filters' in request.args:
         filters = request.args['filters'].split(',')
         for f in filters:
+            if not f:
+                continue
             try:
                 key, value = f.split('=', 1)
             except ValueError:
@@ -431,6 +523,8 @@ def fetch_w(*, wid):
     if 'filters' in request.args:
         filters = request.args['filters'].split(',')
         for f in filters:
+            if not f:
+                continue
             try:
                 key, value = f.split('=', 1)
             except ValueError:
@@ -472,40 +566,6 @@ def _gather_metadata(metadatas):
     return gathered_meta
 
 
-def _upload_file(name, content, **kwargs):
-    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
-    if storage_backend == 'GCP':
-        return _upload_file_gcp(name, content, bucket=kwargs.get('location', None))
-    elif storage_backend == 'file':
-        return _upload_file_local(name, content, dirname=kwargs.get('location', None),
-                                  alt_name=kwargs.get('alt_name', None))
-    raise ValueError(f'Unknown storage backend {storage_backend}.')
-
-
-def _upload_file_gcp(name, content, bucket=None):
-    """Upload contents to the google data bucket"""
-    if bucket is None:
-        data_bucket = get_data_bucket()
-    else:
-        data_bucket = get_bucket(bucket)
-    blob = data_bucket.blob(name)
-    blob.upload_from_file(content, rewind=True)
-    return f'gs://{data_bucket.name}/{name}'
-
-
-def _upload_file_local(name, content, dirname=None, alt_name=None):
-    if dirname is None:
-        data_dir = pathlib.Path(current_app.config['QUETZAL_FILE_DATA_DIR'])
-    else:
-        data_dir = pathlib.Path(urllib.parse.urlparse(dirname).path)
-    target_path = data_dir / name
-    if target_path.exists():
-        target_path = data_dir / alt_name
-    filename = str(target_path.resolve())
-    content.save(filename)
-    return f'file://{filename}'
-
-
 def _download_file(url):
     storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
     if storage_backend == 'GCP':
@@ -530,6 +590,25 @@ def _download_file_gcp(url):
 
 def _download_file_local(url):
     return urllib.parse.urlparse(url).path
+
+
+def _delete_file(url):
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _delete_file_gcp(url)
+    elif storage_backend == 'file':
+        return _delete_file_local(url)
+    raise ValueError(f'Unknown storage backend {storage_backend}.')
+
+
+def _delete_file_gcp(url):
+    blob = get_object(url)
+    blob.delete()
+
+
+def _delete_file_local(url):
+    path = pathlib.Path(urllib.parse.urlparse(url).path)
+    path.unlink()
 
 
 def _verify_filename_path(filename, path):
@@ -574,6 +653,34 @@ def _verify_filename_path(filename, path):
             raise APIException(status=codes.bad_request,
                                title='Invalid path modification',
                                detail='Path must be normalized')
+
+
+def _move_file(url, location, path, filename):
+    logger.info('move_file %s, %s, %s, %s', url, location, path, filename)
+    storage_backend = current_app.config['QUETZAL_DATA_STORAGE']
+    if storage_backend == 'GCP':
+        return _move_file_gcp(url, location, path, filename)
+    elif storage_backend == 'file':
+        return _move_file_local(url, location, path, filename)
+    raise ValueError(f'Unknown storage backend {storage_backend}.')
+
+
+def _move_file_local(url, location, path, filename):
+    source = pathlib.Path(urllib.parse.urlparse(url).path)
+    target = pathlib.Path(urllib.parse.urlparse(location).path) / path / filename
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(source, target)
+    return f'file://{target.resolve()}'
+
+
+def _move_file_gcp(url, location, path, filename):
+    file_url_parsed = urllib.parse.urlparse(url)
+    data_bucket = get_bucket(location)
+    source_blob = data_bucket.blob(file_url_parsed.path.lstrip('/'))
+    new_path = pathlib.Path(path) / filename
+    new_blob = data_bucket.copy_blob(source_blob, data_bucket, str(new_path))
+    source_blob.delete()
+    return f'gs://{data_bucket.name}/{new_blob.name}'
 
 
 def _now():

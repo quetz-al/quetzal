@@ -121,7 +121,8 @@ def upload_file(app, make_file, user):
 
     def _upload_file(workspace, user=None, url=None, date=None, **kwargs):
         from quetzal.app.api.data.file import create
-        with mock.patch('quetzal.app.api.data.file._upload_file', return_value=url or ''), \
+        upload_result = (url or '', url or '')
+        with mock.patch('quetzal.app.api.data.storage.upload', return_value=upload_result), \
              mock.patch('quetzal.app.api.data.file._now', return_value=date or str(datetime.datetime.now(datetime.timezone.utc))), \
              app.test_request_context():
 
