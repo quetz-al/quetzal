@@ -677,10 +677,16 @@ def _move_file_gcp(url, location, path, filename):
     file_url_parsed = urllib.parse.urlparse(url)
     data_bucket = get_bucket(location)
     source_blob = data_bucket.blob(file_url_parsed.path.lstrip('/'))
-    new_path = pathlib.Path(path) / filename
-    new_blob = data_bucket.copy_blob(source_blob, data_bucket, str(new_path))
-    source_blob.delete()
-    return f'gs://{data_bucket.name}/{new_blob.name}'
+    new_path = str(pathlib.Path(path) / filename)
+    if (data_bucket.name, new_path) != (source_blob.bucket.name, source_blob.name):
+        logger.info('Moving %s -> %s/%s', source_blob, source_blob.bucket, source_blob.name)
+        new_blob = data_bucket.copy_blob(source_blob, data_bucket, new_path)
+        source_blob.delete()
+        return f'gs://{data_bucket.name}/{new_blob.name}'
+
+    logger.info('Move not necessary: src is dest')
+    return f'gs://{data_bucket.name}/{new_path}'
+
 
 
 def _now():
