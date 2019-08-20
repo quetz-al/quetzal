@@ -55,6 +55,35 @@ storage:
   provisioner: kubernetes.io/gce-pd
   volumeBindingMode: Immediate
 
+app:
+  # general pod configuration
+  image:
+    # TODO: Change to eu, change to 0.4.0
+    repository: gcr.io/quetzal-omind/quetzal/app
+    tag: 0.3.0
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 1000m
+    requests:
+      memory: 256Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # quetzal specific configuration
+  server_name: sandbox.quetz.al
+  flask_env: staging
+  admin_mail: quetzal.api@gmail.com
+  data_bucket: gs://quetzal-sandbox-data
+  backup_bucket: gs://quetzal-sandbox-backups
+  credentials_secret_name: sandbox-credentials-secrets
+
+  # Do not set here, but set using --set key=value when doing helm install:
+  # secret_key: ...
+
 db:
   image:
     # TODO: Change to eu, change to 0.4.0
@@ -71,3 +100,7 @@ db:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+
+  # Do not set here, but set using --set key=value when doing helm install:
+  # username: ...
+  # password: ...

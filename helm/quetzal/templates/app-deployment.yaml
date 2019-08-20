@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "quetzal.fullname" . }}-app
+  labels:
+    app.kubernetes.io/component: app
+{{ include "quetzal.labels" . | indent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "quetzal.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: app
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "quetzal.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: app
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          ports:
+            - name: flask
+              containerPort: 5000
+              protocol: TCP
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          volumeMounts:
+            - mountPath: /code/conf
+              name: app-secret-files-volume
+          env:
+            - name: SERVER_NAME
+              value: {{ .Values.app.server_name | quote }}
+            - name: FLASK_ENV
+              value: {{ .Values.app.flask_env | quote }}
+            - name: QUETZAL_ADMIN_MAIL
+              value: {{ .Values.app.admin_mail | quote }}
+            - name: QUETZAL_GCP_DATA_BUCKET
+              value: {{ .Values.app.data_bucket | quote }}
+            - name: QUETZAL_GCP_BACKUP_BUCKET
+              value: {{ .Values.app.backup_bucket | quote }}
+            - name: QUETZAL_BACKGROUND_JOBS
+              value: "1"
+            - name: USE_GUNICORN
+              value: "1"
+            - name: DB_HOST
+              value: "db"
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_DATABASE
+              value: "quetzal"
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quetzal.fullname" . }}-db-secrets
+                  key: username
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quetzal.fullname" . }}-db-secrets
+                  key: password
+            - name: RABBITMQ_HOST
+              value: "rabbitmq"
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "quetzal.fullname" . }}-app-secrets
+                  key: secret_key
+      restartPolicy: Always
+      volumes:
+        - name: app-secret-files-volume
+          secret:
+            secretName:  {{ .Values.app.credentials_secret_name }}
+      {{- with .Values.db.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.db.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.db.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

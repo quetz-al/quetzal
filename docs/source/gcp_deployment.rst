@@ -264,6 +264,18 @@ Part 2: GCP Deployment
 That's all, you can now explore the documentation at
 https://stage.quetz.al/redoc, or wherever your configuration points to.
 
+
+-----
+
+New procedure (WIP)
+
+* Create cluster
+* Install helm
+* Install tiller with a service account
+* Create secrets not managed by helm
+* Install quetzal using helm
+
+
 .. _gcloud: https://cloud.google.com/sdk/gcloud/
 .. _n1-standard-1: https://cloud.google.com/compute/docs/machine-types
 .. _k8s secrets: https://kubernetes.io/docs/concepts/configuration/secret/
