@@ -8,9 +8,9 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - name: postgres
-      port: 5432
-      targetPort: 5432
+    - name: flask
+      port: 5000
+      targetPort: 5000
       protocol: TCP
   selector:
     app.kubernetes.io/name: {{ include "quetzal.name" . }}
