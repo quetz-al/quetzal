@@ -84,6 +84,18 @@ app:
   # Do not set here, but set using --set key=value when doing helm install:
   # secret_key: ...
 
+worker:
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 1000m
+    requests:
+      memory: 256Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
 db:
   image:
     # TODO: Change to eu, change to 0.4.0
