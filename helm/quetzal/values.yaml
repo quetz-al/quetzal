@@ -104,3 +104,20 @@ db:
   # Do not set here, but set using --set key=value when doing helm install:
   # username: ...
   # password: ...
+
+rabbitmq:
+  image:
+    # TODO: Change to eu, change to 0.4.0
+    repository: gcr.io/quetzal-omind/quetzal/rabbitmq
+    tag: 0.3.0
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 250m
+    requests:
+      memory: 128Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
