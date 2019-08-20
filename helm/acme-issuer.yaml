@@ -1,0 +1,19 @@
+   apiVersion: certmanager.k8s.io/v1alpha1
+   kind: Issuer
+   metadata:
+     name: letsencrypt-issuer
+   spec:
+     acme:
+       # The ACME server URL
+       # server: https://acme-staging-v02.api.letsencrypt.org/directory
+       server:  https://acme-v02.api.letsencrypt.org/directory
+       # Email address used for ACME registration
+       email: quetzal.api@gmail.com
+       # Name of a secret used to store the ACME account private key
+       privateKeySecretRef:
+         name: letsencrypt-certificate-secrets
+       # Enable the HTTP-01 challenge provider
+       solvers:
+       - http01:
+           ingress:
+             class:  nginx

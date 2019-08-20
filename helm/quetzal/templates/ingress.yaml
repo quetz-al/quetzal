@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ include "quetzal.fullname" . }}-ingress
+  annotations:
+    # Note: Get full configuration annotations on
+    # https://kubernetes.github.io/ingress-nginx/user-guide/nginx-configuration/annotations/
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/proxy-body-size: 4G
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    certmanager.k8s.io/issuer: "letsencrypt-issuer"
+spec:
+  rules:
+    - host: sandbox.quetz.al
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: app
+              servicePort: 5000
+  tls:
+    - secretName: {{ include "quetzal.fullname" . }}-tls-secret
+      hosts:
+        - sandbox.quetz.al
