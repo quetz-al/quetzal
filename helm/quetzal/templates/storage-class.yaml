@@ -1,0 +1,11 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ include "quetzal.fullname" . }}-sc
+  labels:
+{{ include "quetzal.labels" . | indent 4}}
+parameters:
+  type: {{ .Values.storage.type }}
+provisioner: {{ .Values.storage.provisioner }}
+reclaimPolicy: Retain
+volumeBindingMode: {{ .Values.storage.volumeBindingMode }}

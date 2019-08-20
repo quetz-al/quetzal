@@ -1,0 +1,20 @@
+# Documentation of these yaml, their schema and what everything means is
+# available on https://kubernetes.io/docs/reference/
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "quetzal.fullname" . }}-db
+  labels:
+    app.kubernetes.io/component: database
+{{ include "quetzal.labels" . | indent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: {{ include "quetzal.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: database
