@@ -1,53 +1,17 @@
 ## Default values for quetzal.
 ## This is a YAML-formatted file.
 ## Declare variables to be passed into your templates.
-#
-#replicaCount: 1
-#
-#image:
-#  repository: nginx
-#  tag: stable
-#  pullPolicy: IfNotPresent
-#
-#imagePullSecrets: []
-#nameOverride: ""
-#fullnameOverride: ""
-#
-#service:
-#  type: ClusterIP
-#  port: 80
-#
-#ingress:
-#  enabled: false
-#  annotations: {}
-#    # kubernetes.io/ingress.class: nginx
-#    # kubernetes.io/tls-acme: "true"
-#  hosts:
-#    - host: chart-example.local
-#      paths: []
-#
-#  tls: []
-#  #  - secretName: chart-example-tls
-#  #    hosts:
-#  #      - chart-example.local
-#
-#resources: {}
-#  # We usually recommend not to specify default resources and to leave this as a conscious
-#  # choice for the user. This also increases chances charts run on environments with little
-#  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-#  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-#  # limits:
-#  #   cpu: 100m
-#  #   memory: 128Mi
-#  # requests:
-#  #   cpu: 100m
-#  #   memory: 128Mi
-#
-#nodeSelector: {}
-#
-#tolerations: []
-#
-#affinity: {}
+
+nameOverride: ""
+fullnameOverride: ""
+
+# General configuration
+general:
+  adminMail: quetzal.api@gmail.com
+  serverName: sandbox.quetz.al
+
+ingress:
+  tlsSecret: sandbox-tls-secret
 
 # Retained disk configuration (for database disk)
 storage:
@@ -58,9 +22,8 @@ storage:
 app:
   # general pod configuration
   image:
-    # TODO: Change to eu, change to 0.4.0
-    repository: gcr.io/quetzal-omind/quetzal/app
-    tag: 0.3.0
+    repository: eu.gcr.io/quetzal/quetzal/app
+    tag: 0.4.0-dev
     pullPolicy: Always
   resources:
     limits:
@@ -73,16 +36,15 @@ app:
   tolerations: []
   affinity: {}
 
-  # quetzal specific configuration
-  server_name: sandbox.quetz.al
+  # app/worker specific configuration
   flask_env: staging
-  admin_mail: quetzal.api@gmail.com
   data_bucket: gs://quetzal-sandbox-data
   backup_bucket: gs://quetzal-sandbox-backups
   credentials_secret_name: sandbox-credentials-secrets
 
-  # Do not set here, but set using --set key=value when doing helm install:
-  # secret_key: ...
+  # Other configuration entries that should not be set here. They should be
+  # set using --set key=value when doing helm install:
+  # flask_secret_key: ...
 
 worker:
   resources:
@@ -98,9 +60,8 @@ worker:
 
 db:
   image:
-    # TODO: Change to eu, change to 0.4.0
-    repository: gcr.io/quetzal-omind/quetzal/db
-    tag: 0.3.0
+    repository: eu.gcr.io/quetzal/quetzal/db
+    tag: 0.4.0-dev
     pullPolicy: Always
   resources:
     limits:
@@ -113,15 +74,15 @@ db:
   tolerations: []
   affinity: {}
 
-  # Do not set here, but set using --set key=value when doing helm install:
+  # Other configuration entries that should not be set here. They should be
+  # set using --set key=value when doing helm install:
   # username: ...
   # password: ...
 
 rabbitmq:
   image:
-    # TODO: Change to eu, change to 0.4.0
-    repository: gcr.io/quetzal-omind/quetzal/rabbitmq
-    tag: 0.3.0
+    repository: eu.gcr.io/quetzal/quetzal/rabbitmq
+    tag: 0.4.0-dev
     pullPolicy: Always
   resources:
     limits:

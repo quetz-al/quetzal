@@ -19,6 +19,6 @@ spec:
               serviceName: app
               servicePort: 5000
   tls:
-    - secretName: {{ include "quetzal.fullname" . }}-tls-secret
+    - secretName: {{ .Values.ingress.tlsSecret }}
       hosts:
         - sandbox.quetz.al

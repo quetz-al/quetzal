@@ -36,11 +36,11 @@ spec:
               name: app-secret-files-volume
           env:
             - name: SERVER_NAME
-              value: {{ .Values.app.server_name | quote }}
+              value: {{ .Values.general.serverName | quote }}
             - name: FLASK_ENV
               value: {{ .Values.app.flask_env | quote }}
             - name: QUETZAL_ADMIN_MAIL
-              value: {{ .Values.app.admin_mail | quote }}
+              value: {{ .Values.general.adminMail | quote }}
             - name: QUETZAL_GCP_DATA_BUCKET
               value: {{ .Values.app.data_bucket | quote }}
             - name: QUETZAL_GCP_BACKUP_BUCKET
@@ -69,7 +69,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ include "quetzal.fullname" . }}-app-secrets
-                  key: secret_key
+                  key: flask_secret_key
       restartPolicy: Always
       volumes:
         - name: app-secret-files-volume

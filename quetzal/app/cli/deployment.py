@@ -38,7 +38,7 @@ def create_docker_images(ctx, registry, images):
     # This is the map of docker images that need to be built, and the
     # corresponding keyword arguments needed to build them.
     images_kwargs = {
-        'nginx': dict(path='docker/nginx'),
+        # 'nginx': dict(path='docker/nginx'),  # no longer needed, now using helm ingress
         'db': dict(path='docker/db'),
         'rabbitmq': dict(path='docker/rabbitmq'),
         # The image for the app and worker is slightly different, because it
