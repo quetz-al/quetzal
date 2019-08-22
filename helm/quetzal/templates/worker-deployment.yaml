@@ -6,7 +6,6 @@ metadata:
     app.kubernetes.io/component: worker
 {{ include "quetzal.labels" . | indent 4 }}
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "quetzal.name" . }}
@@ -42,9 +41,9 @@ spec:
             - name: QUETZAL_ADMIN_MAIL
               value: {{ .Values.general.adminMail | quote }}
             - name: QUETZAL_GCP_DATA_BUCKET
-              value: {{ .Values.app.data_bucket | quote }}
+              value: {{ .Values.general.dataBucket | quote }}
             - name: QUETZAL_GCP_BACKUP_BUCKET
-              value: {{ .Values.app.backup_bucket | quote }}
+              value: {{ .Values.general.backupBucket | quote }}
             - name: DB_HOST
               value: "db"
             - name: DB_PORT
@@ -74,7 +73,7 @@ spec:
       volumes:
         - name: app-secret-files-volume
           secret:
-            secretName:  {{ .Values.app.credentials_secret_name }}
+            secretName:  {{ .Values.general.credentialsSecret }}
       {{- with .Values.db.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

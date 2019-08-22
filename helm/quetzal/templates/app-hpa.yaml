@@ -7,9 +7,9 @@ metadata:
 {{ include "quetzal.labels" . | indent 4}}
 spec:
     minReplicas: 1
-    maxReplicas: 10
+    maxReplicas: 4
     scaleTargetRef:
       apiVersion: extensions/v1beta1
       kind: Deployment
       name: {{ include "quetzal.fullname" . }}-app
-    targetCPUUtilizationPercentage: 50
+    targetCPUUtilizationPercentage: 75

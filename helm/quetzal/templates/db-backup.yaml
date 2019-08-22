@@ -1,0 +1,44 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ include "quetzal.fullname" . }}-db-cron
+  labels:
+    app.kubernetes.io/component: database
+{{ include "quetzal.labels" . | indent 4 }}
+spec:
+  schedule: "0 0 * * *"  # Every day at midnight
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: {{ .Chart.Name }}
+              image: "{{ .Values.db.image.repository }}:{{ .Values.db.image.tag }}"
+              imagePullPolicy: {{ .Values.db.image.pullPolicy }}
+              args:
+                - /bin/sh
+                - -c
+                - /backup.sh
+              env:
+                - name: POSTGRES_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "quetzal.fullname" . }}-db-secrets
+                      key: username
+                - name: PGPASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "quetzal.fullname" . }}-db-secrets
+                      key: password
+                - name: DB_HOST
+                  value: "db"
+                - name: GCP_BACKUP_BUCKET
+                  value: {{ .Values.general.backupBucket | quote }}
+              volumeMounts:
+              - mountPath: /conf
+                name: secret-files-volume
+          restartPolicy: OnFailure
+          volumes:
+          - name: secret-files-volume
+            secret:
+              secretName:  {{ .Values.general.credentialsSecret }}

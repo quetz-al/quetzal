@@ -9,6 +9,9 @@ fullnameOverride: ""
 general:
   adminMail: quetzal.api@gmail.com
   serverName: sandbox.quetz.al
+  credentialsSecret: sandbox-credentials-secrets
+  dataBucket: gs://quetzal-sandbox-data
+  backupBucket: gs://quetzal-sandbox-backups
 
 ingress:
   tlsSecret: sandbox-tls-secret
