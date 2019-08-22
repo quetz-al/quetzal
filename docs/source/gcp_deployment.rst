@@ -4,10 +4,13 @@ Deploying on GCP
 
 The following instructions create a Kubernetes (k8s) cluster with a Quetzal
 server running on the *staging* configuration.
-Change the *stage-* references to *prod-* to create a production server.
+Change the *sandbox-* references to *prod-* to create a production server.
 
-Part 1: Docker images
----------------------
+We need to do perform install several components: a k8s cluster, helm, ingress, certbot
+and the quetzal application.
+
+Docker images
+-------------
 
 1. Follow the :ref:`Local development server` instructions and make sure that
    you are able to run and launch a development environment. You will need to
@@ -22,29 +25,25 @@ Part 1: Docker images
    .. code-block:: console
 
     $ flask quetzal deploy create-images \
-      --registry gcr.io/<your-project-id>
+      --registry eu.gcr.io/<your-project-id>
 
 
-Part 2: GCP Deployment
-----------------------
+Kubernetes cluster
+------------------
 
-1. Create a k8s cluster.
+1. Create a kubernetes cluster using gcloud:
 
    .. code-block:: console
 
-    $ gcloud container clusters create quetzal-cluster \
+    gcloud container clusters create quetzal-cluster \
       --num-nodes=1 \
       --enable-autoscaling --min-nodes=1 --max-nodes=4
 
-   This will create a pool of 1 node (a Google Compute Engine VM instance) that
-   will be used as CPU and memory resources managed by k8s. This also enables
-   horizontal autoscaling, which will create or delete nodes in order to meet
-   the resource usage of the services running in the cluster. The VM machine
-   type in this example is the default `n1-standard-1`_, as shown by:
+2. Verify that the cluster is up and running:
 
    .. code-block:: console
 
-    $ gcloud container clusters list
+    gcloud container clusters list
     NAME             LOCATION        MASTER_VERSION  MASTER_IP      MACHINE_TYPE   NODE_VERSION  NUM_NODES  STATUS
     quetzal-cluster  europe-west1-c  1.11.7-gke.4    x.x.x.x        n1-standard-1  1.11.7-gke.4  2          RUNNING
 
@@ -52,231 +51,226 @@ Part 2: GCP Deployment
 
    .. code-block:: console
 
-    $ gcloud container clusters resize quetzal-cluster --size N
+    gcloud container clusters resize quetzal-cluster --size N
 
    or change the type of VM instance type for another machine type that uses
    more CPU or memory. This procedure is out of scope of this guide, but you
    can read more at the
    `node pools documentation <https://cloud.google.com/kubernetes-engine/docs/concepts/node-pools>`_.
 
-2. Create k8s secrets.
-
-   Quetzal uses several services that need some configuration values that are
-   sensitive and should be protected. These values are saved as `k8s secrets`_.
-
-   There are three secrets to create:
-
-   * Database secrets:
+3. Verify that ``kubectl`` is using the correct cluster:
 
    .. code-block:: console
 
-     # Generate a random password for the database user.
-     # Note it down. Keep it secret, keep it safe.
-     $ flask quetzal utils generate-secret-key 8
-     YRADKSrPzlM
+    kubectl create -f helm/rbac-config.yaml
 
-     # Use <your db password> on the following command:
-     $ kubectl create secret generic stage-db-secrets \
-       --from-literal=username=postgres \
-       --from-literal=password=<your db password>
+Part 2: Helm
+------------
 
-   * Proxy (nginx) SSL secrets:
+1. Install helm. In general, follow the `installing helm guide <https://helm.sh/docs/using_helm/#installing-helm>`_.
+   For the particular case of OSX (with homebrew), this can be done with:
 
    .. code-block:: console
 
-      # Create nginx secrets with the following command:
-      $ kubectl create secret generic stage-nginx-secrets \
-        --from-file=./conf/ssl/dhparam.pem \
-        --from-file=./conf/ssl/mysite.crt \
-        --from-file=./conf/ssl/mysite.key
+    brew install kubernetes-helm
 
-   * Application secrets:
+2. Install helm k8s service account. This is explained in the
+   `helm installation guide <https://helm.sh/docs/using_helm/#tiller-and-role-based-access-control>`_:
 
    .. code-block:: console
 
-     # Generate a secret key for the Flask application.
-     # Note it down. Keep it secret, keep it safe.
-     $ flask quetzal utils generate-secret-key
-     sB-YgPO8ZVCmZyV5XKH0rg
+    kubectl create -f helm/rbac-config.yaml
 
-     # Use <your secret key> on the following command:
-     $ kubectl create secret generic stage-app-secrets \
-       --from-file=./conf/credentials.json \
-       --from-literal=SECRET_KEY=<your secret key>
-
-3. Read, verify and modify kubernetes deployment files.
-
-   Check every yaml file that will be used on the next step for potential
-   changes needed for your case. For example, if you are deploying a
-   production server, make sure that you are not referring to a staging
-   resource.
-
-   Check that all ``-deployment.yaml`` files point to the versions of the
-   images that you want.
-
-   An important thing to check is the environment variables of the
-   ``web-deployment.yaml`` *and* ``worker-deployment.yaml``, which reference
-   the configMap defined in `app-configmap.yaml`. Verify all the entries in
-   this file. Once you are sure of your configuration values, send them to
-   k8s with:
+3. Install helm k8s resources (also known as tiller) with a service account:
 
    .. code-block:: console
 
-    $ kubectl create -f k8s/app-configmap.yaml
+    helm init --service-account tiller --wait
 
-   Finally, verify that the ``nginx-service.yaml`` has the correct external
-   IP created on :ref:`GCP external IP`:
-
-   .. code-block:: yaml
-
-     ...
-     spec:
-       type: LoadBalancer
-       loadBalancerIP: x.x.x.x
-     ...
-
-4. Create k8s storage classes and disks.
-
-   There are two pods in k8s that need an external disk. In both cases, it
-   should be a disk that is not deleted when the disk resource is not used. To
-   address this, we need to create a specific storage class resource:
+4. Verify that helm was correctly installed:
 
    .. code-block:: console
 
-    $ kubectl create -f k8s/storage-class.yaml
-    storageclass.storage.k8s.io/standard-retain created
+    helm version
 
-   Then create the two persistent volume claims:
+    Client: &version.Version{SemVer:"v2.14.3", GitCommit:"0e7f3b6637f7af8fcfddb3d2941fcc7cbebb0085", GitTreeState:"clean"}
+    Server: &version.Version{SemVer:"v2.14.3", GitCommit:"0e7f3b6637f7af8fcfddb3d2941fcc7cbebb0085", GitTreeState:"clean"}
 
-   .. code-block:: console
 
-    $ kubectl create -f k8s/db-pvc.yaml
-    persistentvolumeclaim/db-pvc created
-    $ kubectl create -f k8s/nginx-pvc.yaml
-    persistentvolumeclaim/nginx-pv-claim created
+Part 3: Ingress
+---------------
 
-   You can see the disks that were created on the `GCP compute disks`_
-   on the GCP console or with:
+
+1. Install ingress resources. This is a prerequisite described in
+   the `ingress installation guide <https://kubernetes.github.io/ingress-nginx/deploy/#prerequisite-generic-deployment-command>`_.
 
    .. code-block:: console
 
-    $ gcloud compute disks list
-    NAME                            ZONE            SIZE_GB  TYPE         STATUS
-    gke-quetzal-cluster-a8-pvc-xxx  europe-west1-c  200      pd-standard  READY
-    gke-quetzal-cluster-a8-pvc-xxx  europe-west1-c  20       pd-standard  READY
+    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/static/mandatory.yaml
 
-   These disks **will not be erased** if the cluster is deleted. This ensures
-   that the Quetzal database and nginx certificates are not lost.
-
-
-4. Create k8s deployments and services.
-
-   The following commands create deployments (pods) and services. After each
-   create command, you can verify its status with
-   ``kubectl get pod <pod_name>`` or ``kubectl get service <service_name>``.
-   Read the next step for more details on how to diagnose problems.
+2 Install ingress. If you have a static IP reserved for the Quetzal
+   application, you must set it here. Otherwise, remove the
+   ``--set controller.service.loadBalancerIP`` flag:
 
    .. code-block:: console
 
-    # rabbitmq
-    $ kubectl create -f k8s/rabbitmq-deployment.yaml
-    $ kubectl create -f k8s/rabbitmq-service.yaml
+    helm install stable/nginx-ingress --set controller.service.loadBalancerIP=X.X.X.X --name nginx-ingress
 
-    # database
-    $ kubectl create -f k8s/db-deployment.yaml
-    $ kubectl create -f k8s/db-service.yaml
 
-    # web application
-    $ kubectl create -f k8s/web-deployment.yaml
-    $ kubectl create -f k8s/web-service.yaml
-    $ kubectl create -f k8s/web-scaler.yaml
+Certbot
+-------
 
-    # background celery worker
-    $ kubectl create -f k8s/worker-deployment.yaml
-    $ kubectl create -f k8s/worker-scaler.yaml
+**This part is optional.** You only need it if you want to have a signed
+certificate.
 
-    # nginx reverse proxy
-    $ kubectl create -f k8s/nginx-deployment.yaml
-    $ kubectl create -f k8s/nginx-service.yaml
+1. Install certbot. This part was inspired from the
+   `certbot acme nginx installation tutorial <https://docs.cert-manager.io/en/latest/tutorials/acme/quick-start/index.html>`_.
 
-5. Verify that everything is running.
+   .. code-block:: console
+
+    # Install the cert-manager CRDs. We must do this before installing the Helm
+    # chart in the next step for `release-0.9` of cert-manager:
+    $ kubectl apply -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.9/deploy/manifests/00-crds.yaml
+
+    # Create the namespace for cert-manager
+    $ kubectl create namespace cert-manager
+
+    # Label the cert-manager namespace to disable resource validation
+    $ kubectl label namespace cert-manager certmanager.k8s.io/disable-validation=true
+
+    ## Add the Jetstack Helm repository
+    $ helm repo add jetstack https://charts.jetstack.io
+
+    ## Updating the repo just incase it already existed
+    $ helm repo update
+
+    ## Install the cert-manager helm chart
+    $ helm install \
+      --name cert-manager \
+      --namespace cert-manager \
+      --version v0.9.1 \
+      jetstack/cert-manager
+
+2. Install certbot issuer
+
+   .. code-block:: console
+
+    kubectl create -f helm/acme-issuer.yaml
+
+
+Quetzal
+-------
+
+1. Create the TLS secret that will be used for the nginx proxy.
+
+   .. code-block:: console
+
+    kubectl create secret tls sandbox-tls-secret \
+      --cert=./conf/ssl/mysite.crt \
+      --key=./conf/ssl/mysite.key
+
+2. Create GCP credentials secret that will be used by the app to communicate
+   with the GCP resources (e.g. the data buckets).
+
+   .. code-block:: console
+
+    kubectl create secret generic sandbox-credentials-secrets \
+      --from-file=./conf/credentials.json
+
+3. Install quetzal using helm. Give it a name (like *foo*).
+
+   .. code-block:: console
+
+    helm install \
+      --set db.username=... \
+      --set db.password=... \
+      --set app.flaskSecretKey=... \
+      --name foo ./helm/quetzal
+
+4. Verify that everything is running.
 
    You can check that all pods are running with:
 
    .. code-block:: console
 
-    $ kubectl get pods
-    NAME                                   READY     STATUS    RESTARTS   AGE
-    db-deployment-5595d68bf9-jmnqd         1/1       Running   0          3m
-    nginx-deployment-f4b44b586-7v5mg       1/1       Running   0          12s
-    rabbitmq-deployment-7fb8d675c4-58654   1/1       Running   0          3m
-    web-deployment-7dcc756c9d-78n5w        1/1       Running   0          2m
-    web-deployment-7dcc756c9d-7rsmc        1/1       Running   0          2m
-    web-deployment-7dcc756c9d-cjf2k        1/1       Running   0          2m
-    worker-deployment-6c57d9d7c-98htm      1/1       Running   0          25s
+    kubectl get pods
+    NAME                                             READY   STATUS    RESTARTS   AGE
+    foo-quetzal-app-86669c8bc6-8vt9c                 0/1     Pending   0          100s
+    foo-quetzal-app-86669c8bc6-dhwj6                 1/1     Running   0          10m
+    foo-quetzal-app-86669c8bc6-s56wl                 0/1     Pending   0          115s
+    foo-quetzal-app-86669c8bc6-w2ppm                 0/1     Pending   0          115s
+    foo-quetzal-app-86669c8bc6-x5gvk                 0/1     Pending   0          115s
+    foo-quetzal-db-cd68d97bc-tdj8l                   1/1     Running   0          15m
+    foo-quetzal-rabbitmq-85bf9dddfd-kkvr7            1/1     Running   0          15m
+    foo-quetzal-worker-5dbb8c4dfd-fg8ct              1/1     Running   0          9m41s
+    foo-quetzal-worker-5dbb8c4dfd-fv6bj              1/1     Running   0          10m
+    nginx-ingress-controller-84df6c4c54-2v8n4        1/1     Running   0          22m
+    nginx-ingress-default-backend-7d5dd85c4c-mc89t   1/1     Running   0          22m
+
 
    Similarly, you can do the same with the services:
 
    .. code-block:: console
 
-    $ kubectl get services
-    NAME         TYPE           CLUSTER-IP      EXTERNAL-IP    PORT(S)                      AGE
-    db           ClusterIP      10.27.247.154   <none>         5432/TCP                     5m
-    kubernetes   ClusterIP      10.27.240.1     <none>         443/TCP                      33m
-    nginx        LoadBalancer   10.27.249.146   x.x.x.x        80:31842/TCP,443:30919/TCP   2m
-    rabbitmq     ClusterIP      10.27.255.80    <none>         5672/TCP,15672/TCP           5m
-    web          ClusterIP      10.27.240.128   <none>         5000/TCP                     2m
+    kubectl get services
+    NAME                            TYPE           CLUSTER-IP    EXTERNAL-IP     PORT(S)                      AGE
+    app                             ClusterIP      10.0.11.94    <none>          5000/TCP                     16m
+    db                              ClusterIP      10.0.13.162   <none>          5432/TCP                     16m
+    kubernetes                      ClusterIP      10.0.0.1      <none>          443/TCP                      26m
+    nginx-ingress-controller        LoadBalancer   10.0.3.187    x.x.x.x.        80:31388/TCP,443:32725/TCP   23m
+    nginx-ingress-default-backend   ClusterIP      10.0.11.182   <none>          80/TCP                       23m
+    rabbitmq                        ClusterIP      10.0.10.159   <none>          5672/TCP,15672/TCP           16m
 
    If a pod fails to start correctly, examine it with:
 
    .. code-block:: console
 
-    $ kubectl describe pod web-deployment-7dcc756c9d-78n5w
+    kubectl describe pod foo-quetzal-app-7dcc756c9d-78n5w
     ... many details that can help determine the problem ...
 
-6. Initialize the application.
+5. Initialize the application.
 
    If this is the first time the application is deployed, you need to
    initialize its database, buckets and users. Connect to a web pod (like
-   ``web-deployment-7dcc756c9d-78n5w``, as listed above, but this will be
+   ``foo-quetzal-app-7dcc756c9d-78n5w``, as listed above, but this will be
    specific to your deployment) as:
 
    .. code-block:: console
 
-    $ kubectl exec -it web-deployment-7dcc756c9d-78n5w /bin/bash
+    kubectl exec -it foo-quetzal-app-7dcc756c9d-78n5w /bin/bash
 
    and then run the initialization script:
 
    .. code-block:: console
 
-    $ ./init.sh
+    ./init.sh
 
    which will ask for an administrator password. You can add new users at
    this point with:
 
    .. code-block:: console
 
-    $ flask quetzal user create alice alice.smith@example.com
-    $ flask quetzal role add alice public_read public_write
+    flask quetzal user create alice alice.smith@example.com
+    flask quetzal role add alice public_read public_write
+
+6. If you installed certbot, you should verify that the certificate was
+   correctly generated with:
+
+   .. code-block:: console
+
+    kubectl get certificates
+    NAME                 READY   SECRET               AGE
+    sandbox-tls-secret   True    sandbox-tls-secret   1m
+
+
+   And also, the following curl command should work without any errors:
+
+   .. code-block:: console
+
+    curl -vL https://sandbox.quetz.al/healthz
+
 
 -----
 
 That's all, you can now explore the documentation at
-https://stage.quetz.al/redoc, or wherever your configuration points to.
-
-
------
-
-New procedure (WIP)
-
-* Create cluster
-* Install helm
-* Install tiller with a service account
-* Create secrets not managed by helm
-* Install quetzal using helm
-
-
-.. _gcloud: https://cloud.google.com/sdk/gcloud/
-.. _n1-standard-1: https://cloud.google.com/compute/docs/machine-types
-.. _k8s secrets: https://kubernetes.io/docs/concepts/configuration/secret/
-.. _GCP compute disks: https://console.cloud.google.com/compute/disks
+https://sandbox.quetz.al/redoc, or wherever your configuration points to.
