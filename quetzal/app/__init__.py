@@ -82,7 +82,8 @@ def create_app(config_name=None):
     # APIs
     from . import __version__
     connexion_app.add_api('../../openapi.yaml',
-                          arguments={'version': __version__},
+                          arguments={'version': __version__,
+                                     'server': flask_app.config['SERVER_NAME']},
                           strict_validation=True, validate_responses=True,
                           validator_map={'response': CustomResponseValidator})
 
