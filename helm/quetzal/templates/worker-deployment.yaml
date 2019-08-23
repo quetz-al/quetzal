@@ -24,6 +24,8 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"  # Same image as app
           imagePullPolicy: {{ .Values.app.image.pullPolicy }}                      # Same policy as app
+          command:
+            - /entrypoint-worker.sh
           ports:
             - name: flask
               containerPort: 5000
