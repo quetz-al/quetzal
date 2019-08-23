@@ -177,7 +177,21 @@ Quetzal
     kubectl create secret generic sandbox-credentials-secrets \
       --from-file=./conf/credentials.json
 
-3. Install quetzal using helm. Give it a name (like *foo*).
+3. Generate some passwords. You can do this manually, or use the following
+   helper commands. Keep them secret, keep them safe.
+
+   .. code-block:: console
+
+    # Generate a random password for the database user.
+    flask quetzal utils generate-secret-key 8
+    YRADKSrPzlM
+
+    # Generate a secret key for the Flask application.
+    flask quetzal utils generate-secret-key
+    sB-YgPO8ZVCmZyV5XKH0rg
+
+4. Install quetzal using helm. Give it a name (like *foo*) and use the passwords
+   generated in the previous step.
 
    .. code-block:: console
 
@@ -187,7 +201,10 @@ Quetzal
       --set app.flaskSecretKey=... \
       --name foo ./helm/quetzal
 
-4. Verify that everything is running.
+    Note that it is **at this point** that you will set a database username,
+    password and flask secret. The flask secret
+
+5. Verify that everything is running.
 
    You can check that all pods are running with:
 
@@ -228,7 +245,7 @@ Quetzal
     kubectl describe pod foo-quetzal-app-7dcc756c9d-78n5w
     ... many details that can help determine the problem ...
 
-5. Initialize the application.
+6. Initialize the application.
 
    If this is the first time the application is deployed, you need to
    initialize its database, buckets and users. Connect to a web pod (like
@@ -253,7 +270,7 @@ Quetzal
     flask quetzal user create alice alice.smith@example.com
     flask quetzal role add alice public_read public_write
 
-6. If you installed certbot, you should verify that the certificate was
+7. If you installed certbot, you should verify that the certificate was
    correctly generated with:
 
    .. code-block:: console
