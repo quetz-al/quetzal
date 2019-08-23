@@ -25,7 +25,7 @@ spec:
                     secretKeyRef:
                       name: {{ include "quetzal.fullname" . }}-db-secrets
                       key: username
-                - name: PGPASSWORD
+                - name: PGPASSWORD  # Not POSTGRES_PASSWORD, see https://stackoverflow.com/a/53834828/227103
                   valueFrom:
                     secretKeyRef:
                       name: {{ include "quetzal.fullname" . }}-db-secrets
