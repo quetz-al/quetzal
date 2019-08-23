@@ -21,7 +21,7 @@ Planned:
 * Removed k8s nginx in favor of ingress.
 * Added certificate management through certbot's k8s application.
 * Added automatic database backups using k8s cronjobs.
-
+* Minor security issue fixed on werkzeug dependency [CVE-2019-14806]
 
 0.3.0 (2019-07-02)
 ------------------
