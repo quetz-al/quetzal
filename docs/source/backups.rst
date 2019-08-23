@@ -89,7 +89,7 @@ The following procedure can restore one of these backups:
 
     SELECT pg_terminate_backend(pg_stat_activity.pid)
     FROM pg_stat_activity
-    WHERE pg_stat_activity.datname = 'quetzak' -- change this if you changed the quetzal database name
+    WHERE pg_stat_activity.datname = 'quetzal' -- change this if you changed the quetzal database name
       AND pid <> pg_backend_pid();
 
    .. code-block:: sql
