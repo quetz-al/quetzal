@@ -14,7 +14,7 @@ Planned:
 * Better commit detection with a 3-way merge detection
 
 
-0.4.0 (unreleased)
+0.4.0 (2019-08-26)
 ------------------
 
 * Added k8s deployment through helm.
