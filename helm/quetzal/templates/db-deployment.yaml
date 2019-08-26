@@ -1,37 +1,34 @@
-# Documentation of these yaml, their schema and what everything means is
-# available on https://kubernetes.io/docs/reference/
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: db
+  name: {{ include "quetzal.fullname" . }}-db
   labels:
-    name: db
-    app: quetzal
+    app.kubernetes.io/component: database
+{{ include "quetzal.labels" . | indent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      name: db
-      app: quetzal
+      app.kubernetes.io/name: {{ include "quetzal.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: database
   template:
     metadata:
       labels:
-        name: db
-        app: quetzal
+        app.kubernetes.io/name: {{ include "quetzal.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: database
     spec:
       containers:
-        - name: db
-          image: gcr.io/quetzal/quetzal/db:0.3.0
-          imagePullPolicy: Always
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.db.image.repository }}:{{ .Values.db.image.tag }}"
+          imagePullPolicy: {{ .Values.db.image.pullPolicy }}
           ports:
-            - containerPort: 5432
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
           resources:
-            requests:
-              memory: "128Mi"
-              cpu: "250m"
-            limits:
-              memory: "4Gi"
-              cpu: "1000m"
+            {{- toYaml .Values.db.resources | nindent 12 }}
           volumeMounts:
             - mountPath: /srv/data
               name: db-data-volume
@@ -50,15 +47,27 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: stage-db-secrets
+                  name: {{ include "quetzal.fullname" . }}-db-secrets
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: stage-db-secrets
+                  name: {{ include "quetzal.fullname" . }}-db-secrets
                   key: password
       restartPolicy: Always
       volumes:
         - name: db-data-volume
           persistentVolumeClaim:
-            claimName: db-pvc
+            claimName: {{ template "quetzal.fullname" . }}-db-pvc
+      {{- with .Values.db.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.db.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.db.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}

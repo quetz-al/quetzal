@@ -6,3 +6,4 @@ flask-shell-ipython
 Sphinx
 sphinx-rtd-theme
 sphinx-tabs
+sphinx-copybutton

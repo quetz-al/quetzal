@@ -1,0 +1,99 @@
+## Default values for quetzal.
+## This is a YAML-formatted file.
+## Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# General configuration
+general:
+  adminMail: quetzal.api@gmail.com
+  serverName: sandbox.quetz.al
+  credentialsSecret: sandbox-credentials-secrets
+  dataBucket: gs://quetzal-sandbox-data
+  backupBucket: gs://quetzal-sandbox-backups
+
+ingress:
+  tlsSecret: sandbox-tls-secret
+
+# Retained disk configuration (for database disk)
+storage:
+  type: pd-standard
+  provisioner: kubernetes.io/gce-pd
+  volumeBindingMode: Immediate
+
+app:
+  # general pod configuration
+  image:
+    repository: eu.gcr.io/quetzal/quetzal/app
+    tag: 0.4.0-dev
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 1000m
+    requests:
+      memory: 256Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # app/worker specific configuration
+  flask_env: staging
+  data_bucket: gs://quetzal-sandbox-data
+  backup_bucket: gs://quetzal-sandbox-backups
+  credentials_secret_name: sandbox-credentials-secrets
+
+  # Other configuration entries that should not be set here. They should be
+  # set using --set key=value when doing helm install:
+  # flask_secret_key: ...
+
+worker:
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 1000m
+    requests:
+      memory: 256Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+db:
+  image:
+    repository: eu.gcr.io/quetzal/quetzal/db
+    tag: 0.4.0-dev
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 4Gi
+      cpu: 1000m
+    requests:
+      memory: 128Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  # Other configuration entries that should not be set here. They should be
+  # set using --set key=value when doing helm install:
+  # username: ...
+  # password: ...
+
+rabbitmq:
+  image:
+    repository: eu.gcr.io/quetzal/quetzal/rabbitmq
+    tag: 0.4.0-dev
+    pullPolicy: Always
+  resources:
+    limits:
+      memory: 256Mi
+      cpu: 250m
+    requests:
+      memory: 128Mi
+      cpu: 250m
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}

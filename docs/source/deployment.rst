@@ -8,3 +8,4 @@ Deployment
 
    gcp_preparations
    gcp_deployment
+   backups

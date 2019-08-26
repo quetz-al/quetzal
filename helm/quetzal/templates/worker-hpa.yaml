@@ -1,0 +1,15 @@
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ include "quetzal.fullname" . }}-worker-hpa
+  labels:
+    app.kubernetes.io/component: worker
+{{ include "quetzal.labels" . | indent 4}}
+spec:
+    minReplicas: 1
+    maxReplicas: 4
+    scaleTargetRef:
+      apiVersion: extensions/v1beta1
+      kind: Deployment
+      name: {{ include "quetzal.fullname" . }}-worker
+    targetCPUUtilizationPercentage: 50
