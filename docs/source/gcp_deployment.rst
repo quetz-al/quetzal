@@ -62,7 +62,7 @@ Kubernetes cluster
 
    .. code-block:: console
 
-    kubectl create -f helm/rbac-config.yaml
+    kubectl config get-contexts
 
 Part 2: Helm
 ------------
@@ -130,28 +130,29 @@ certificate.
 
     # Install the cert-manager CRDs. We must do this before installing the Helm
     # chart in the next step for `release-0.9` of cert-manager:
-    $ kubectl apply -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.9/deploy/manifests/00-crds.yaml
+    kubectl apply -f https://raw.githubusercontent.com/jetstack/cert-manager/release-0.9/deploy/manifests/00-crds.yaml
 
     # Create the namespace for cert-manager
-    $ kubectl create namespace cert-manager
+    kubectl create namespace cert-manager
 
     # Label the cert-manager namespace to disable resource validation
-    $ kubectl label namespace cert-manager certmanager.k8s.io/disable-validation=true
+    kubectl label namespace cert-manager certmanager.k8s.io/disable-validation=true
 
     ## Add the Jetstack Helm repository
-    $ helm repo add jetstack https://charts.jetstack.io
+    helm repo add jetstack https://charts.jetstack.io
 
     ## Updating the repo just incase it already existed
-    $ helm repo update
+    helm repo update
 
     ## Install the cert-manager helm chart
-    $ helm install \
+    helm install \
       --name cert-manager \
       --namespace cert-manager \
       --version v0.9.1 \
       jetstack/cert-manager
 
-2. Install certbot issuer
+2. Customize certbot issuer definition declared on the ``helm/acme-issuer.yaml``
+   file and install it:
 
    .. code-block:: console
 
@@ -191,7 +192,9 @@ Quetzal
     sB-YgPO8ZVCmZyV5XKH0rg
 
 4. Install quetzal using helm. Give it a name (like *foo*) and use the passwords
-   generated in the previous step.
+   generated in the previous step. Verify that all the configuration values
+   in ``helm/quetzal/values.yaml``. Also verify the
+   ``helm/quetzal/templates/ingress.yaml`` file.
 
    .. code-block:: console
 
@@ -201,8 +204,8 @@ Quetzal
       --set app.flaskSecretKey=... \
       --name foo ./helm/quetzal
 
-    Note that it is **at this point** that you will set a database username,
-    password and flask secret. The flask secret
+   Note that it is **at this point** that you will set a database username,
+   password and flask secret.
 
 5. Verify that everything is running.
 

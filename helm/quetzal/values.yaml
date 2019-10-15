@@ -41,9 +41,6 @@ app:
 
   # app/worker specific configuration
   flask_env: staging
-  data_bucket: gs://quetzal-sandbox-data
-  backup_bucket: gs://quetzal-sandbox-backups
-  credentials_secret_name: sandbox-credentials-secrets
 
   # Other configuration entries that should not be set here. They should be
   # set using --set key=value when doing helm install:
