@@ -245,7 +245,7 @@ class ApiKey(db.Model):
         apikey = ApiKey.query.filter_by(key=key).first()
         if apikey is None:
             return None
-        return apikey.user
+        return apikey
 
 
 @enum.unique
