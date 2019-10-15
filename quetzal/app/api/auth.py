@@ -45,3 +45,8 @@ def check_bearer(token):
         'sub': user,
         'scope': '',
     }
+
+
+def check_apikey(*args, **kwargs):
+    print('check apikey!', args, kwargs)
+    return None
