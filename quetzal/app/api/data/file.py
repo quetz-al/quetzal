@@ -219,9 +219,9 @@ def delete(*, wid, uuid, user, token_info=None):
             if url and url.startswith(workspace.data_url):
                 _delete_file(latest.json['url'])
 
-            latest.json.update({
+            latest.update({
                 'state': FileState.DELETED.name,
-                'json': None,
+                'url': None,
             })
         else:
             latest.json = {'id': uuid}
