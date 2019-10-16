@@ -9,6 +9,9 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 X.Y.Z (unreleased)
 ------------------
 
+* Added API key authentication security scheme.
+* Fixed incorrect model update on file delete.
+
 Planned:
 
 * Better commit detection with a 3-way merge detection

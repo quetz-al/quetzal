@@ -3,10 +3,12 @@ from flask.cli import AppGroup
 from sqlalchemy.exc import IntegrityError
 
 from quetzal.app import db
-from quetzal.app.models import User, Role
+from quetzal.app.models import ApiKey, User, Role
+from quetzal.app.cli.utils import  generate_secret_key
 
 user_cli = AppGroup('user', help='User operations.')
 role_cli = AppGroup('role', help='Role operations.')
+keys_cli = AppGroup('keys', help='API keys operations.')
 
 
 @user_cli.command('create')
@@ -124,3 +126,50 @@ def role_delete_user(username, rolename):
     db.session.commit()
 
     click.secho(f'User {user.username} is no longer part of role {role.name}')
+
+
+@keys_cli.command('add')
+@click.argument('username')
+@click.option('--name', required=False, default='unnamed',
+              help='Descriptive name of the purpose of this API key')
+def key_add(username, name):
+    """Generate and associate an API key to a user"""
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        raise click.ClickException(f'User {username} does not exist')
+    key = generate_secret_key.callback(128, show=False)[:32]
+    apikey = ApiKey(key=key, name=name, user=user)
+
+    db.session.add(apikey)
+    db.session.commit()
+
+    click.secho(f'Key {name} created for user {username}: {key}')
+
+
+@keys_cli.command('list')
+def key_list():
+    """List existing API keys"""
+
+    if ApiKey.query.count() == 0:
+        click.secho('No API key exist')
+    else:
+        click.secho('API keys:\nID\tNAME\tUSERNAME')
+        for key in ApiKey.query.all():
+            click.secho(f'{key.id}\t{key.name}\t{key.user.username}')
+
+
+@keys_cli.command('revoke')
+@click.argument('username')
+@click.argument('name')
+def key_revoke(username, name):
+    """Remove an API key from a user"""
+
+    user = User.query.filter_by(username=username).first()
+    if user is None:
+        raise click.ClickException(f'User {username} does not exist')
+
+    for key in user.apikeys:
+        if key.name == name:
+            click.echo(f'Removing key {name} for user {username}')
+            db.session.delete(key)
+    db.session.commit()

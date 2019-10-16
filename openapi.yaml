@@ -1228,9 +1228,15 @@ components:
       scheme: bearer
       description: Access token authorization. Used for all API operations.
       x-bearerInfoFunc: quetzal.app.api.auth.check_bearer
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      x-apikeyInfoFunc: quetzal.app.api.auth.check_apikey
 
 security:
   - bearer: []
+  - apiKey: []
 
 tags:
   - name: authentication

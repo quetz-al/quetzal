@@ -3,7 +3,7 @@ from flask_principal import identity_changed, Identity
 from requests import codes
 
 from quetzal.app import db
-from quetzal.app.models import User
+from quetzal.app.models import ApiKey, User
 
 
 def get_token(*, user):
@@ -41,6 +41,21 @@ def check_bearer(token):
 
     identity_changed.send(current_app._get_current_object(),
                           identity=Identity(user.id, 'token'))
+    return {
+        'sub': user,
+        'scope': '',
+    }
+
+
+def check_apikey(key, required_scopes=None):
+    apikey = ApiKey.check_key(key)
+    if apikey is None:
+        return None
+    user = apikey.user
+    if user is None:
+        return None
+    identity_changed.send(current_app._get_current_object(),
+                          identity=Identity(user.id, 'apikey'))
     return {
         'sub': user,
         'scope': '',
