@@ -1,4 +1,5 @@
 import copy
+import functools
 import itertools
 import logging
 import pathlib
@@ -286,7 +287,6 @@ def _delete_local_data_bucket(url):
 
 @celery.task()
 def scan_workspace(wid):
-    logger.info('Scanning workspace %s...', wid)
 
     # Get the workspace object and verify preconditions
     workspace = Workspace.query.get(wid)
@@ -296,8 +296,89 @@ def scan_workspace(wid):
     if workspace.state != WorkspaceState.SCANNING:
         raise WorkerException('Workspace was not on the expected state')
 
+    schema_name = workspace.make_schema_name()
+    _scan_create_table_views(workspace, schema_name)
+    _scan_create_json_views(workspace, schema_name)
+
+    # Update the workspace object to have the correct schema and state
+    workspace.pg_schema_name = schema_name
+    workspace.state = WorkspaceState.READY
+    db.session.add(workspace)
+
+    # Commit all changes
+    db.session.commit()
+
+
+def _new_schema(workspace, name, suffix):
+    # Drop previous schema
+    if workspace.pg_schema_name is not None:
+        old_schema = workspace.pg_schema_name + suffix
+        db.session.execute(DropSchemaIfExists(old_schema, cascade=True))
+    # create postgres schema
+    new_name = name + suffix
+    db.session.execute(CreateSchema(new_name))
+    return new_name
+
+
+def _scan_create_json_views(workspace, schema_name):
+    logger.info('Scanning workspace %s to create json views...', workspace.id)
+
     # The scanning task consists on the following procedure:
     # 1. create a new database directory (aka schema in postgres)
+    #    also, drop the previous one if it existed
+    # 2. get the workspace metadata
+    # 3. for each family f
+    # 3.1. create a subquery that selects only the latest metadata of family f
+    # 4. join all family queries with the appropriate aliases so that the
+    #    column names correspond to the family name
+    # 4. grant permissions on the directory
+    # 5. drop previous directory if any
+
+    # Drop previous schema and create a new one
+    new_schema = _new_schema(workspace, schema_name, '_json')
+
+    # Extract metadata per family
+    workspace_metadata = workspace.get_metadata()
+    subqueries = []
+    columns = []
+    for family in workspace.families.all():
+        sub = (
+            workspace_metadata
+            .filter(Family.name == family.name)
+            .with_entities(Metadata.id_file.label('id_file'), Metadata.json.label('json'))
+            .subquery()
+        )
+        subqueries.append(sub)
+        columns.append(sub.c.json.label(family.name))
+
+    # Make a joined table of all metadata and set the json column to the name of the family
+    def join_queries(q1, q2):
+        return (
+            db.session.query(q1)
+            .outerjoin(q2, q1.c.id_file == q2.c.id_file)
+            .subquery()
+        )
+
+    joined_query = functools.reduce(join_queries, subqueries)
+    master_query = db.session.query(joined_query).with_entities(
+        subqueries[0].c.id_file.label('id'),
+        *columns,
+    ).subquery()
+
+    family_table_name = f'{new_schema}.metadata'
+    create_table_statement = CreateTableAs(family_table_name, master_query)
+    db.session.execute(create_table_statement)
+
+    # Set permissions on readonly user to the schema contents
+    db.session.execute(GrantUsageOnSchema(new_schema, 'db_ro_user'))
+
+
+def _scan_create_table_views(workspace, schema_name):
+    logger.info('Scanning workspace %s to create table views...', workspace.id)
+
+    # The scanning task consists on the following procedure:
+    # 1. create a new database directory (aka schema in postgres)
+    #    also, drop the previous one if it existed
     # 2. get the workspace metadata
     # 3. for each family f
     # 3.1. determine the type of each column (this is currently not very smart)
@@ -307,10 +388,8 @@ def scan_workspace(wid):
     # 4. grant permissions on the directory
     # 5. drop previous directory if any
 
-    # create postgres schema
-    old_schema = workspace.pg_schema_name
-    new_schema = workspace.make_schema_name()
-    db.session.execute(CreateSchema(new_schema))
+    # Drop previous schema and create a new one
+    new_schema = _new_schema(workspace, schema_name, '_tables')
 
     # 2. For each family
     workspace_metadata = workspace.get_metadata()
@@ -350,18 +429,6 @@ def scan_workspace(wid):
 
     # Set permissions on readonly user to the schema contents
     db.session.execute(GrantUsageOnSchema(new_schema, 'db_ro_user'))
-
-    # Drop previous schema
-    if old_schema is not None:
-        db.session.execute(DropSchemaIfExists(old_schema, cascade=True))
-
-    # Update the workspace object to have the correct schema and state
-    workspace.pg_schema_name = new_schema
-    workspace.state = WorkspaceState.READY
-    db.session.add(workspace)
-
-    # Commit all changes
-    db.session.commit()
 
 
 @celery.task()
