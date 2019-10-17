@@ -17,19 +17,11 @@ info:
 
     # Authentication
 
-    All API operations require a bearer token authentication header::
-
-    ```
-    Authorization: Bearer edgBkeLJxTtTGUDWMR6kroj8UQHx86cS
-    ```
-
-    this token can be obtained on the [login](#operation/auth.get_token)
-    operation. The login operation is the only endpoint that is accessible
-    through basic HTTP authentication::
-
-    ```
-    Authorization: Basic dXNlcm5hbWU6dHNr
-    ```
+    All API operations require a either a bearer token authentication header, or
+    an API key header. There is one exception for the endpoint to create a new
+    bearer token, which is only accessible with a basic HTTP authentication.
+    Read the [OpenAPI specification authentication section](https://swagger.io/docs/specification/authentication/)
+    for more details.
 
     # Errors
 
@@ -52,6 +44,7 @@ info:
 
     API version | Changes
     ------------|---------
+    0.5.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.5.0)
     0.4.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.4.0)
     0.3.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.3.0)
     0.2.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.2.0)
@@ -65,6 +58,9 @@ info:
     * Workspace commit is still very naive and could be improved.
 
     # API Reference
+
+    The following documentation is auto-generated from the OpenAPI v3
+    specification by redoc.
 
   termsOfService: "https://{{ server }}/terms"  # TODO: activate this URL
   contact:
@@ -119,6 +115,8 @@ paths:
         - authentication
       operationId: auth.logout
       x-openapi-router-controller: quetzal.app.api.router
+      security:
+        - bearer: []
       responses:
         '204':
           description: Logout successful
