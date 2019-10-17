@@ -342,10 +342,8 @@ def _scan_create_json_views(workspace, schema_name):
     # Extract metadata per family
     workspace_metadata = workspace.get_metadata()
     subqueries = []
-    # columns = []
     sorted_families = sorted(workspace.families,
                              key=lambda fam: (-1, fam.name) if fam.name == 'base' else (+1, fam.name))
-    sorted_families = sorted_families
     for family in sorted_families:
         sub = (
             workspace_metadata
@@ -687,10 +685,16 @@ def merge(ancestor, theirs, mine):
 
 def _update_global_views():
     # TODO: protect with a database lock
+    _update_global_table_views(f'global_views_{QueryDialect.POSTGRESQL.value}')
+    _update_global_json_views(f'global_views_{QueryDialect.POSTGRESQL_JSON.value}')
+
+
+def _update_global_table_views(schema_name):
+    logger.info('Updating global table views')
 
     # Create postgres schema
-    db.session.execute(DropSchemaIfExists('global_views', cascade=True))
-    db.session.execute(CreateSchema('global_views'))
+    db.session.execute(DropSchemaIfExists(schema_name, cascade=True))
+    db.session.execute(CreateSchema(schema_name))
 
     # Get all the known families
     families = Family.query.filter(Family.fk_workspace_id.is_(None)).distinct(Family.name)
@@ -725,11 +729,59 @@ def _update_global_views():
             .with_entities(*columns)
             .subquery()
         )
-        family_table_name = f'global_views.{family.name}'
+        family_table_name = f'{schema_name}.{family.name}'
         create_table_statement = CreateTableAs(family_table_name, create_table_query)
         db.session.execute(create_table_statement)
 
         # TODO: create an index on the id column
 
     # Set permissions on readonly user to the schema contents
-    db.session.execute(GrantUsageOnSchema('global_views', 'db_ro_user'))
+    db.session.execute(GrantUsageOnSchema(schema_name, 'db_ro_user'))
+
+
+def _update_global_json_views(schema_name):
+    logger.info('Updating global json views')
+
+    # Create postgres schema
+    db.session.execute(DropSchemaIfExists(schema_name, cascade=True))
+    db.session.execute(CreateSchema(schema_name))
+
+    # Get all the known families
+    families = Family.query.filter(Family.fk_workspace_id.is_(None)).distinct(Family.name)
+    # This is the metadata entries related to the latest global families
+    global_metadata = Metadata.get_latest_global()
+
+    # Extract metadata per family
+    subqueries = []
+    sorted_families = sorted(families,
+                             key=lambda fam: (-1, fam.name) if fam.name == 'base' else (+1, fam.name))
+    for family in sorted_families:
+        sub = (
+            global_metadata
+            .filter(Family.name == family.name)
+            .subquery(name=family.name)
+        )
+        subqueries.append(sub)
+
+    # Make a joined table of all metadata and set the json column to the name of the family
+    q1 = subqueries.pop(0)  # the first one is always the base family, due to the sort done before
+    joined_query = db.session.query(q1)
+    columns = [q1.c.id_file.label('id'), q1.c.json.label('base')]
+    for q2 in subqueries:
+        joined_query = joined_query.outerjoin((q2, q1.c.id_file == q2.c.id_file))
+        # Here, we are coalescing to set an empty dict to files that do not
+        # have an entry for this particular family. This does not apply to the
+        # base family because the base family is always present
+        columns.append(coalesce(q2.c.json, literal({}, types.JSON)).label(q2.name))
+        q1 = q2
+
+    master_query = joined_query.with_entities(*columns).subquery()
+
+    family_table_name = f'{schema_name}.metadata'
+    create_table_statement = CreateTableAs(family_table_name, master_query)
+    db.session.execute(create_table_statement)
+
+    # TODO: create an index on the id column
+
+    # Set permissions on readonly user to the schema contents
+    db.session.execute(GrantUsageOnSchema(schema_name, 'db_ro_user'))
