@@ -1,5 +1,4 @@
 import copy
-import functools
 import itertools
 import logging
 import pathlib
@@ -9,13 +8,15 @@ from urllib.parse import urlparse
 from flask import current_app
 from sqlalchemy import func, types
 from sqlalchemy.sql.ddl import CreateSchema
+from sqlalchemy.sql import literal
+from sqlalchemy.sql.functions import coalesce
 from sqlalchemy.dialects.postgresql import UUID
 
 from quetzal.app import celery, db
 from quetzal.app.api.exceptions import Conflict, EmptyCommit, WorkerException
 from quetzal.app.helpers.google_api import get_client, get_bucket, get_data_bucket
 from quetzal.app.helpers.sql import CreateTableAs, DropSchemaIfExists, GrantUsageOnSchema
-from quetzal.app.models import Family, FileState, Metadata, Workspace, WorkspaceState
+from quetzal.app.models import Family, FileState, Metadata, QueryDialect, Workspace, WorkspaceState
 
 
 logger = logging.getLogger(__name__)
@@ -335,35 +336,37 @@ def _scan_create_json_views(workspace, schema_name):
     # 5. drop previous directory if any
 
     # Drop previous schema and create a new one
-    new_schema = _new_schema(workspace, schema_name, '_json')
+    suffix = f'_{QueryDialect.POSTGRESQL_JSON.value}'
+    new_schema = _new_schema(workspace, schema_name, suffix)
 
     # Extract metadata per family
     workspace_metadata = workspace.get_metadata()
     subqueries = []
-    columns = []
-    for family in workspace.families.all():
+    # columns = []
+    sorted_families = sorted(workspace.families,
+                             key=lambda fam: (-1, fam.name) if fam.name == 'base' else (+1, fam.name))
+    sorted_families = sorted_families
+    for family in sorted_families:
         sub = (
             workspace_metadata
             .filter(Family.name == family.name)
-            .with_entities(Metadata.id_file.label('id_file'), Metadata.json.label('json'))
-            .subquery()
+            .subquery(name=family.name)
         )
         subqueries.append(sub)
-        columns.append(sub.c.json.label(family.name))
 
     # Make a joined table of all metadata and set the json column to the name of the family
-    def join_queries(q1, q2):
-        return (
-            db.session.query(q1)
-            .outerjoin(q2, q1.c.id_file == q2.c.id_file)
-            .subquery()
-        )
+    q1 = subqueries.pop(0)  # the first one is always the base family, due to the sort done before
+    joined_query = db.session.query(q1)
+    columns = [q1.c.metadata_id_file.label('id'), q1.c.metadata_json.label('base')]
+    for q2 in subqueries:
+        joined_query = joined_query.outerjoin((q2, q1.c.metadata_id_file == q2.c.metadata_id_file))
+        # Here, we are coalescing to set an empty dict to files that do not
+        # have an entry for this particular family. This does not apply to the
+        # base family because the base family is always present
+        columns.append(coalesce(q2.c.metadata_json, literal({}, types.JSON)).label(q2.name))
+        q1 = q2
 
-    joined_query = functools.reduce(join_queries, subqueries)
-    master_query = db.session.query(joined_query).with_entities(
-        subqueries[0].c.id_file.label('id'),
-        *columns,
-    ).subquery()
+    master_query = joined_query.with_entities(*columns).subquery()
 
     family_table_name = f'{new_schema}.metadata'
     create_table_statement = CreateTableAs(family_table_name, master_query)
@@ -389,7 +392,8 @@ def _scan_create_table_views(workspace, schema_name):
     # 5. drop previous directory if any
 
     # Drop previous schema and create a new one
-    new_schema = _new_schema(workspace, schema_name, '_tables')
+    suffix = f'_{QueryDialect.POSTGRESQL.value}'
+    new_schema = _new_schema(workspace, schema_name, suffix)
 
     # 2. For each family
     workspace_metadata = workspace.get_metadata()
