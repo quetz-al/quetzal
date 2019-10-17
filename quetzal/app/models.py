@@ -894,6 +894,7 @@ class QueryDialect(enum.Enum):
     """Query dialects supported by Quetzal"""
 
     POSTGRESQL = 'postgresql'
+    POSTGRESQL_JSON = 'postgresql_json'
 
 
 class MetadataQuery(db.Model):

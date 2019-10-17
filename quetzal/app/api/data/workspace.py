@@ -21,6 +21,9 @@ from quetzal.app.security import (
 logger = logging.getLogger(__name__)
 
 
+FAMILY_NAME_BLACKLIST = ('id', )
+
+
 # TODO: remove this explanation when werkzeug >=0.15 is released
 # NOTE: On several places here, we are using the 412 (precondition failed)
 # status code. Flask uses werkzeug to serve the requests. Werkzeug-0.14 has a
@@ -121,6 +124,10 @@ def create(*, body, user, token_info=None):
     if 'base' not in families:
         families['base'] = None
     for name, version in families.items():
+        if name in FAMILY_NAME_BLACKLIST:
+            raise APIException(status=codes.bad_request,
+                               title='Invalid family name',
+                               detail=f'Family name "{name}" is not permitted')
         family = Family(name=name,
                         version=version,
                         description='No description provided',

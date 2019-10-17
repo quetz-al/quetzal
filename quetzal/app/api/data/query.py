@@ -78,7 +78,7 @@ def details(*, qid, user, token_info=None):
     engine = db.get_engine(app=current_app, bind='read_only_bind')
     conn = engine.raw_connection()
     with conn.cursor() as cursor:
-        cursor.execute(f'SET SEARCH_PATH TO global_views')
+        cursor.execute(f'SET SEARCH_PATH TO global_views_{query.dialect.value}')
         try:
             cursor.execute(query.code)
         except ProgrammingError as ex:
@@ -170,7 +170,7 @@ def details_w(*, wid, qid, user, token_info=None):
     engine = db.get_engine(app=current_app, bind='read_only_bind')
     conn = engine.raw_connection()
     with conn.cursor() as cursor:
-        cursor.execute(f'SET SEARCH_PATH TO {workspace.pg_schema_name}')
+        cursor.execute(f'SET SEARCH_PATH TO {workspace.pg_schema_name}_{query.dialect.value}')
         try:
             cursor.execute(query.code)
         except ProgrammingError as ex:
