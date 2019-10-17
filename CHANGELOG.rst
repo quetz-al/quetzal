@@ -14,6 +14,15 @@ Planned:
 * Better commit detection with a 3-way merge detection
 
 
+0.5.0 (2019-10-17)
+------------------
+
+* Added API key authentication security scheme.
+* Fixed incorrect model update on file delete.
+* Added a new query dialect, ``postgresql_json``, for a Postgres SQL view where
+  each family is represented as a JSONB column.
+
+
 0.4.0 (2019-08-26)
 ------------------
 

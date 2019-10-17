@@ -14,10 +14,12 @@ utils_cli = AppGroup('utils', help='Miscelaneous operations.')
 
 @utils_cli.command('generate-secret-key')
 @click.argument('num_bytes', metavar='SIZE', type=click.INT, default=16)
-def generate_secret_key(num_bytes):
+def generate_secret_key(num_bytes, show=True):
     """Generate and print a random string of SIZE bytes."""
     rnd = secrets.token_urlsafe(num_bytes)
-    click.secho(rnd)
+    if show:
+        click.secho(rnd)
+    return rnd
 
 
 @utils_cli.command()

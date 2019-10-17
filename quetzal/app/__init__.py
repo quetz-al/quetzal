@@ -103,6 +103,7 @@ def create_app(config_name=None):
 
     # Flask shell configuration
     from .models import (
+        ApiKey,
         User, Role,
         Metadata, Family, FileState, MetadataQuery, QueryDialect,
         Workspace, WorkspaceState
@@ -116,6 +117,7 @@ def create_app(config_name=None):
             # Add models here
             'User': User,
             'Role': Role,
+            'ApiKey': ApiKey,
             'Metadata': Metadata,
             'Family': Family,
             'FileState': FileState,

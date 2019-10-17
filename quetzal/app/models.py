@@ -233,6 +233,21 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 
+class ApiKey(db.Model):
+    id = db.Column(db.Integer(), primary_key=True)
+    name = db.Column(db.String(60), unique=True)
+    key = db.Column(db.String(32), index=True, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user = db.relationship('User', backref='apikeys')
+
+    @staticmethod
+    def check_key(key):
+        apikey = ApiKey.query.filter_by(key=key).first()
+        if apikey is None:
+            return None
+        return apikey
+
+
 @enum.unique
 class FileState(enum.Enum):
     """ State of a Quetzal file
@@ -879,6 +894,7 @@ class QueryDialect(enum.Enum):
     """Query dialects supported by Quetzal"""
 
     POSTGRESQL = 'postgresql'
+    POSTGRESQL_JSON = 'postgresql_json'
 
 
 class MetadataQuery(db.Model):

@@ -17,19 +17,11 @@ info:
 
     # Authentication
 
-    All API operations require a bearer token authentication header::
-
-    ```
-    Authorization: Bearer edgBkeLJxTtTGUDWMR6kroj8UQHx86cS
-    ```
-
-    this token can be obtained on the [login](#operation/auth.get_token)
-    operation. The login operation is the only endpoint that is accessible
-    through basic HTTP authentication::
-
-    ```
-    Authorization: Basic dXNlcm5hbWU6dHNr
-    ```
+    All API operations require a either a bearer token authentication header, or
+    an API key header. There is one exception for the endpoint to create a new
+    bearer token, which is only accessible with a basic HTTP authentication.
+    Read the [OpenAPI specification authentication section](https://swagger.io/docs/specification/authentication/)
+    for more details.
 
     # Errors
 
@@ -52,6 +44,7 @@ info:
 
     API version | Changes
     ------------|---------
+    0.5.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.5.0)
     0.4.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.4.0)
     0.3.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.3.0)
     0.2.0       | [API changes](https://github.com/quetz-al/quetzal/releases/tag/v0.2.0)
@@ -65,6 +58,9 @@ info:
     * Workspace commit is still very naive and could be improved.
 
     # API Reference
+
+    The following documentation is auto-generated from the OpenAPI v3
+    specification by redoc.
 
   termsOfService: "https://{{ server }}/terms"  # TODO: activate this URL
   contact:
@@ -119,6 +115,8 @@ paths:
         - authentication
       operationId: auth.logout
       x-openapi-router-controller: quetzal.app.api.router
+      security:
+        - bearer: []
       responses:
         '204':
           description: Logout successful
@@ -1079,9 +1077,19 @@ components:
           readOnly: true
           example: 1
         dialect:
-          description: Dialect of query
+          description: |-
+            Dialect of the query.
+
+            Use "postgresql" for queries that are written in PostgresSQL.
+            For these queries, there will be one table per
+            family, with as many columns as there are keys in each family.
+
+            Use "postgresql_json" for queries thar are written in PostgresSQL.
+            For this particular case, there will be one unique table called
+            metadata that has an id column and a column for each family.
           enum:
             - postgresql
+            - postgresql_json
           example: postgresql
         query:
           description: Query in code as needed by the dialect
@@ -1119,9 +1127,19 @@ components:
           readOnly: true
           example: 1
         dialect:
-          description: Dialect of query
+          description: |-
+            Dialect of the query.
+
+            Use "postgresql" for queries that are written in PostgresSQL.
+            For these queries, there will be one table per
+            family, with as many columns as there are keys in each family.
+
+            Use "postgresql_json" for queries thar are written in PostgresSQL.
+            For this particular case, there will be one unique table called
+            metadata that has an id column and a column for each family.
           enum:
             - postgresql
+            - postgresql_json
           example: postgresql
         query:
           description: Query in code as needed by the dialect
@@ -1228,9 +1246,15 @@ components:
       scheme: bearer
       description: Access token authorization. Used for all API operations.
       x-bearerInfoFunc: quetzal.app.api.auth.check_bearer
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      x-apikeyInfoFunc: quetzal.app.api.auth.check_apikey
 
 security:
   - bearer: []
+  - apiKey: []
 
 tags:
   - name: authentication
