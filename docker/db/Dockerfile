@@ -16,3 +16,9 @@ RUN apt-get update && \
 
 ADD backup.sh /backup.sh
 RUN chmod 0755 /backup.sh
+
+# Add the log directory and set the correct permissions
+RUN mkdir -p /var/log/postgres && \
+  chmod 0700 /var/log/postgres && \
+  chown postgres:postgres /var/log/postgres
+

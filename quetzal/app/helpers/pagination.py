@@ -4,7 +4,7 @@ from psycopg2 import ProgrammingError
 from psycopg2.extensions import cursor
 from requests import codes
 
-from quetzal.app.api.exceptions import APIException
+from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
 
 
 class CustomPagination(Pagination):
@@ -150,9 +150,9 @@ def paginate(queriable, *, page=None, per_page=None, error_out=True, max_per_pag
             items = []
 
     if not items and page != 1 and error_out:
-        raise APIException(status=codes.not_found,
-                           title='Page not found',
-                           detail='Page request is out of range of results')
+        raise ObjectNotFoundException(status=codes.not_found,
+                                      title='Not found',
+                                      detail='Page request is out of range of results')
 
     # No need to count if we're on the first page and there are fewer
     # items than we expected.

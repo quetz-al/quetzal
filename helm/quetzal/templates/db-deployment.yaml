@@ -23,6 +23,11 @@ spec:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.db.image.repository }}:{{ .Values.db.image.tag }}"
           imagePullPolicy: {{ .Values.db.image.pullPolicy }}
+          command:  
+            - docker-entrypoint.sh
+            - postgres
+            - -c
+            - config_file=/etc/postgresql/postgresql.conf
           ports:
             - name: postgres
               containerPort: 5432
