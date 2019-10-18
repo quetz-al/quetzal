@@ -7,7 +7,7 @@ from psycopg2 import ProgrammingError
 import sqlparse
 
 from quetzal.app import db
-from quetzal.app.api.exceptions import APIException
+from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
 from quetzal.app.helpers.pagination import paginate
 from quetzal.app.models import MetadataQuery, QueryDialect, Workspace
 from quetzal.app.security import (
@@ -158,9 +158,9 @@ def details_w(*, wid, qid, user, token_info=None):
 
     query = MetadataQuery.get_or_404(qid)
     if query.workspace != workspace:
-        raise APIException(status=codes.not_found,
-                           title='MetadataQuery not found',
-                           detail=f'MetadataQuery {qid} was not found on workspace {wid}')
+        raise ObjectNotFoundException(status=codes.not_found,
+                                      title='Not found',
+                                      detail=f'MetadataQuery {qid} was not found on workspace {wid}')
 
     if workspace.pg_schema_name is None:
         raise APIException(status=codes.precondition_failed,

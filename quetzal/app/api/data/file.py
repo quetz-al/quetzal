@@ -429,13 +429,13 @@ def details_w(*, wid=None, uuid):
         base_meta = Metadata.get_latest(uuid, workspace.get_base_family())
 
         if not base_meta:
-            raise APIException(status=codes.not_found,
-                               title='File not found',
-                               detail=f'File {uuid} does not exist in workspace {wid}')
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='Not found',
+                                          detail=f'File {uuid} does not exist in workspace {wid}')
         if not base_meta.json['url']:
-            raise APIException(status=codes.not_found,
-                               title='File contents not found',
-                               detail=f'File {uuid} has been deleted in workspace {wid}')
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='File contents not found',
+                                          detail=f'File {uuid} has been deleted in workspace {wid}')
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
