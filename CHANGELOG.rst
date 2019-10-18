@@ -11,6 +11,7 @@ X.Y.Z (unreleased)
 
 * Fix incorrect reference on json views, making some family empty contents.
 * Fix DB docker image on kubernetes that was missing the logs
+* Add verification of existing files before file modification operations
 
 Planned:
 
