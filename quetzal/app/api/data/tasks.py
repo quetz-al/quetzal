@@ -340,31 +340,7 @@ def _scan_create_json_views(workspace, schema_name):
     new_schema = _new_schema(workspace, schema_name, suffix)
 
     # Extract metadata per family
-    workspace_metadata = workspace.get_metadata()
-    subqueries = []
-    sorted_families = sorted(workspace.families,
-                             key=lambda fam: (-1, fam.name) if fam.name == 'base' else (+1, fam.name))
-    for family in sorted_families:
-        sub = (
-            workspace_metadata
-            .filter(Family.name == family.name)
-            .subquery(name=family.name)
-        )
-        subqueries.append(sub)
-
-    # Make a joined table of all metadata and set the json column to the name of the family
-    q1 = subqueries.pop(0)  # the first one is always the base family, due to the sort done before
-    joined_query = db.session.query(q1)
-    columns = [q1.c.metadata_id_file.label('id'), q1.c.metadata_json.label('base')]
-    for q2 in subqueries:
-        joined_query = joined_query.outerjoin((q2, q1.c.metadata_id_file == q2.c.metadata_id_file))
-        # Here, we are coalescing to set an empty dict to files that do not
-        # have an entry for this particular family. This does not apply to the
-        # base family because the base family is always present
-        columns.append(coalesce(q2.c.metadata_json, literal({}, types.JSON)).label(q2.name))
-        q1 = q2
-
-    master_query = joined_query.with_entities(*columns).subquery()
+    master_query = _make_json_view_query(workspace.get_metadata(), workspace.families)
 
     family_table_name = f'{new_schema}.metadata'
     create_table_statement = CreateTableAs(family_table_name, master_query)
@@ -372,6 +348,33 @@ def _scan_create_json_views(workspace, schema_name):
 
     # Set permissions on readonly user to the schema contents
     db.session.execute(GrantUsageOnSchema(new_schema, 'db_ro_user'))
+
+
+def _make_json_view_query(metadata_query, families):
+    subqueries = []
+    sorted_families = sorted(families,
+                             key=lambda fam: (-1, fam.name) if fam.name == 'base' else (+1, fam.name))
+    for family in sorted_families:
+        sub = (
+            metadata_query
+            .filter(Family.name == family.name)
+            .subquery(name=family.name)
+        )
+        subqueries.append(sub)
+
+    # Make a joined table of all metadata and set the json column to the name of the family
+    qbase = subqueries.pop(0)  # the first one is always the base family, due to the sort done before
+    joined_query = db.session.query(qbase)
+    columns = [qbase.c.metadata_id_file.label('id'), qbase.c.metadata_json.label('base')]
+    for q in subqueries:
+        joined_query = joined_query.outerjoin((q, qbase.c.metadata_id_file == q.c.metadata_id_file))
+        # Here, we are coalescing to set an empty dict to files that do not
+        # have an entry for this particular family. This does not apply to the
+        # base family because the base family is always present
+        columns.append(coalesce(q.c.metadata_json, literal({}, types.JSON)).label(q.name))
+
+    master_query = joined_query.with_entities(*columns).subquery()
+    return master_query
 
 
 def _scan_create_table_views(workspace, schema_name):
@@ -750,32 +753,8 @@ def _update_global_json_views(schema_name):
     families = Family.query.filter(Family.fk_workspace_id.is_(None)).distinct(Family.name)
     # This is the metadata entries related to the latest global families
     global_metadata = Metadata.get_latest_global()
-
     # Extract metadata per family
-    subqueries = []
-    sorted_families = sorted(families,
-                             key=lambda fam: (-1, fam.name) if fam.name == 'base' else (+1, fam.name))
-    for family in sorted_families:
-        sub = (
-            global_metadata
-            .filter(Family.name == family.name)
-            .subquery(name=family.name)
-        )
-        subqueries.append(sub)
-
-    # Make a joined table of all metadata and set the json column to the name of the family
-    q1 = subqueries.pop(0)  # the first one is always the base family, due to the sort done before
-    joined_query = db.session.query(q1)
-    columns = [q1.c.id_file.label('id'), q1.c.json.label('base')]
-    for q2 in subqueries:
-        joined_query = joined_query.outerjoin((q2, q1.c.id_file == q2.c.id_file))
-        # Here, we are coalescing to set an empty dict to files that do not
-        # have an entry for this particular family. This does not apply to the
-        # base family because the base family is always present
-        columns.append(coalesce(q2.c.json, literal({}, types.JSON)).label(q2.name))
-        q1 = q2
-
-    master_query = joined_query.with_entities(*columns).subquery()
+    master_query = _make_json_view_query(global_metadata, families)
 
     family_table_name = f'{schema_name}.metadata'
     create_table_statement = CreateTableAs(family_table_name, master_query)
