@@ -15,7 +15,7 @@ from quetzal.app.helpers.google_api import get_bucket, get_object
 from quetzal.app.helpers.files import split_check_path, get_readable_info
 from quetzal.app.helpers.pagination import paginate
 from quetzal.app.api.data import storage
-from quetzal.app.api.exceptions import APIException
+from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
 from quetzal.app.models import (
     BaseMetadataKeys, Family, FileState, Workspace, Metadata
 )
@@ -164,6 +164,11 @@ def delete(*, wid, uuid, user, token_info=None):
                            title='Forbidden',
                            detail='You are not authorized to modify metadata on this workspace')
 
+    if not workspace.has_file(uuid):
+        raise ObjectNotFoundException(status=codes.not_found,
+                                      title='Not found',
+                                      detail=f'File {uuid} does not exist on workspace {wid}')
+
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
         raise APIException(status=codes.precondition_failed,
@@ -239,6 +244,11 @@ def update_metadata(*, wid, uuid, body):
         raise APIException(status=codes.forbidden,
                            title='Forbidden',
                            detail='You are not authorized to modify metadata on this workspace')
+
+    if not workspace.has_file(uuid):
+        raise ObjectNotFoundException(status=codes.not_found,
+                                      title='Not found',
+                                      detail=f'File {uuid} does not exist on workspace {wid}')
 
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
@@ -323,6 +333,11 @@ def set_metadata(*, wid, uuid, body):
                            title='Forbidden',
                            detail='You are not authorized to modify metadata on this workspace')
 
+    if not workspace.has_file(uuid):
+        raise ObjectNotFoundException(status=codes.not_found,
+                                      title='Not found',
+                                      detail=f'File {uuid} does not exist on workspace {wid}')
+
     if not workspace.can_change_metadata:
         # See note on 412 code and werkzeug on top of workspace.py file
         raise APIException(status=codes.precondition_failed,
@@ -352,10 +367,10 @@ def details(*, uuid):
         latest_meta_committed = Metadata.get_latest_global(uuid)
 
         if latest_meta_committed.count() == 0:
-            raise APIException(status=codes.not_found,
-                               title='File not found',
-                               detail=f'File {uuid} does not exist or has not '
-                                      f'been committed yet.')
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='Not found',
+                                          detail=f'File {uuid} does not exist or has not '
+                                                 f'been committed yet.')
 
         meta = _gather_metadata(latest_meta_committed)
         return {'id': uuid, 'metadata': meta}, codes.ok
@@ -366,15 +381,15 @@ def details(*, uuid):
         latest_base_meta_committed = Metadata.get_latest_global(uuid, 'base')
 
         if latest_base_meta_committed.count() == 0:
-            raise APIException(status=codes.not_found,
-                               title='File not found',
-                               detail=f'File {uuid} does not exist or has not '
-                               f'been committed yet.')
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='Not found',
+                                          detail=f'File {uuid} does not exist or has not '
+                                                 f'been committed yet.')
         base_meta = latest_base_meta_committed.first()
         if not base_meta.json['url']:
-            raise APIException(status=codes.not_found,
-                               title='File contents not found',
-                               detail=f'File {uuid} has been deleted.')
+            raise ObjectNotFoundException(status=codes.not_found,
+                                          title='File contents not found',
+                                          detail=f'File {uuid} has been deleted.')
 
         tmp_file = _download_file(base_meta.json['url'])
         response = send_file(tmp_file, mimetype='application/octet-stream')
@@ -394,6 +409,11 @@ def details_w(*, wid=None, uuid):
         raise APIException(status=codes.forbidden,
                            title='Forbidden',
                            detail='You are not authorized to read metadata on this workspace')
+
+    if not workspace.has_file(uuid):
+        raise ObjectNotFoundException(status=codes.not_found,
+                                      title='Not found',
+                                      detail=f'File {uuid} does not exist on workspace {wid}')
 
     # Content negotiation
     best = request.accept_mimetypes.best_match(['application/json',

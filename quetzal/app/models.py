@@ -620,6 +620,11 @@ class Workspace(db.Model):
         )
         return merged_metadata
 
+    def has_file(self, uuid):
+        base = self.get_base_family()
+        latest = Metadata.get_latest(uuid, base)
+        return latest is not None
+
     def __repr__(self):
         return f'<Workspace {self.id} [name="{self.name}" ' \
                f'state={self.state.name if self.state else "unset"}] ' \
