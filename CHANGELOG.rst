@@ -9,6 +9,9 @@ Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 X.Y.Z (unreleased)
 ------------------
 
+* Fix incorrect reference on json views, making some family empty contents.
+* Fix DB docker image on kubernetes that was missing the logs
+
 Planned:
 
 * Better commit detection with a 3-way merge detection
