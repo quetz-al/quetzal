@@ -358,6 +358,8 @@ def _make_json_view_query(metadata_query, families):
         sub = (
             metadata_query
             .filter(Family.name == family.name)
+            .with_entities(Metadata.id_file.label('metadata_id_file'),
+                           Metadata.json.label('metadata_json'))
             .subquery(name=family.name)
         )
         subqueries.append(sub)
