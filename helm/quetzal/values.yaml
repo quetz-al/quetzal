@@ -27,7 +27,7 @@ app:
   image:
     repository: eu.gcr.io/quetzal-omind/quetzal/app
     tag: 0.5.0
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   resources:
     limits:
       memory: 4Gi
@@ -62,7 +62,7 @@ db:
   image:
     repository: eu.gcr.io/quetzal-omind/quetzal/db
     tag: 0.5.0
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
   resources:
     limits:
       memory: 1Gi
