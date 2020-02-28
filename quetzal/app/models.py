@@ -842,7 +842,9 @@ class Metadata(db.Model):
         latest_global = (
             Metadata
             .query
-            .filter(Metadata.id_file == file_id, Metadata.id <= reference)
+            .filter(Metadata.id_file == file_id,
+                    Family.fk_workspace_id.is_(None),
+                    Metadata.id <= reference)
             .join(Family)
             .filter(Family.name == family.name)
             .order_by(Metadata.id.desc())

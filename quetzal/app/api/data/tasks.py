@@ -458,7 +458,7 @@ def commit_workspace(wid):
         # Verify conflicts, raise Conflict if there is any conflict
         _conflict_detection(workspace)
 
-        base_family = workspace.families.filter(Family.name == 'base').first()
+        base_family = workspace.get_base_family()
 
         # Move new READY files (not temporary and not deleted) to the data
         # directory. Since creating a new file creates a new base metadata

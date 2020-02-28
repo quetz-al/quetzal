@@ -6,18 +6,20 @@ This document lists all important changes to Quetzal.
 
 Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 
+Planned (but not implemented yet):
+
+* Better commit detection with a 3-way merge detection
+
 X.Y.Z (unreleased)
 ------------------
 
 * Fix incorrect reference on json views, making some family empty contents.
 * Fix DB docker image on kubernetes that was missing the logs
 * Add verification of existing files before file modification operations
-# Fix incorrect common refactoring of global and workspace json views subquery
-
-Planned:
-
-* Better commit detection with a 3-way merge detection
-
+* Fix incorrect common refactoring of global and workspace json views subquery
+* Fix incorrect metadata retrieval inside a workspace when there is a new
+  change on another workspace (it should be irrelevant, but it was incorrectly
+  used as new metadata)
 
 0.5.0 (2019-10-17)
 ------------------
