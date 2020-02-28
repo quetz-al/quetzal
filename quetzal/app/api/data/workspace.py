@@ -6,8 +6,10 @@ from kombu.exceptions import OperationalError
 from sqlalchemy.exc import IntegrityError
 
 from quetzal.app import db
-from quetzal.app.api.data.tasks import init_workspace, init_data_bucket, \
+from quetzal.app.api.data.tasks import (
+    init_workspace, init_data_bucket,
     wait_for_workspace, commit_workspace, delete_workspace, scan_workspace
+)
 from quetzal.app.api.exceptions import APIException, InvalidTransitionException
 from quetzal.app.models import Family, User, Workspace, WorkspaceState
 from quetzal.app.helpers.celery import log_task
@@ -22,15 +24,6 @@ logger = logging.getLogger(__name__)
 
 
 FAMILY_NAME_BLACKLIST = ('id', )
-
-
-# TODO: remove this explanation when werkzeug >=0.15 is released
-# NOTE: On several places here, we are using the 412 (precondition failed)
-# status code. Flask uses werkzeug to serve the requests. Werkzeug-0.14 has a
-# bug where the responses that have this code are sent without body.
-# This bug is documented in https://github.com/pallets/werkzeug/issues/1231
-# and fixed in the PR https://github.com/pallets/werkzeug/pull/1255
-# However, this has not been released yet.
 
 
 def fetch(*, user):
