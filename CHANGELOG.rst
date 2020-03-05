@@ -10,7 +10,7 @@ Planned (but not implemented yet):
 
 * Better commit detection with a 3-way merge detection
 
-X.Y.Z (unreleased)
+0.5.1 (2020-03-05)
 ------------------
 
 * Fix incorrect reference on json views, making some family empty contents.

@@ -26,7 +26,7 @@ app:
   # general pod configuration
   image:
     repository: eu.gcr.io/quetzal/quetzal/app
-    tag: 0.4.0
+    tag: 0.5.1
     pullPolicy: Always
   resources:
     limits:
@@ -61,7 +61,7 @@ worker:
 db:
   image:
     repository: eu.gcr.io/quetzal/quetzal/db
-    tag: 0.4.0
+    tag: 0.5.1
     pullPolicy: Always
   resources:
     limits:
@@ -82,7 +82,7 @@ db:
 rabbitmq:
   image:
     repository: eu.gcr.io/quetzal/quetzal/rabbitmq
-    tag: 0.4.0
+    tag: 0.5.1
     pullPolicy: Always
   resources:
     limits:
