@@ -41,7 +41,7 @@ app:
   affinity: {}
 
   # app/worker specific configuration
-  flask_env: production
+  flask_env: development
 
   # Other configuration entries that should not be set here. They should be
   # set using --set key=value when doing helm install:
