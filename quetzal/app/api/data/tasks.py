@@ -175,10 +175,12 @@ def init_data_bucket(wid):
     # Do the initialization task
     # TODO: manage exceptions/errors
     # TODO: manage location and storage class through configuration or workspace options
-    bucket_name = f'quetzal-ws-{workspace.id}-{workspace.owner.username}-{workspace.name}'
+    bucket_name = f'{workspace.id}-{workspace.owner.username}-{workspace.name}'
 
     try:
         if storage_backend == 'GCP':
+            prefix = current_app.config['QUETZAL_GCP_BUCKET_PREFIX']
+            bucket_name = f'{prefix}-{bucket_name}'
             data_url = _init_gcp_data_bucket(bucket_name)
         elif storage_backend == 'file':
             data_url = _init_local_data_bucket(bucket_name)

@@ -10,8 +10,9 @@ general:
   adminMail: david@omind.me
   serverName: dev.omind.quetz.al
   credentialsSecret: devel-credentials-secrets
-  dataBucket: gs://quetzal-devel-data
-  backupBucket: gs://quetzal-devel-backups
+  dataBucket: gs://data.dev.omind.quetz.al
+  backupBucket: gs://backups.dev.omind.quetz.al
+  bucketPrefix: dev.omind.quetz.al
 
 ingress:
   tlsSecret: devel-tls-secret
