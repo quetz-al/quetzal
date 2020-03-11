@@ -173,14 +173,16 @@ def init_data_bucket(wid):
         raise WorkerException('Workspace was not on the expected state')
 
     # Do the initialization task
-    # TODO: manage exceptions/errors
-    # TODO: manage location and storage class through configuration or workspace options
-    bucket_name = f'{workspace.id}-{workspace.owner.username}-{workspace.name}'
+    parts = ['ws', str(workspace.id), workspace.owner.username, workspace.name]
+    sep = '-'
+    if storage_backend == 'GCP' and current_app.config['QUETZAL_GCP_BUCKET_DOMAIN']:
+        sep = '.'
+        parts.append(current_app.config['QUETZAL_GCP_BUCKET_DOMAIN'])
+    bucket_name = sep.join(parts)
 
     try:
         if storage_backend == 'GCP':
-            prefix = current_app.config['QUETZAL_GCP_BUCKET_PREFIX']
-            bucket_name = f'{prefix}-{bucket_name}'
+            # TODO: manage location and storage class through configuration or workspace options
             data_url = _init_gcp_data_bucket(bucket_name)
         elif storage_backend == 'file':
             data_url = _init_local_data_bucket(bucket_name)

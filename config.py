@@ -208,8 +208,7 @@ class Config:
         'gs://quetzal-dev-data'
     QUETZAL_GCP_BACKUP_BUCKET = os.environ.get('QUETZAL_GCP_BACKUP_BUCKET') or \
         'gs://quetzal-dev-backups'
-    QUETZAL_GCP_BUCKET_PREFIX = os.environ.get('QUETZAL_GCP_BUCKET_PREFIX') or \
-        'quetzal-ws'
+    QUETZAL_GCP_BUCKET_DOMAIN = os.environ.get('QUETZAL_GCP_BUCKET_DOMAIN', None)
 
     # Quetzal-file storage configuration
     QUETZAL_FILE_DATA_DIR = os.environ.get('QUETZAL_FILE_DATA_DIR') or '/data'
