@@ -12,7 +12,7 @@ general:
   credentialsSecret: devel-credentials-secrets
   dataBucket: gs://data.dev.omind.quetz.al
   backupBucket: gs://backups.dev.omind.quetz.al
-  bucketPrefix: dev.omind.quetz.al
+  bucketDomain: dev.omind.quetz.al
 
 ingress:
   tlsSecret: devel-tls-secret

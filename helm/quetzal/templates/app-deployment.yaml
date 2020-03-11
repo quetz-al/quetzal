@@ -50,8 +50,8 @@ spec:
               value: {{ .Values.general.dataBucket | quote }}
             - name: QUETZAL_GCP_BACKUP_BUCKET
               value: {{ .Values.general.backupBucket | quote }}
-            - name: QUETZAL_GCP_BUCKET_PREFIX
-              value: {{ .Values.general.bucketPrefix | quote }}
+            - name: QUETZAL_GCP_BUCKET_DOMAIN
+              value: {{ .Values.general.bucketDomain | quote }}
             - name: QUETZAL_BACKGROUND_JOBS
               value: "1"
             - name: USE_GUNICORN
