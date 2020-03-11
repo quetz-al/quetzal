@@ -8,13 +8,13 @@ fullnameOverride: ""
 # General configuration
 general:
   adminMail: david@omind.me
-  serverName: quetzal.omind.me
-  credentialsSecret: production-credentials-secrets
-  dataBucket: gs://quetzal-prod-data
-  backupBucket: gs://quetzal-prod-backups
+  serverName: dev.omind.quetz.al
+  credentialsSecret: devel-credentials-secrets
+  dataBucket: gs://quetzal-devel-data
+  backupBucket: gs://quetzal-devel-backups
 
 ingress:
-  tlsSecret: production-tls-secret
+  tlsSecret: devel-tls-secret
 
 # Retained disk configuration (for database disk)
 storage:
@@ -25,7 +25,7 @@ storage:
 app:
   # general pod configuration
   image:
-    repository: eu.gcr.io/quetzal-omind/quetzal/app
+    repository: eu.gcr.io/quetzal-omind/dev/quetzal/app
     tag: 0.5.1
     pullPolicy: Always
   resources:
@@ -60,7 +60,7 @@ worker:
 
 db:
   image:
-    repository: eu.gcr.io/quetzal-omind/quetzal/db
+    repository: eu.gcr.io/quetzal-omind/dev/quetzal/db
     tag: 0.5.1
     pullPolicy: Always
   resources:
@@ -81,7 +81,7 @@ db:
 
 rabbitmq:
   image:
-    repository: eu.gcr.io/quetzal-omind/quetzal/rabbitmq
+    repository: eu.gcr.io/quetzal-omind/dev/quetzal/rabbitmq
     tag: 0.5.1
     pullPolicy: IfNotPresent
   resources:
