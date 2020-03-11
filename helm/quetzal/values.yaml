@@ -12,6 +12,7 @@ general:
   credentialsSecret: sandbox-credentials-secrets
   dataBucket: gs://quetzal-sandbox-data
   backupBucket: gs://quetzal-sandbox-backups
+  bucketPrefix:
 
 ingress:
   tlsSecret: sandbox-tls-secret

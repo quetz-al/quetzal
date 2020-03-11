@@ -46,6 +46,8 @@ spec:
               value: {{ .Values.general.dataBucket | quote }}
             - name: QUETZAL_GCP_BACKUP_BUCKET
               value: {{ .Values.general.backupBucket | quote }}
+            - name: QUETZAL_GCP_BUCKET_PREFIX
+              value: {{ .Values.general.bucketPrefix | quote }}
             - name: DB_HOST
               value: "db"
             - name: DB_PORT
