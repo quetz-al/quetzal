@@ -1,9 +1,0 @@
--r requirements.txt
-ipython
-ipdb
-docker-compose
-flask-shell-ipython
-Sphinx
-sphinx-rtd-theme
-sphinx-tabs
-sphinx-copybutton

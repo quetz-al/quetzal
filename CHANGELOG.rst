@@ -6,9 +6,17 @@ This document lists all important changes to Quetzal.
 
 Quetzal version numbers follow `semantic versioning <http://semver.org>`_.
 
-Planned (but not implemented yet):
+Planned (but not implemented yet)
+---------------------------------
 
 * Better commit detection with a 3-way merge detection
+
+
+0.6.0 (not released yet)
+------------------------
+
+* Moved the package and dependency management to poetry.
+
 
 0.5.1 (2020-03-05)
 ------------------

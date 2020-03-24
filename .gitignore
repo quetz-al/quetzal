@@ -1,6 +1,7 @@
 # app.db database for development
 app.db
 logs
+data
 
 # ignore any sensitive configuration file
 conf/*
