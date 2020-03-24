@@ -2,3 +2,6 @@ sphinx ~= 2.4.4
 sphinx-rtd-theme ~= 0.4.3
 sphinx-tabs ~= 1.1.13
 sphinx-copybutton ~= 0.2.10
+# readthedocs does not support a pyproject.toml project, so we need to
+# add quetzal from itself
+.
