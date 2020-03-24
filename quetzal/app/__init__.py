@@ -10,6 +10,7 @@ from flask_sqlalchemy import SQLAlchemy
 import connexion
 
 from config import config
+from ._version import get_version
 from .helpers.celery import Celery
 from .hacks import CustomResponseValidator
 from .middleware.debug import debug_request, debug_response
@@ -18,15 +19,7 @@ from .middleware.headers import HttpHostHeaderMiddleware
 from .security import load_identity
 
 
-# Version may be defined with a env variable but falls back to versioneer,
-# because the Docker installation does not include the git repo
-if os.environ.get('QUETZAL_VERSION', ''):
-    __version__ = os.environ.get('QUETZAL_VERSION')
-else:
-    from ._version import get_versions
-    __version__ = get_versions()['version']
-    del get_versions
-
+__version__ = get_version()
 
 # Common objects usable across the application
 db = SQLAlchemy()
