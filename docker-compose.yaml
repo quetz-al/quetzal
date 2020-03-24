@@ -1,4 +1,4 @@
-version: '3'
+version: '3.4'
 services:
   nginx:
     build:
@@ -9,8 +9,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      # A comma-separate list of server names
-      SERVER_NAMES: "local.quetz.al,david.quetz.al"
+      # A comma-separated list of server names
+      SERVER_NAMES: "local.quetz.al"
       ADMIN_EMAIL: "admin@quetz.al"
       DISABLE_CERTBOT: "1"
     links:
@@ -46,8 +46,7 @@ services:
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
-    #entrypoint: flask run --host 0.0.0.0 --port 5000 --no-reload
-    #/entrypoint-server.sh
+      target: development
     environment:
       FLASK_ENV: development
       DB_USERNAME: db_user
@@ -58,12 +57,13 @@ services:
       USE_GUNICORN: 1
       QUETZAL_BACKGROUND_JOBS: 1
       QUETZAL_ADMIN_MAIL: quetzal.api@gmail.com
-      QUETZAL_DATA_STORAGE: GCP
+      ## Set this for Google Cloud Platform
+      # QUETZAL_DATA_STORAGE: GCP
       # When using local storage instead of GCP buckets for data, use this
       # configuration together with the volumes declared later
-#      QUETZAL_DATA_STORAGE: file
-#      QUETZAL_FILE_DATA_DIR: /mnt/data
-#      QUETZAL_FILE_USER_DATA_DIR: /mnt/workspaces
+      QUETZAL_DATA_STORAGE: file
+      QUETZAL_FILE_DATA_DIR: /mnt/data
+      QUETZAL_FILE_USER_DATA_DIR: /mnt/workspaces
       # KOMBU_LOG_CONNECTION: 1  # Useful to debug kombu bug
     volumes:
       # Setup a volume for development: it allows the web container to have the
@@ -75,22 +75,23 @@ services:
       - ./conf:/code/conf:ro
       # When using local storage instead of GCP buckets for data, create two
       # directories and add them here:
-#      - ./data:/mnt/data
-#      - ./workspaces:/mnt/workspaces
+      - ./data/global:/mnt/data
+      - ./data/workspaces:/mnt/workspaces
     depends_on:
       - db
       - rabbitmq
-    ports:
-      # TODO: remove when the nginx service is added
-      - "5000:5000"
-    # Maybe needed to attach with docker-compose run --service-ports web command
-    # stdin_open: true
+    # ports:
+    #   # Remove when the nginx service is added
+    #  - "5000:5000"
+    # # Maybe needed to attach with docker-compose run --service-ports web command
+    # # stdin_open: true
     # tty: true
 
   worker:
     build:
       context: .
       dockerfile: ./docker/app/Dockerfile
+      target: development
     entrypoint: /entrypoint-worker.sh
     environment:
       FLASK_ENV: development
@@ -99,13 +100,17 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_DATABASE: quetzal
+      USE_GUNICORN: 1
       QUETZAL_BACKGROUND_JOBS: 1
-      QUETZAL_DATA_STORAGE: GCP
+      QUETZAL_ADMIN_MAIL: quetzal.api@gmail.com
+      ## Set this for Google Cloud Platform
+      # QUETZAL_DATA_STORAGE: GCP
       # When using local storage instead of GCP buckets for data, use this
       # configuration together with the volumes declared later
-#      QUETZAL_DATA_STORAGE: file
-#      QUETZAL_FILE_DATA_DIR: /mnt/data
-#      QUETZAL_FILE_USER_DATA_DIR: /mnt/workspaces
+      QUETZAL_DATA_STORAGE: file
+      QUETZAL_FILE_DATA_DIR: /mnt/data
+      QUETZAL_FILE_USER_DATA_DIR: /mnt/workspaces
+      # KOMBU_LOG_CONNECTION: 1  # Useful to debug kombu bug
     volumes:
       # Setup a volume for development: it allows the web container to have the
       # latest changes so one does not need to build everytime there is a
@@ -116,34 +121,14 @@ services:
       - ./conf:/code/conf:ro
       # When using local storage instead of GCP buckets for data, create two
       # directories and add them here:
-#      - ./data:/mnt/data
-#      - ./workspaces:/mnt/workspaces
+      - ./data/global:/mnt/data
+      - ./data/workspaces:/mnt/workspaces
     depends_on:
       - db
       - rabbitmq
-
-  unittests:
-    build:
-      context: .
-      dockerfile: ./docker/app/Dockerfile
-    #entrypoint: pytest -q
-    entrypoint: /bin/true
-    environment:
-      FLASK_ENV: tests
-      DB_USERNAME: db_user
-      DB_PASSWORD: db_password
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_DATABASE: unittests
-    volumes:
-      # Setup a volume for development: it allows the web container to have the
-      # latest changes so one does not need to build everytime there is a
-      # modification.
-      - .:/code
-      # The secret files in the configuration are set as a volume, but don't use
-      # it like this on production, use a secret!
-      - ./conf:/code/conf:ro
-    depends_on:
-      - db
-      - rabbitmq
-
+    # ports:
+    #   # Remove when the nginx service is added
+    #  - "5000:5000"
+    # # Maybe needed to attach with docker-compose run --service-ports web command
+    # # stdin_open: true
+    # tty: true
