@@ -1,2 +1,2 @@
 [run]
-omit = *tests*, conftest.py, wsgi.py
+omit = *tests*, wsgi.py

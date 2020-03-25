@@ -28,7 +28,7 @@ services:
       # docker-compose stop.
       # Note that it will be lost after a docker-compose down.
       - /var/lib/postgresql/data
-      - ./logs:/var/log/postgres
+      - ./logs/db:/var/log/postgres
     ports:
       # For debugging, sometimes it is useful to open the database port
       - "5432:5432"

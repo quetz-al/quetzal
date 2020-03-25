@@ -1,14 +1,15 @@
 from quetzal.app.models import User
-from quetzal.app.cli.users import user_create
+from quetzal.app.cli.users import _user_create
 
 
-def test_new_user(app, db_session):
-    """new_user function success"""
-    username = 'username'
-    email = 'username@example.com'
-    runner = app.test_cli_runner()
-    result = runner.invoke(user_create, [username, email],
-                           input='password\npassword\n')
-    assert not result.exception
-    db_obj = User.query.filter_by(email=email).first()
-    assert db_obj.username == 'username' and db_obj.email == email
+def test_user_create(app, db_session, make_random_str):
+    """Test user creation"""
+    username = 'tuc-' + make_random_str(size=8)
+    email = 'tuc-' +  make_random_str(size=8) + '@quetz.al'
+    password = make_random_str(size=8)
+    _user_create(username, email, password)
+
+    instance: User = User.query.filter_by(email=email).first()
+    assert instance.username == username
+    assert instance.email == email
+    assert instance.check_password(password)
