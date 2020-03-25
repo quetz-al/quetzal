@@ -18,23 +18,13 @@ keys_cli = AppGroup('keys', help='API keys operations.')
 def user_create(username, email, password):
     """Create a user"""
     try:
-        user = _user_create(username, email, password)
+        user = User(username=username, email=email)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
     except IntegrityError as ex:
         raise click.ClickException('Username or email already exists') from ex
     click.secho(f'User {user.username} ({user.email}) created')
-
-
-def _user_create(username, email, password):
-    """Implementation of user_create
-
-    This function abstracts out the user creation procedure for reusability in
-    unit tests.
-    """
-    user = User(username=username, email=email)
-    user.set_password(password)
-    db.session.add(user)
-    db.session.commit()
-    return user
 
 
 @user_cli.command('list')

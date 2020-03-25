@@ -22,11 +22,13 @@ logger = logging.getLogger(__name__)
 
 @pytest.fixture(scope='session')
 def app_config_name():
+    """The Flask environment value that sets the Flask application configuration"""
     return os.environ.get('FLASK_ENV') or 'tests'
 
 
 @pytest.fixture(scope='session')
 def app_config(app_config_name):
+    """A Flask configuration object"""
     config_class = config.get(app_config_name)
     config_instance = config_class()
     return config_instance
@@ -122,23 +124,3 @@ def db_session(db):
 
     logger.debug('Tearing down database session')
     db.session.rollback()
-
-
-# @pytest.fixture(scope='function')
-# def user(app, db, db_session, request):
-#     """ Returns a *function*-wide user """
-#     counter = 0
-#     username = f'u-{request.function.__name__}_{counter:03}'
-#     email = f'{username}@example.com'
-#     # Try a new user until there is a new one
-#     while User.query.filter_by(email=email).first() is not None:
-#         counter += 1
-#         username = f'{username[:-4]}_{counter:03}'
-#         email = f'{username}@example.com'
-#         if counter >= 1000:
-#             raise RuntimeError('Too many users')
-#
-#     _user = User(username=username, email=email)
-#     db_session.add(_user)
-#     db_session.commit()
-#     return _user
