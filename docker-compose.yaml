@@ -54,7 +54,6 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_DATABASE: quetzal
-      USE_GUNICORN: 1
       QUETZAL_BACKGROUND_JOBS: 1
       QUETZAL_ADMIN_MAIL: quetzal.api@gmail.com
       ## Set this for Google Cloud Platform
@@ -80,9 +79,8 @@ services:
     depends_on:
       - db
       - rabbitmq
-    # ports:
-    #   # Remove when the nginx service is added
-    #  - "5000:5000"
+    ports:
+      - "5000:5000"
     # # Maybe needed to attach with docker-compose run --service-ports web command
     # # stdin_open: true
     # tty: true
@@ -100,7 +98,6 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_DATABASE: quetzal
-      USE_GUNICORN: 1
       QUETZAL_BACKGROUND_JOBS: 1
       QUETZAL_ADMIN_MAIL: quetzal.api@gmail.com
       ## Set this for Google Cloud Platform

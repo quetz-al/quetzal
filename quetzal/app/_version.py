@@ -10,6 +10,5 @@ def get_version() -> str:
         with pyproject.open('r') as f:
             project = toml.load(f)
         return project['tool']['poetry']['version']
-    except Exception as ex:
-        print('Failed!', ex)
+    except:
         return '0.0.0'

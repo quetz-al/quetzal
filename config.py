@@ -54,6 +54,7 @@ class Config:
     # General Flask configuration
     DEBUG = False
     TESTING = False
+    TEST_USE_DOCKER_COMPOSE = None
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'some-secret-key'
     SERVER_NAME = (
         os.environ.get('SERVER_NAME') or 'local.quetz.al'
@@ -247,11 +248,11 @@ class StagingConfig(Config):
 class TestConfig(Config):
     """Configuration for unit tests
 
-    This particular class conecenrs an environment that has access to all other
-    services (rabbitmq, db, ...). Normally, this should run as a docker-compose
-    service.
+    Unit tests that run with pytest using the services of a docker-compose
+    application
     """
     TESTING = True
+    TEST_USE_DOCKER_COMPOSE = True
 
     # Logging
     # For unit tests, let pytest handle the logging. For better readability, we
@@ -276,7 +277,7 @@ class TestConfig(Config):
             'postgresql://' +
             os.environ.get('DB_USERNAME', 'db_user') + ':' +
             os.environ.get('DB_PASSWORD', 'db_password') + '@' +
-            os.environ.get('DB_HOST', 'db') + ':' +
+            os.environ.get('DB_HOST', 'localhost') + ':' +
             os.environ.get('DB_PORT', '5432') + '/' +
             os.environ.get('DB_DATABASE', 'unittests')
     )
@@ -286,7 +287,7 @@ class TestConfig(Config):
             'postgresql://' +
             os.environ.get('DB_RO_USERNAME', 'db_ro_user') + ':' +
             os.environ.get('DB_RO_PASSWORD', 'db_ro_password') + '@' +
-            os.environ.get('DB_HOST', 'db') + ':' +
+            os.environ.get('DB_HOST', 'localhost') + ':' +
             os.environ.get('DB_PORT', '5432') + '/' +
             os.environ.get('DB_DATABASE', 'unittests')
     }
@@ -302,6 +303,9 @@ class LocalTestConfig(TestConfig):
     Local unit tests are run outside the docker-compose structure, useful for
     tests that need debugging.
     """
+
+    TESTING = True
+    TEST_USE_DOCKER_COMPOSE = False
 
     # Database configuration
     SQLALCHEMY_DATABASE_URI = 'postgresql://db_user:db_password@localhost:5432/unittests'
