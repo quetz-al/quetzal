@@ -5,7 +5,6 @@ import warnings
 
 import pytest
 import requests  # Note: do not confuse with pytest request fixture
-from flask.helpers import get_env
 from pytest_docker.plugin import get_docker_services
 from requests.exceptions import ConnectionError
 

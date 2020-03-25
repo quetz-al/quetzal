@@ -5,7 +5,7 @@ from quetzal.app.cli.users import _user_create
 def test_user_create(app, db_session, make_random_str):
     """Test user creation"""
     username = 'tuc-' + make_random_str(size=8)
-    email = 'tuc-' +  make_random_str(size=8) + '@quetz.al'
+    email = 'tuc-' + make_random_str(size=8) + '@quetz.al'
     password = make_random_str(size=8)
     _user_create(username, email, password)
 

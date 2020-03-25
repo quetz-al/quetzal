@@ -56,7 +56,10 @@ def db(app, request):
     logger.debug('Creating database structure')
     # Drop anything that may have been added before and was not
     # deleted for some reason
-    _db.drop_all()
+    try:
+        _db.drop_all()
+    except:
+        pass
     # Create all tables
     _db.create_all()
 
@@ -74,8 +77,11 @@ def db(app, request):
     #         connection.close()
     yield _db
 
-    logger.debug('Dropping all tables')
+    logger.debug('Tearing down database connection')
+    _db.session.remove()
+
     # Drop all tables
+    logger.debug('Dropping all tables')
     _db.drop_all()
 
 
