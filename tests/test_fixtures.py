@@ -23,5 +23,5 @@ def test_session_fixture(db_session):
 @pytest.mark.filterwarnings('ignore::urllib3.exceptions.InsecureRequestWarning')
 def test_api_spec_request(url):
     """Verify that the openapi.json API endpoint works"""
-    response = requests.get(url + '/api/v1/openapi.json', verify=False)
+    response = requests.get(url + '/openapi.json', verify=False)
     assert response.status_code == 200

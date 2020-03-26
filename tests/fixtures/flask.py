@@ -3,7 +3,6 @@
 
 import logging
 import os
-import unittest.mock
 
 import pytest
 
@@ -88,8 +87,8 @@ def db(app, request):
 
 
 @pytest.fixture(scope="session")
-def url(app_config, request):
-    """An URL from a responsive Quetzal over HTTPS service.
+def url(app_config, web_service):
+    """An URL from a responsive Quetzal over HTTP service.
 
     This service is running on docker-compose when the TEST_USE_DOCKER_COMPOSE
     configuration variable (on config.py) is set. The docker-compose instance
@@ -97,13 +96,7 @@ def url(app_config, request):
     When the TEST_USE_DOCKER_COMPOSE is not set, this URL be an address to
     localhost.
     """
-    _ = request.getfixturevalue('web_service')
-    if app_config.TEST_USE_DOCKER_COMPOSE:
-        docker_ip = request.getfixturevalue('docker_ip')
-        url = f'https://{docker_ip}'
-    else:
-        url = 'https://localhost'
-    return url
+    return web_service + '/api/v1'
 
 
 # =============================================================================

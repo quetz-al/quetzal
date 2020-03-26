@@ -70,18 +70,21 @@ def db_is_responsive(url):
 
 @pytest.fixture(scope="session")
 def web_service(app_config, request):
-    """A responsive HTTPS service from docker-compose"""
+    """A responsive HTTP service from docker-compose"""
+    scheme = 'http'
+    host = 'localhost'
+    port = 5000
+    url = f'{scheme}://{host}:{port}'
     if app_config.TEST_USE_DOCKER_COMPOSE:
         docker_services = request.getfixturevalue('docker_services')
-        docker_ip = request.getfixturevalue('docker_ip')
-        url = f'https://{docker_ip}'
+        host = request.getfixturevalue('docker_ip')
+        port = docker_services.port_for('web', port)
+        url = f'{scheme}://{host}:{port}'
 
         logger.debug('Waiting until docker-compose HTTP service is responsive')
         docker_services.wait_until_responsive(
             timeout=30.0, pause=0.1, check=lambda: http_is_responsive(url)
         )
-    else:
-        url = 'https://localhost'
     return url
 
 
