@@ -236,6 +236,14 @@ class DevelopmentConfig(Config):
     DEBUG = True
     JSON_SORT_KEYS = False
 
+    def __init__(self):
+        super().__init__()
+        # Dynamic properties: console logging set to debug
+        # This is dynamic to avoid copy-pasting the parent configuration
+        console_level = os.environ.get('LOGGING_CONSOLE_LEVEL', '')
+        if console_level:
+            self.LOGGING['handlers']['console']['level'] = console_level
+
 
 class StagingConfig(Config):
     """ Configuration for a staging server.

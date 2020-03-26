@@ -190,6 +190,8 @@ class User(UserMixin, db.Model):
             return self.token
         self.token = base64.b64encode(os.urandom(24)).decode('utf-8')
         self.token_expiration = now + timedelta(seconds=expires_in)
+        logger.debug('Creating new token for user %s valid until %s',
+                     self, self.token_expiration)
         db.session.add(self)
         return self.token
 

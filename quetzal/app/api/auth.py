@@ -6,13 +6,13 @@ from quetzal.app import db
 from quetzal.app.models import ApiKey, User
 
 
-def get_token(*, user):
+def get_token(*, user: User):
     token = user.get_token()
     db.session.commit()
     return {'token': token}, codes.ok
 
 
-def logout(*, user):
+def logout(*, user: User):
     user.revoke_token()
     db.session.commit()
     return None, codes.no_content
