@@ -1,8 +1,8 @@
-from datetime import datetime, timedelta
 import base64
 import enum
 import logging
 import os
+from datetime import datetime, timedelta
 
 from flask_login import UserMixin
 from requests import codes
@@ -230,6 +230,59 @@ class User(UserMixin, db.Model):
         logger.debug('Token still valid for %d seconds',
                      (user.token_expiration - datetime.utcnow()).total_seconds())
         return user
+
+    def add_role(self, role_name: str) -> None:
+        """  Add a role to this user
+
+        The changes on this instance are not propagated to the database (this
+        must be done by the caller), but this instance added to the current
+        database session.
+
+        Parameters
+        ----------
+        role_name
+            Name of the role.
+
+        Raises
+        ------
+        ValueError
+            When the role does not exist.
+
+
+        """
+        role = Role.query.filter_by(name=role_name).first()
+        if role is None:
+            raise ValueError(f'Role {role_name} does not exist')
+        elif role in self.roles:
+            return
+        self.roles.append(role)
+        db.session.add(self)
+
+    def remove_role(self, role_name: str) -> None:
+        """ Remove a role to this user
+
+        The changes on this instance are not propagated to the database (this
+        must be done by the caller), but this instance added to the current
+        database session.
+
+        Parameters
+        ----------
+        role_name
+            Name of the role
+
+        Raises
+        ------
+        ValueError
+            When the role does not exist
+
+        """
+        role = Role.query.filter_by(name=role_name).first()
+        if role is None:
+            raise ValueError(f'Role {role_name} does not exist')
+        elif role not in self.roles:
+            return
+        self.roles.remove(role)
+        db.session.add(self)
 
     def __repr__(self):
         return f'<User {self.username}>'

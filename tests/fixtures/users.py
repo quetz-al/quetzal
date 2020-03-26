@@ -1,15 +1,15 @@
 import pytest
 
-from quetzal.app.models import User
+from quetzal.app.models import Role, User
 
 
 @pytest.fixture(scope='function')
-def make_user(db_session, make_random_str, request):
+def make_user(app, db_session, make_random_str, request):
     """Factory fixture to create Quetzal users"""
     counter = 0
     prefix = f'u-{request.function.__name__}_{make_random_str(4)}'
 
-    def factory(*, username=None, email=None, password=None):
+    def factory(*, username=None, email=None, password=None, roles=None):
         nonlocal counter
         counter += 1
 
@@ -19,8 +19,19 @@ def make_user(db_session, make_random_str, request):
         if password is not None:
             user.set_password(password)
 
+        # roles
+        if roles:
+            if not isinstance(roles, list):
+                roles = [roles]
+            for role_name in roles:
+                r = Role.query.filter_by(name=role_name).first()
+                if r is None:
+                    raise ValueError(f'Role "{role_name}" does not exist')
+                user.roles.append(r)
+
         db_session.add(user)
         db_session.commit()
+
         return user
 
     return factory

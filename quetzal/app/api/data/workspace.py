@@ -1,8 +1,9 @@
 import logging
-from requests import codes
+from typing import Mapping, Tuple
 
 from connexion import request
 from kombu.exceptions import OperationalError
+from requests import codes
 from sqlalchemy.exc import IntegrityError
 
 from quetzal.app import db
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 FAMILY_NAME_BLACKLIST = ('id', )
 
 
-def fetch(*, user):
+def fetch(*, user: User) -> Tuple[Mapping, int]:
     """ List workspaces
 
     Returns
@@ -69,7 +70,7 @@ def fetch(*, user):
     return pager.response_object(), codes.ok
 
 
-def create(*, body, user, token_info=None):
+def create(*, body: Mapping, user: User, **kwargs) -> Tuple[Mapping, int]:
     """ Create a new workspace
 
     Returns
@@ -164,12 +165,12 @@ def create(*, body, user, token_info=None):
     return workspace.to_dict(), codes.created
 
 
-def details(*, wid):
+def details(*, wid: int) -> Tuple[Mapping, int]:
     """ Get workspace details by id
 
     Parameters
     ----------
-    wid: int
+    wid
         Workspace identifier
 
     Returns
@@ -191,7 +192,7 @@ def details(*, wid):
     return workspace.to_dict(), codes.ok
 
 
-def delete(*, user, wid):
+def delete(*, user: User, wid: int) -> Tuple[Mapping, int]:
     """ Request deletion of a workspace by id
 
     Parameters
@@ -239,7 +240,7 @@ def delete(*, user, wid):
     return workspace.to_dict(), codes.accepted
 
 
-def commit(*, wid):
+def commit(*, wid: int) -> Tuple[Mapping, int]:
     """ Request commit of all metadata and files of a workspace
 
     Parameters
@@ -287,7 +288,7 @@ def commit(*, wid):
     return workspace.to_dict(), codes.accepted
 
 
-def scan(*, wid):
+def scan(*, wid: int) -> Tuple[Mapping, int]:
     """ Request an update of the views of a workspace
 
     Parameters

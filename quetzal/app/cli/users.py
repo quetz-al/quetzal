@@ -88,15 +88,11 @@ def role_add_user(username, rolename):
         raise click.ClickException(f'User {username} does not exist')
 
     for rn in rolename:
-        role = Role.query.filter_by(name=rn).first()
-        if role is None:
-            raise click.ClickException(f'Role {rn} does not exist')
+        try:
+            user.add_role(rn)
+        except ValueError as ex:
+            raise click.ClickException(f'Could not add role: {ex}') from ex
 
-        if role in user.roles:
-            raise click.ClickException(f'User {username} already in role {rn}')
-        user.roles.append(role)
-
-    db.session.add(user)
     db.session.commit()
 
     click.secho(f'User {user.username} is now part of role'
@@ -110,20 +106,13 @@ def role_add_user(username, rolename):
 def role_delete_user(username, rolename):
     """Remove a user from a role"""
     user = User.query.filter_by(username=username).first()
-    role = Role.query.filter_by(name=rolename).first()
-    if user is None:
-        raise click.ClickException(f'User {username} does not exist')
-    if role is None:
-        raise click.ClickException(f'Role {rolename} does not exist')
-
-    if role not in user.roles:
-        raise click.ClickException(f'User {username} does not have role {role.name}')
-    user.roles.remove(role)
-
-    db.session.add(user)
+    try:
+        user.remove_role(rolename)
+    except ValueError as ex:
+        raise click.ClickException(f'Could not remove role: {ex}') from ex
     db.session.commit()
 
-    click.secho(f'User {user.username} is no longer part of role {role.name}')
+    click.secho(f'User {user.username} is no longer part of role {rolename}')
 
 
 @keys_cli.command('add')

@@ -1,3 +1,5 @@
+from typing import Mapping
+
 from flask import request
 from flask_sqlalchemy import BaseQuery, Pagination
 from psycopg2 import ProgrammingError
@@ -23,7 +25,7 @@ class CustomPagination(Pagination):
         self.serializer = kwargs.pop('serializer') or (lambda x: x)
         super().__init__(*args, **kwargs)
 
-    def response_object(self):
+    def response_object(self) -> Mapping:
         return {
             'page': self.page,
             'pages': self.pages,

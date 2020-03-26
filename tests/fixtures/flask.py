@@ -9,10 +9,18 @@ import pytest
 from config import config
 from quetzal.app import create_app
 from quetzal.app import db as _db
-# from quetzal.app.models import User
+from quetzal.app.models import Role
 
 
 logger = logging.getLogger(__name__)
+
+
+def _load_roles(session):
+    names = ('public_read', 'public_write', 'public_commit')
+    for name in names:
+        r = Role(name=name, description=f'Automated fixture for role {name}.')
+        session.add(r)
+    session.commit()
 
 
 # =============================================================================
@@ -63,6 +71,10 @@ def db(app, request):
         pass
     # Create all tables
     _db.create_all()
+
+    # Load basic DB fixtures
+    _load_roles(_db.session)
+
 
     # logger.debug('Creating database connection')
     # connection = _db.engine.connect()
