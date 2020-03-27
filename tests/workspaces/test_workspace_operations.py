@@ -111,11 +111,38 @@ def test_fetch_workspaces_success(app, make_workspace):
     for _ in range(10):
         make_workspace()
     with app.test_request_context(query_string='per_page=100000&deleted=true'):
-        paginated_results, code = fetch(user=user)
+        paginated_results, code = fetch()
 
     get_id_attr = operator.attrgetter('id')
     get_id_key = operator.itemgetter('id')
     known_ids = set(get_id_attr(w) for w in Workspace.query.all())
+    result_ids = set(get_id_key(r) for r in paginated_results['results'])
+    assert known_ids == result_ids
+
+
+@pytest.mark.usefixtures('mocked_permissions')
+def test_fetch_workspaces_by_name(app, make_workspace):
+    """Fetch a workspace by name"""
+    workspace = make_workspace()
+    with app.test_request_context(query_string=f'name={workspace.name}'):
+        paginated_results, code = fetch()
+
+    results = paginated_results['results']
+    assert len(results) == 1
+    assert results[0] == workspace.to_dict()
+
+
+@pytest.mark.usefixtures('mocked_permissions')
+def test_fetch_workspaces_by_owner(app, user, make_workspace):
+    """Fetch a workspace by owner"""
+    for _ in range(10):
+        make_workspace(user=user)
+    with app.test_request_context(query_string=f'owner={user.username}'):
+        paginated_results, code = fetch()
+
+    get_id_attr = operator.attrgetter('id')
+    get_id_key = operator.itemgetter('id')
+    known_ids = set(get_id_attr(w) for w in Workspace.query.filter_by(owner=user))
     result_ids = set(get_id_key(r) for r in paginated_results['results'])
     assert known_ids == result_ids
 
@@ -130,12 +157,10 @@ def test_details_workspace(app, workspace):
     assert workspace.to_dict() == result
 
 
-@pytest.mark.usefixtures('mocked_permissions')
 def test_details_workspace_missing(app, missing_workspace_id):
     """Retrieving details fails for workspaces that do not exist"""
     with app.test_request_context():
         with pytest.raises(ObjectNotFoundException) as exc_info:
-            # max_id + 1 should not exist
             details(wid=missing_workspace_id)
 
     assert exc_info.value.status == requests.codes.not_found
@@ -167,9 +192,7 @@ def test_delete_workspace_calls_backend_task(workspace, mocked_signature_apply_a
 
 def test_delete_workspace_missing(user, missing_workspace_id):
     """Delete workspace fails when the workspace is missing"""
-    # Get the latest workspace id in order to request one that does not exist
     with pytest.raises(ObjectNotFoundException) as exc_info:
-        # max_id + 1 should not exist
         delete(wid=missing_workspace_id)
 
     assert exc_info.value.status == requests.codes.not_found
@@ -196,6 +219,14 @@ def test_commit_workspace(workspace):
 
     assert code == requests.codes.accepted
     assert workspace.state == WorkspaceState.COMMITTING
+
+
+def test_commit_workspace_missing(user, missing_workspace_id):
+    """Commit workspace fails when the workspace is missing"""
+    with pytest.raises(ObjectNotFoundException) as exc_info:
+        commit(wid=missing_workspace_id)
+
+    assert exc_info.value.status == requests.codes.not_found
 
 
 @pytest.mark.usefixtures('mocked_permissions', 'mocked_signature_apply_async')
@@ -235,3 +266,11 @@ def test_scan_invalid_state(make_workspace, state):
         scan(wid=workspace.id)
 
     assert exc_info.value.status == requests.codes.precondition_failed
+
+
+def test_scan_workspace_missing(user, missing_workspace_id):
+    """Scan workspace fails when the workspace is missing"""
+    with pytest.raises(ObjectNotFoundException) as exc_info:
+        scan(wid=missing_workspace_id)
+
+    assert exc_info.value.status == requests.codes.not_found

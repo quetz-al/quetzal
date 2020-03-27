@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 FAMILY_NAME_BLACKLIST = ('id', )
 
 
-def fetch(*, user: User) -> Tuple[Mapping, int]:
+def fetch() -> Tuple[Mapping, int]:
     """ List workspaces
 
     Returns
@@ -70,7 +70,7 @@ def fetch(*, user: User) -> Tuple[Mapping, int]:
     return pager.response_object(), codes.ok
 
 
-def create(*, body: Mapping, user: User, **kwargs) -> Tuple[Mapping, int]:
+def create(*, body: Mapping, user: User) -> Tuple[Mapping, int]:
     """ Create a new workspace
 
     Returns
@@ -219,9 +219,7 @@ def delete(*, wid: int) -> Tuple[Mapping, int]:
     try:
         workspace.state = WorkspaceState.DELETING
         db.session.add(workspace)
-    except InvalidTransitionException as ex:
-        # See note on 412 code and werkzeug on top of this file
-        logger.info(ex, exc_info=ex)
+    except InvalidTransitionException:
         raise APIException(status=codes.precondition_failed,
                            title=f'Workspace cannot be deleted',
                            detail=f'Cannot delete a workspace on {workspace.state.name} state')
@@ -267,9 +265,7 @@ def commit(*, wid: int) -> Tuple[Mapping, int]:
     try:
         workspace.state = WorkspaceState.COMMITTING
         db.session.add(workspace)
-    except InvalidTransitionException as ex:
-        # See note on 412 code and werkzeug on top of this file
-        logger.info(ex, exc_info=ex)
+    except InvalidTransitionException:
         raise APIException(status=codes.precondition_failed,
                            title=f'Workspace cannot be committed',
                            detail=f'Cannot commit a workspace on {workspace.state.name} state')
@@ -314,9 +310,7 @@ def scan(*, wid: int) -> Tuple[Mapping, int]:
     # update workspace state, which will fail if it is not a valid transition
     try:
         workspace.state = WorkspaceState.SCANNING
-    except InvalidTransitionException as ex:
-        # See note on 412 code and werkzeug on top of this file
-        logger.info(ex, exc_info=ex)
+    except InvalidTransitionException:
         raise APIException(status=codes.precondition_failed,
                            title=f'Workspace cannot be scanned',
                            detail=f'Cannot scan a workspace on {workspace.state.name} state')
