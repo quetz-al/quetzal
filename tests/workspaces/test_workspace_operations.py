@@ -6,7 +6,7 @@ import pytest
 import requests
 from kombu.exceptions import OperationalError
 
-from quetzal.app.api.data.workspace import create, delete, details, fetch
+from quetzal.app.api.data.workspace import commit, create, delete, details, fetch, scan
 from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
 from quetzal.app.models import User, Workspace, WorkspaceState
 
@@ -149,7 +149,7 @@ def test_delete_workspace(db_session, make_workspace, state):
     """Delete workspace success conditions"""
     workspace = make_workspace(state=state)
 
-    result, code = delete(user=workspace.owner, wid=workspace.id)
+    result, code = delete(wid=workspace.id)
 
     assert code == requests.codes.accepted
     assert workspace.to_dict() == result
@@ -161,7 +161,7 @@ def test_delete_workspace(db_session, make_workspace, state):
 @pytest.mark.usefixtures('mocked_permissions')
 def test_delete_workspace_calls_backend_task(workspace, mocked_signature_apply_async):
     """Delete workspace schedules a celery task"""
-    delete(user=workspace.owner, wid=workspace.id)
+    delete(wid=workspace.id)
     mocked_signature_apply_async.assert_called_once()
 
 
@@ -170,7 +170,7 @@ def test_delete_workspace_missing(user, missing_workspace_id):
     # Get the latest workspace id in order to request one that does not exist
     with pytest.raises(ObjectNotFoundException) as exc_info:
         # max_id + 1 should not exist
-        delete(user=user, wid=missing_workspace_id)
+        delete(wid=missing_workspace_id)
 
     assert exc_info.value.status == requests.codes.not_found
 
@@ -184,18 +184,54 @@ def test_delete_invalid_state(make_workspace, state):
     """Cannot delete workspace that is not on the correct state"""
     workspace = make_workspace(state=state)
     with pytest.raises(APIException) as exc_info:
-        delete(user=user, wid=workspace.id)
+        delete(wid=workspace.id)
 
     assert exc_info.value.status == requests.codes.precondition_failed
 
 
-@pytest.mark.skip(reason='Not implemented')
-def test_commit_workspace():
+@pytest.mark.usefixtures('mocked_permissions', 'mocked_signature_apply_async')
+def test_commit_workspace(workspace):
     """Commit workspace success conditions"""
-    pass
+    result, code = commit(wid=workspace.id)
+
+    assert code == requests.codes.accepted
+    assert workspace.state == WorkspaceState.COMMITTING
 
 
-@pytest.mark.skip(reason='Not implemented')
-def test_scan_workspace():
+@pytest.mark.usefixtures('mocked_permissions', 'mocked_signature_apply_async')
+@pytest.mark.parametrize('state', [
+    WorkspaceState.INITIALIZING, WorkspaceState.SCANNING, WorkspaceState.UPDATING,
+    WorkspaceState.COMMITTING, WorkspaceState.DELETING, WorkspaceState.INVALID,
+    WorkspaceState.DELETED,
+])
+def test_commit_invalid_state(make_workspace, state):
+    """Cannot commit workspace that is not on the correct state"""
+    workspace = make_workspace(state=state)
+    with pytest.raises(APIException) as exc_info:
+        commit(wid=workspace.id)
+
+    assert exc_info.value.status == requests.codes.precondition_failed
+
+
+@pytest.mark.usefixtures('mocked_permissions', 'mocked_signature_apply_async')
+def test_scan_workspace(workspace):
     """Scan workspace success conditions"""
-    pass
+    result, code = scan(wid=workspace.id)
+
+    assert code == requests.codes.accepted
+    assert workspace.state == WorkspaceState.SCANNING
+
+
+@pytest.mark.usefixtures('mocked_permissions', 'mocked_signature_apply_async')
+@pytest.mark.parametrize('state', [
+    WorkspaceState.INITIALIZING, WorkspaceState.SCANNING, WorkspaceState.UPDATING,
+    WorkspaceState.COMMITTING, WorkspaceState.DELETING, WorkspaceState.INVALID,
+    WorkspaceState.DELETED,
+])
+def test_scan_invalid_state(make_workspace, state):
+    """Cannot scan workspace that is not on the correct state"""
+    workspace = make_workspace(state=state)
+    with pytest.raises(APIException) as exc_info:
+        scan(wid=workspace.id)
+
+    assert exc_info.value.status == requests.codes.precondition_failed

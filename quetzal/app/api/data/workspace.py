@@ -192,7 +192,7 @@ def details(*, wid: int) -> Tuple[Mapping, int]:
     return workspace.to_dict(), codes.ok
 
 
-def delete(*, user: User, wid: int) -> Tuple[Mapping, int]:
+def delete(*, wid: int) -> Tuple[Mapping, int]:
     """ Request deletion of a workspace by id
 
     Parameters
