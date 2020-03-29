@@ -1,6 +1,5 @@
 import logging
 import operator
-from typing import Dict
 
 import pytest
 import requests
@@ -8,29 +7,7 @@ from kombu.exceptions import OperationalError
 
 from quetzal.app.api.data.workspace import commit, create, delete, details, fetch, scan
 from quetzal.app.api.exceptions import APIException, ObjectNotFoundException
-from quetzal.app.models import User, Workspace, WorkspaceState
-
-
-@pytest.fixture(scope='function')
-def workspace_request(request) -> Dict:
-    """A workspace request dictionary as defined in create workspace endpoint
-
-    Only the name and description are set. No specific family is set other than
-    the base family.
-    """
-    return {
-        'name': f'unit-test-{request.function.__name__}',
-        'description': f'Unit test for {request.function.__name__}',
-        'temporary': False,
-        'families': {
-            'base': None,
-        }
-    }
-
-
-@pytest.fixture(scope='function')
-def user(make_user) -> User:
-    return make_user()
+from quetzal.app.models import Workspace, WorkspaceState
 
 
 @pytest.mark.usefixtures('mocked_chained_apply_async', 'mocked_permissions')

@@ -1,3 +1,5 @@
+from typing import Dict
+
 import pytest
 from sqlalchemy import func
 
@@ -55,3 +57,20 @@ def missing_workspace_id(db_session):
     max_id = db_session.query(func.max(Workspace.id)).scalar() or 0
     # the next id should not exist
     return max_id + 1
+
+
+@pytest.fixture(scope='function')
+def workspace_request(request) -> Dict:
+    """A workspace request dictionary as defined in create workspace endpoint
+
+    Only the name and description are set. No specific family is set other than
+    the base family.
+    """
+    return {
+        'name': f'unit-test-{request.function.__name__}',
+        'description': f'Unit test for {request.function.__name__}',
+        'temporary': False,
+        'families': {
+            'base': None,
+        }
+    }
