@@ -68,6 +68,7 @@ kubectl create secret generic production-credentials-secrets --from-file /path/t
 * same VPC as your kubernetes cluster
 * same zone as your kubernetes cluster
 * highly available if needed (for prod for example)
+* Enable backups
 
 12. edit the helm chart in this repo to make sure the params are set up correctly:
 
@@ -89,3 +90,8 @@ helm upgrade quetzal quetzal --values ./quetzal/values.yaml --values ./quetzal/v
 flask quetzal user create ${USERNAME} ${USER_EMAIL}
 flask quetzal role add ${USERNAME} public_read public_write public_commit
 ```
+
+
+15. Optional : Backup data bucket
+1- create a backup bucket (for example data-backups.myenv.quetzal.omind.me)
+2- Use the Data Transfer cloud service to sync your data bucket with the backup data bucket
