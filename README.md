@@ -62,17 +62,28 @@ kubectl create secret generic production-credentials-secrets --from-file /path/t
 
 * go to iam and admin and add this service account with role "Container Registry Service Agent"
 
+10. Setup a cloudsql database: 
+* PostgreSQL 11
+* only private IP database
+* same VPC as your kubernetes cluster
+* same zone as your kubernetes cluster
+* highly available if needed (for prod for example)
 
-10. edit the helm chart in this repo to make sure the params are set up correctly:
+12. edit the helm chart in this repo to make sure the params are set up correctly:
 
-a. ./helm/quetzal/values.yaml, check all the params in # General configuration + check the image versions
-b. ./helm/quetzal/templates/ingress.yaml, make sure the domain is correct
-    
-11. Init database, buckets etc...
+a. ./helm/quetzal/values-<your-env>.yaml
+
+
+13. Install the helm chart
+```
+helm upgrade quetzal quetzal --values ./quetzal/values.yaml --values ./quetzal/values--<your-env>.yaml
+```
+
+14. Init database, buckets etc...
 
   a. exec into the quetzal-app pod : ```kubectl exec -ti quetzal-app-xxxxx -- bash```
   b. run ```./init.sh```
-  c. add an api key and associate is with an admin ```flask quetzal keys add admin``` (6EInywgGLto9jIiW1I44pyk6Ql-G-LGJ)
+  c. add an api key and associate is with an admin ```flask quetzal keys add admin```
   d. to add users, run the following commands : 
 ```
 flask quetzal user create ${USERNAME} ${USER_EMAIL}

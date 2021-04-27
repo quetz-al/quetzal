@@ -11,7 +11,7 @@ metadata:
     certmanager.k8s.io/issuer: "letsencrypt-issuer"
 spec:
   rules:
-    - host: dev.omind.quetz.al
+    - host: {{ .Values.domain }}
       http:
         paths:
           - path: /
@@ -21,4 +21,4 @@ spec:
   tls:
     - secretName: {{ .Values.ingress.tlsSecret }}
       hosts:
-        - dev.omind.quetz.al
+        - {{ .Values.domain }}

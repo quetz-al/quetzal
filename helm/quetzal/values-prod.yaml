@@ -1,0 +1,18 @@
+domain: quetzal-prod.omind.me
+
+# General configuration
+general:
+  adminMail: florent@omind.me
+  serverName: quetzal-prod.omind.me
+  credentialsSecret: production-credentials-secrets
+  dataBucket: gs://data.production.quetzal.omind.me
+  backupBucket: gs://log-backups.production.quetzal.omind.me
+  bucketDomain: production.quetzal.omind.me
+
+ingress:
+  tlsSecret: production-tls-secret
+
+db:
+  host: 172.24.160.4
+  username: quetzal
+  password: # the value should be set here, to retrieve what has been set, look at the db-secret in the k8s cluster

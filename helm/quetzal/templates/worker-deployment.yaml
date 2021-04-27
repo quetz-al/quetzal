@@ -49,7 +49,7 @@ spec:
             - name: QUETZAL_GCP_BUCKET_DOMAIN
               value: {{ .Values.general.bucketDomain | quote }}
             - name: DB_HOST
-              value: "db"
+              value: {{ .Values.db.host }}
             - name: DB_PORT
               value: "5432"
             - name: DB_DATABASE
