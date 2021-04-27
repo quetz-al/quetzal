@@ -69,6 +69,10 @@ kubectl create secret generic production-credentials-secrets --from-file /path/t
 * same zone as your kubernetes cluster
 * highly available if needed (for prod for example)
 * Enable backups
+* create 3 users: 
+    - postgres / random password and set it as values in the helm config (see below)
+    - db_user / db_password
+    - db_ro_user / db_ro_password
 
 12. edit the helm chart in this repo to make sure the params are set up correctly:
 
