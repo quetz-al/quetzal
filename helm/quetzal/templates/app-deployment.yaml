@@ -50,12 +50,14 @@ spec:
               value: {{ .Values.general.dataBucket | quote }}
             - name: QUETZAL_GCP_BACKUP_BUCKET
               value: {{ .Values.general.backupBucket | quote }}
+            - name: QUETZAL_GCP_BUCKET_DOMAIN
+              value: {{ .Values.general.bucketDomain | quote }}
             - name: QUETZAL_BACKGROUND_JOBS
               value: "1"
             - name: USE_GUNICORN
               value: "1"
             - name: DB_HOST
-              value: "db"
+              value: {{ .Values.db.host }}
             - name: DB_PORT
               value: "5432"
             - name: DB_DATABASE

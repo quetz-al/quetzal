@@ -6,10 +6,10 @@ metadata:
     app.kubernetes.io/component: app
 {{ include "quetzal.labels" . | indent 4}}
 spec:
-    minReplicas: 1
-    maxReplicas: 4
+    minReplicas: 2
+    maxReplicas: 10
     scaleTargetRef:
-      apiVersion: extensions/v1beta1
+      apiVersion: apps/v1
       kind: Deployment
       name: {{ include "quetzal.fullname" . }}-app
     targetCPUUtilizationPercentage: 75

@@ -173,12 +173,16 @@ def init_data_bucket(wid):
         raise WorkerException('Workspace was not on the expected state')
 
     # Do the initialization task
-    # TODO: manage exceptions/errors
-    # TODO: manage location and storage class through configuration or workspace options
-    bucket_name = f'quetzal-ws-{workspace.id}-{workspace.owner.username}-{workspace.name}'
+    parts = ['ws', str(workspace.id), workspace.owner.username, workspace.name]
+    sep = '-'
+    if storage_backend == 'GCP' and current_app.config['QUETZAL_GCP_BUCKET_DOMAIN']:
+        sep = '.'
+        parts.append(current_app.config['QUETZAL_GCP_BUCKET_DOMAIN'])
+    bucket_name = sep.join(parts)
 
     try:
         if storage_backend == 'GCP':
+            # TODO: manage location and storage class through configuration or workspace options
             data_url = _init_gcp_data_bucket(bucket_name)
         elif storage_backend == 'file':
             data_url = _init_local_data_bucket(bucket_name)
@@ -358,6 +362,8 @@ def _make_json_view_query(metadata_query, families):
         sub = (
             metadata_query
             .filter(Family.name == family.name)
+            .with_entities(Metadata.id_file.label('metadata_id_file'),
+                           Metadata.json.label('metadata_json'))
             .subquery(name=family.name)
         )
         subqueries.append(sub)
@@ -456,7 +462,7 @@ def commit_workspace(wid):
         # Verify conflicts, raise Conflict if there is any conflict
         _conflict_detection(workspace)
 
-        base_family = workspace.families.filter(Family.name == 'base').first()
+        base_family = workspace.get_base_family()
 
         # Move new READY files (not temporary and not deleted) to the data
         # directory. Since creating a new file creates a new base metadata
