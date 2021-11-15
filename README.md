@@ -17,7 +17,7 @@ Add a DNS A record to that IP for the domain you plan to use.
 
 5. install cert manager
 ```
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.2.0/cert-manager.yaml
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.6.0/cert-manager.yaml
 ```
 ```
 cat <<EOF | kubectl apply -f -
