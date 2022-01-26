@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "quetzal.fullname" . }}-ingress
@@ -15,9 +15,12 @@ spec:
       http:
         paths:
           - path: /
+            pathType: ImplementationSpecific
             backend:
-              serviceName: app
-              servicePort: 5000
+              service:
+                name: app
+                port:
+                  number: 5000
   tls:
     - secretName: {{ .Values.ingress.tlsSecret }}
       hosts:
