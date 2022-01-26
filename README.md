@@ -7,7 +7,7 @@
     * 3 n1-standard-1 nodes
 4. install nginx ingress controller: 
 ```
-kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.44.0/deploy/static/provider/cloud/deploy.yaml
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.1.1/deploy/static/provider/cloud/deploy.yaml
 ```
 5. find the external IP of the ingress Load Balancer.
 ```
